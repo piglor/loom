@@ -1,49 +1,74 @@
 # Piglor production rollout — 2026-09-09
 
-## Current deployment: Go console and session admission
+## Current deployment: Go control plane and native GitHub ingress
 
-The production endpoint now serves the React console through the Go gateway:
-**https://loom.piglor.com**. Sign in with `LOOM_API_TOKEN` from this Loom service's
-Coolify environment settings, not a Coolify or Hatchet token.
+The finite event-driven control plane is live at **https://loom.piglor.com**.
+Sign in with `LOOM_API_TOKEN` from this Loom service's Coolify environment, not a
+Coolify or Hatchet token.
 
-Deployed source: `428596a369d3e9b30fc9a7850297aa3ec4a13c81`, pinned for both
-the Python service image and Go console image. Its
-[CI run](https://github.com/piglor/loom/actions/runs/34310255845) passed the backend,
-Rust, browser, recovery, container and image-publication gates. Python remains the
-sole writer/Hatchet orchestrator; Go serves the browser, reads and mutation proxy.
-Schema 6 is installed. Unattended Codex remains disabled.
+Production builds the public repository at the immutable source revision
+`8e1c9f793d1d3843fc9e575e752602081cc975f7`. Its
+[CI run](https://github.com/piglor/loom/actions/runs/34350521938) passed Go race,
+generated persistence, Rust containment, durable lifecycle, packaged-image
+backup/restore, and all 72 browser gates before promotion. CI also published:
 
-After obtaining sensitive-read access, the existing Coolify descriptor was
-retrieved and preserved privately alongside a rollback payload. The update kept
-the original database and receipt mounts, networks and environment values. It
-added the console and moved the public route from `loom-server:8000` to
-`loom-console:8080`. Existing Hatchet was not redeployed.
+```text
+ghcr.io/piglor/loom@sha256:c488b29575c1d85bad2b012686e7ce9669774f6dead0720937cd210c8bb3fb18
+```
 
-A one-shot `loom-backup` job writes a custom-format PostgreSQL dump into the new
-`yidv3el41pezd8qp22s6el2w_loom-backups` volume and checks that `pg_restore --list`
-can read it. Migration depends on that job succeeding. Each invocation uses a
-new private filename; existing backups are not overwritten. This is an on-host
-pre-migration checkpoint, **not an off-site backup or a production restore drill**.
+The GHCR package still rejects anonymous pulls, so Coolify builds the exact
+public Git revision rather than receiving registry credentials. The Go service
+is the sole API, persistence, console, GitHub-ingress and Hatchet-dispatch
+implementation; all Python source and tooling have been removed. Schema 13 is
+installed. The existing Hatchet service and its database were not redeployed.
 
-Live acceptance:
+The rollout preserved the existing PostgreSQL volume and all prior Goal data.
+The pre-migration backup job wrote a new custom archive into the persistent
+`loom-backups` volume and validated it with `pg_restore --list`; migration and
+server startup could only proceed after that job succeeded. This is an on-host
+rollback checkpoint, not an off-site restore drill.
 
-- HTTPS root and public health: 200; authenticated readiness: 200; unauthenticated
-  readiness: 401. Browser responses include the configured CSP.
-- Production Chromium sign-in, Goal/detail navigation, audit history, responsive
-  layout and clearing credentials on reload passed at 1440px and 390px widths.
-- Goal `b1910fe3-5a54-442c-8bca-964a24e82ac8` was WAITING before deployment and
-  remained WAITING afterward, with one STOPPED attempt and no wake-up.
-- Session `845049b7-9cd4-4c63-bd5f-4eb5e559ad80` remained unchanged.
-- Stale event: `mismatch`; matching event: `accepted`; redelivery: `duplicate`.
-  The Goal then COMPLETED with two STOPPED attempts and one wake-up.
-- Lifetime 257.510 seconds; suspended 257.020 seconds; finite execution 0.080
-  seconds. No model was invoked; no token/cost savings are claimed.
+Live production acceptance on 2026-09-09:
 
-Coolify's resource summary still reports `loom-console` as exited despite the
-successful live browser and API checks. Its recorded `last_online_at` is a stale
-initial value. The status-reporting discrepancy remains unresolved; do not use
-that summary alone as application health evidence. Operator alerts, off-site
-backups/restore drills and exposed credential rotation remain release gates.
+- Public health and authenticated database readiness repeatedly returned 200;
+  unauthenticated Goal access returned 401, and unsigned GitHub input returned
+  401. The old completed Goal and logical Session remained intact across the
+  schema-6 to schema-13 migration.
+- The Hatchet CLI profile `piglor-loom` observed the new
+  `loom-dispatch-v1` workflow after the outbound worker connected.
+- Repository webhook `676658375` is scoped to `workflow_run` for `piglor/loom`.
+  Its non-actionable queued delivery returned 202 and its signed completion
+  delivery returned 200.
+- Disposable same-repository PR #1 ran real GitHub Actions workflow
+  `353623104`, run `34352340609`, attempt 2, at SHA
+  `94e6fbb08980f5b3969cbd55ba684cc9bee4f963`. Loom correlated all five identity
+  components plus the SHA; no branch-name or model-based routing was used.
+- Goal `e5b09e3e-3493-47b0-b084-67ccf66bfc7f` entered WAITING with Loom Session
+  `b4337149-2789-428d-bf09-2159c0a80fd6`, received the signed event, became READY,
+  was dispatched by Hatchet, and COMPLETED on that same Session. It recorded two
+  STOPPED attempts, one wake-up, 267.133 seconds suspended, and zero finite
+  execution seconds. This demo runtime invokes no model, so no token or monetary
+  savings are claimed.
+- The disposable PR was closed and its exact proof branch was deleted after the
+  acceptance run. The earlier Goal whose delivery occurred during the proxy
+  cutover was explicitly CANCELLED, leaving its audit trail intact.
+- A live console audit passed 72/72 cases in Chromium, Firefox, WebKit and a
+  320-pixel mobile viewport, including authentication, deep links, history,
+  accessibility, failure recovery, responsive layout and credential clearing.
+
+Coolify 4.1.2 retained the removed `loom-console` container and its old proxy
+labels. The rollout therefore replaced that exact legacy resource with a
+one-release, no-ingress migration tombstone; the generated descriptor routes the
+public hostname only to `loom-server:8080`. Coolify's resource status for the
+tombstone is stale, so public probes and the generated label set—not that row—are
+the acceptance evidence.
+
+This is a production deployment of the finite control-plane capability, not the
+full privileged Codex promise. GitHub bindings to `codex-container` remain
+deliberately rejected until GitHub App installation authorization and revocation
+exist and exact Codex-thread continuation passes live acceptance. Operator
+alerts, an off-site restore drill, and rotation of credentials previously pasted
+into chat remain release gates.
 
 The following section records the initial rollout, not the current revision.
 
