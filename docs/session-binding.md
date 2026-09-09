@@ -87,6 +87,13 @@ through the Go gateway. Adapter line coverage was 92.79%; overall Rust coverage
 was 69.15%, with the opt-in live-provider probe intentionally not executed. These
 results do not constitute a composed remote Codex or production deployment proof.
 
+The first CI run exposed intermittent Linux `ETXTBSY` in parallel tests that wrote
+and immediately executed temporary fixtures. A local stress loop reproduced it.
+The tests now execute one immutable checked-in fixture, avoiding transient
+inherited writable descriptors during concurrent process startup. All 100
+subsequent six-test runs passed without retries. The 32-browser-check matrix and
+both non-root/read-only container proofs also passed locally.
+
 Still required before enabling the remote Codex adapter: isolated runtime
 configuration, enforced descendant-process containment, revocation/lease watchdog,
 durable machine-side provider bindings and stop receipts integrated into delivery,

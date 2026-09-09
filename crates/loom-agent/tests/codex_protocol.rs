@@ -1,14 +1,19 @@
 use anyhow::Result;
 use loom_agent::codex::Codex;
 use serde_json::json;
-use std::{fs, os::unix::fs::PermissionsExt, time::Duration};
+use std::{path::PathBuf, time::Duration};
+
+fn fixture_binary() -> PathBuf {
+    // Execute an immutable checked-in fixture. Writing executable fixtures in
+    // parallel with fork/exec can leave a transient inherited writer in another
+    // child and make Linux reject execution with ETXTBSY, even after local close.
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fake_codex.py")
+}
 
 #[test]
 fn model_turn_requires_persisted_binding() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     let mut runtime = Codex::start(&binary, directory.path(), Duration::from_secs(5))?;
     assert!(runtime.turn("thread-fixture", "hello", json!({})).is_err());
     assert!(
@@ -26,9 +31,7 @@ fn model_turn_requires_persisted_binding() -> Result<()> {
 #[test]
 fn exact_thread_and_early_completion_survive_protocol_ordering() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     let mut runtime = Codex::start(&binary, directory.path(), Duration::from_secs(5))?;
     let id = runtime.open_bound_thread(directory.path(), None, |id| {
         assert_eq!(id, "thread-fixture");
@@ -65,9 +68,7 @@ fn exact_thread_and_early_completion_survive_protocol_ordering() -> Result<()> {
 #[test]
 fn wrong_resumed_context_never_reaches_persistence_or_inference() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     let mut runtime = Codex::start(&binary, directory.path(), Duration::from_secs(5))?;
     assert!(
         runtime
@@ -88,9 +89,7 @@ fn wrong_resumed_context_never_reaches_persistence_or_inference() -> Result<()> 
 #[test]
 fn oversized_turn_cannot_be_retried_and_stopped_runtime_cannot_reopen() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     let mut runtime = Codex::start(&binary, directory.path(), Duration::from_secs(5))?;
     let id = runtime.open_bound_thread(directory.path(), None, |_| Ok(()))?;
     assert!(runtime.turn(&id, &"x".repeat(65536), json!({})).is_err());
@@ -107,9 +106,7 @@ fn oversized_turn_cannot_be_retried_and_stopped_runtime_cannot_reopen() -> Resul
 #[test]
 fn lost_turn_acknowledgment_never_allows_relaunch() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     let mut runtime = Codex::start(&binary, directory.path(), Duration::from_secs(5))?;
     let id = runtime.open_bound_thread(directory.path(), None, |_| Ok(()))?;
     assert!(runtime.turn(&id, "lost-ack", json!({})).is_err());
@@ -121,9 +118,7 @@ fn lost_turn_acknowledgment_never_allows_relaunch() -> Result<()> {
 #[test]
 fn opaque_unicode_thread_ids_follow_the_server_contract() -> Result<()> {
     let directory = tempfile::tempdir()?;
-    let binary = directory.path().join("fake-codex");
-    fs::write(&binary, include_str!("fixtures/fake_codex.py"))?;
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700))?;
+    let binary = fixture_binary();
     for id in [
         "é".repeat(256),
         "é".repeat(257),
