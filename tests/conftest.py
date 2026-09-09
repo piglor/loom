@@ -43,8 +43,9 @@ def store(tmp_path, monkeypatch):
             "commands",
             "audit",
             "outbox",
-            "attempts",
+            "wait_history",
             "waits",
+            "attempts",
         ):
             conn.execute(
                 psycopg.sql.SQL(

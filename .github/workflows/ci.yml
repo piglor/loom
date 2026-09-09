@@ -50,6 +50,8 @@ jobs:
         run: make test
       - name: Real Hatchet restart and suspension proof
         run: make prove
+      - name: Repeatable finite runtime, Go reader parity, and gateway restart proof
+        run: make prove-repeatable
       - name: Real outbound Rust worker restart proof
         run: make prove-remote
       - name: Real durable restart through Go entry point

@@ -10,7 +10,9 @@ import time
 from pathlib import Path
 from uuid import UUID
 
-from loom.store import Store
+import psycopg
+
+from loom.store import Conflict, Store
 
 
 def receipt_directory(store):
@@ -29,22 +31,42 @@ def flush_receipts(store):
         attempt = report["attempt"]
         for key in ("id", "goal_id", "session_id"):
             attempt[key] = UUID(attempt[key])
-        store.finish(attempt, report["duration_ms"], report["success"])
+        store.finish(
+            attempt,
+            report["duration_ms"],
+            report["success"],
+            **({"outcome": report["outcome"]} if "outcome" in report else {}),
+        )
         path.unlink(missing_ok=True)
 
 
-def execute_demo(store: Store, goal_id):
-    if store.inspect(goal_id)["session"]["runtime"] != "demo":
+def execute_demo(store: Store, goal_id, *, next_condition=None):
+    goal = store.inspect(goal_id)
+    if goal["session"]["runtime"] != "demo":
         from loom.mailbox import Mailbox
 
         Mailbox(store).dispatch(goal_id)
         return
+    if next_condition is not None and (
+        goal["phase"] == 0
+        or goal["run"]["policy"].get("lifecycle") != "event-driven-v1"
+    ):
+        raise Conflict("Next wait requires an event-driven continuation")
     flush_receipts(store)
     attempt = store.claim(goal_id)
     if attempt is None:
         return
+    outcome = {}
+    if goal["run"]["policy"].get("lifecycle") == "event-driven-v1":
+        # The finite demo can prove stop/recovery but cannot invent new work.
+        # A continuation without a prepared wait proposes completion; policy
+        # rejects it if the final authorized condition has not been observed.
+        outcome["outcome"] = "yield" if attempt["phase"] == 0 else "complete"
     started = time.monotonic()
     try:
+        if next_condition is not None:
+            store.prepare_wait(attempt, next_condition, goal["wait"]["generation"])
+            outcome["outcome"] = "yield"
         # The subprocess has no external input, network, background jobs or
         # model access. Its exit is the stop evidence for this demo adapter.
         result = subprocess.run(
@@ -54,7 +76,10 @@ def execute_demo(store: Store, goal_id):
             check=True,
         )
         success = result.stdout.strip() == b"loom-demo-finite-attempt"
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, psycopg.Error, Conflict):
+        # Preparation can fail after admission, including an ambiguous commit.
+        # No subprocess has started in that case; retain a stopped failure
+        # receipt instead of leaving the Goal permanently RUNNING.
         success = False
     duration_ms = (time.monotonic() - started) * 1000
     directory = receipt_directory(store)
@@ -64,6 +89,7 @@ def execute_demo(store: Store, goal_id):
         },
         "duration_ms": duration_ms,
         "success": success,
+        **outcome,
     }
     destination = directory / f"{attempt['id']}.json"
     temporary = None
@@ -84,12 +110,12 @@ def execute_demo(store: Store, goal_id):
     except OSError:
         # We still hold stop evidence in memory: report it directly if the
         # journal disk fails. Never leave a healthy database claiming RUNNING.
-        store.finish(attempt, duration_ms, success)
+        store.finish(attempt, duration_ms, success, **outcome)
         if temporary is not None:
             temporary.unlink(missing_ok=True)
         destination.unlink(missing_ok=True)
         return
     # If the database is temporarily unavailable the durable receipt remains;
     # a retry reports it again without invoking the subprocess again.
-    store.finish(attempt, duration_ms, success)
+    store.finish(attempt, duration_ms, success, **outcome)
     destination.unlink(missing_ok=True)

@@ -67,3 +67,7 @@ prove-go: go-build
 
 prove-go-remote: go-build agent
 	LOOM_GO_BINARY=.loom/bin/loom-server .venv/bin/python -m scripts.prove_remote
+
+.PHONY: prove-repeatable
+prove-repeatable: go-build
+	.venv/bin/python -m scripts.prove_repeatable

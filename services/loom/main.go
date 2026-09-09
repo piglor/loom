@@ -36,7 +36,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=6").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=7").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
@@ -63,14 +63,15 @@ func (p postgresReader) inspect(ctx context.Context, id string) (json.RawMessage
 	var result json.RawMessage
 	err := p.pool.QueryRow(ctx, `SELECT to_jsonb(g) || jsonb_build_object(
 		'run',to_jsonb(r),'session',to_jsonb(s),'wait',to_jsonb(w),
+		'wait_history',COALESCE((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.generation) FROM wait_history h WHERE h.goal_id=g.id),'[]'::jsonb),
 		'attempts',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.phase) FROM attempts a WHERE a.goal_id=g.id),'[]'::jsonb),
 		'audit',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.sequence) FROM audit a WHERE a.goal_id=g.id),'[]'::jsonb),
 		'metrics',jsonb_build_object(
 		'lifetime_seconds',EXTRACT(EPOCH FROM(COALESCE(g.ended_at,statement_timestamp())-g.created_at)),
-		'suspended_seconds',CASE WHEN w.armed_at IS NULL THEN 0 ELSE GREATEST(0,EXTRACT(EPOCH FROM(COALESCE(w.closed_at,statement_timestamp())-w.armed_at))) END,
+		'suspended_seconds',CASE WHEN w.armed_at IS NULL THEN 0 ELSE GREATEST(0,EXTRACT(EPOCH FROM(COALESCE(w.closed_at,statement_timestamp())-w.armed_at))) END + (SELECT COALESCE(SUM(EXTRACT(EPOCH FROM(h.closed_at-h.armed_at))),0) FROM wait_history h WHERE h.goal_id=g.id),
 		'execution_seconds',(SELECT COALESCE(SUM(duration_ms),0)/1000 FROM attempts WHERE goal_id=g.id),
 		'attempts',(SELECT count(*) FROM attempts WHERE goal_id=g.id),
-		'wake_ups',(SELECT count(*) FROM attempts WHERE goal_id=g.id AND phase=1 AND state<>'QUEUED' AND outcome IS DISTINCT FROM 'cancelled_unclaimed'),
+		'wake_ups',(SELECT count(*) FROM attempts WHERE goal_id=g.id AND phase>0 AND state<>'QUEUED' AND outcome IS DISTINCT FROM 'cancelled_unclaimed'),
 		'tokens',NULL,'provider_cost',NULL))
 		FROM goals g JOIN runs r ON r.goal_id=g.id JOIN sessions s ON s.run_id=r.id
 		JOIN waits w ON w.goal_id=g.id WHERE g.id=$1::uuid AND g.organization=$2`, id, p.organization).Scan(&result)

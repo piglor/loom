@@ -158,8 +158,9 @@ def test_outbox_survives_restart_and_resignals(store, goal):
             "UPDATE outbox SET available_at=clock_timestamp() WHERE id=%s",
             (item["id"],),
         )
-    assert Store(store.settings).outbox_batch()[0]["id"] == item["id"]
-    store.delivered(item)
+    retried = Store(store.settings).outbox_batch()[0]
+    assert retried["id"] == item["id"]
+    store.delivered(retried)
     assert store.outbox_batch() == []
 
 

@@ -21,5 +21,6 @@ publication is implied.
 | [0011](0011-usage-cost-accounting.md) | Measured execution and suspension, honest cost | Proposed |
 | [0012](0012-monorepo-clients.md) | React clients and shared contracts in the monorepo | Accepted |
 | [0013](0013-go-backend-migration.md) | Incremental Go backend with existing Python writer | Accepted |
+| [0014](0014-repeatable-execution-core.md) | Pre-registered repeatable waits (internal experiment) | Proposed |
 
 Use these alongside the [architecture](../docs/architecture.md) and [implementation gates](../docs/implementation-plan.md). Implement one proof phase at a time. Record acceptance or amendments explicitly; keep superseded decisions for history. Dependency pins and tested operational behavior are evidence produced by implementation, not guesses made in an architecture record.

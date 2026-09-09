@@ -63,7 +63,7 @@ def create_app(settings=None):
     def ready():
         with store.connect() as conn:
             if not conn.execute(
-                "SELECT version FROM schema_migrations WHERE version=6"
+                "SELECT version FROM schema_migrations WHERE version=7"
             ).fetchone():
                 raise HTTPException(503, "Database migration required")
         return {"database": "ready"}
