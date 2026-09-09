@@ -66,6 +66,18 @@ class Store:
                 conn.execute(
                     files("loom").joinpath("007-repeatable-waits.sql").read_text()
                 )
+            if not conn.execute(
+                "SELECT 1 FROM schema_migrations WHERE version=8"
+            ).fetchone():
+                conn.execute(
+                    files("loom").joinpath("008-integration-inbox.sql").read_text()
+                )
+            if not conn.execute(
+                "SELECT 1 FROM schema_migrations WHERE version=9"
+            ).fetchone():
+                conn.execute(
+                    files("loom").joinpath("009-github-generations.sql").read_text()
+                )
 
     def _goal(self, conn, goal_id, lock=False):
         row = conn.execute(

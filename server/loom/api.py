@@ -1,14 +1,10 @@
 import hmac
-import json
-import os
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
-from starlette.concurrency import run_in_threadpool
 
 from loom.config import Settings
-from loom.github import GitHubBinding, GitHubIngress, verify
 from loom.mailbox import Mailbox, Unauthorized
 from loom.models import (
     ClaimRequest,
@@ -18,6 +14,7 @@ from loom.models import (
     StopReport,
     WorkerEnroll,
 )
+from loom.plugins import configured_plugins
 from loom.store import Conflict, NotFound, Store
 
 
@@ -63,7 +60,7 @@ def create_app(settings=None):
     def ready():
         with store.connect() as conn:
             if not conn.execute(
-                "SELECT version FROM schema_migrations WHERE version=7"
+                "SELECT version FROM schema_migrations WHERE version=9"
             ).fetchone():
                 raise HTTPException(503, "Database migration required")
         return {"database": "ready"}
@@ -120,34 +117,7 @@ def create_app(settings=None):
     ):
         return mailbox.bind_session(token, command_id, request)
 
-    @app.post("/v1/github/bindings", dependencies=[Depends(authenticate)])
-    def github_binding(binding: GitHubBinding):
-        GitHubIngress(store).bind(binding)
-        return {"status": "bound"}
-
-    @app.post("/v1/github/webhook")
-    async def github_webhook(request: Request):
-        secret = os.environ.get("LOOM_GITHUB_WEBHOOK_SECRET", "")
-        if len(secret) < 32:
-            raise HTTPException(503, "GitHub integration is not configured")
-        body = bytearray()
-        async for chunk in request.stream():
-            if len(body) + len(chunk) > 1_048_576:
-                raise HTTPException(413, "Webhook exceeds size limit")
-            body.extend(chunk)
-        if not verify(
-            bytes(body), request.headers.get("x-hub-signature-256", ""), secret
-        ):
-            raise HTTPException(401, "Invalid webhook signature")
-        try:
-            delivery = UUID(request.headers.get("x-github-delivery", ""))
-            return await run_in_threadpool(
-                GitHubIngress(store).receive,
-                bytes(body),
-                delivery,
-                request.headers.get("x-github-event", ""),
-            )
-        except (ValueError, json.JSONDecodeError):
-            raise HTTPException(400, "Invalid webhook envelope")
+    for plugin in configured_plugins(store):
+        app.include_router(plugin.routes(authenticate))
 
     return app

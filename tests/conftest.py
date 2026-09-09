@@ -40,6 +40,7 @@ def store(tmp_path, monkeypatch):
         org = instance.settings.organization
         for table in (
             "github_bindings",
+            "integration_bindings",
             "commands",
             "audit",
             "outbox",
@@ -68,6 +69,7 @@ def store(tmp_path, monkeypatch):
         conn.execute("DELETE FROM events WHERE organization=%s", (org,))
         conn.execute("DELETE FROM workers WHERE organization=%s", (org,))
         conn.execute("DELETE FROM github_deliveries WHERE organization=%s", (org,))
+        conn.execute("DELETE FROM integration_deliveries WHERE organization=%s", (org,))
 
 
 @pytest.fixture

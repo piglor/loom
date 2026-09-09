@@ -17,6 +17,7 @@ from loom.store import Conflict
 
 class GitHubBinding(Model):
     goal_id: UUID
+    generation: int = Field(default=1, ge=1)
     installation_id: int = Field(gt=0, strict=True)
     repository_id: int = Field(gt=0, strict=True)
     pull_request: int = Field(gt=0, strict=True)
@@ -97,8 +98,8 @@ class GitHubIngress:
         with self.store.connect() as conn:
             conn.execute(
                 "UPDATE github_bindings SET reconciled_at=clock_timestamp() "
-                "WHERE goal_id=%s AND organization=%s",
-                (binding.goal_id, self.store.settings.organization),
+                "WHERE goal_id=%s AND organization=%s AND generation=%s",
+                (binding.goal_id, self.store.settings.organization, binding.generation),
             )
 
     def reconcile_pending(self):
@@ -132,14 +133,18 @@ class GitHubIngress:
                     "Privileged GitHub execution requires live freshness validation"
                 )
             wait = conn.execute(
-                "SELECT condition FROM waits WHERE goal_id=%s", (goal["id"],)
+                "SELECT condition,generation FROM waits WHERE goal_id=%s", (goal["id"],)
             ).fetchone()
-            if wait["condition"] != binding.condition().model_dump():
+            if (
+                wait["condition"] != binding.condition().model_dump()
+                or wait["generation"] != binding.generation
+            ):
                 raise Conflict(
                     "Binding must exactly match the authorized Goal condition"
                 )
             existing = conn.execute(
-                "SELECT * FROM github_bindings WHERE goal_id=%s", (goal["id"],)
+                "SELECT * FROM github_bindings WHERE goal_id=%s AND generation=%s",
+                (goal["id"], binding.generation),
             ).fetchone()
             if existing:
                 expected = binding.model_dump()
@@ -164,8 +169,9 @@ class GitHubIngress:
                 raise Conflict("CI execution is already bound")
             conn.execute(
                 "INSERT INTO github_bindings(goal_id,organization,installation_id,"
-                "repository_id,pull_request,head_sha,run_id,run_attempt,workflow_id) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "repository_id,pull_request,head_sha,run_id,run_attempt,"
+                "workflow_id,generation) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     binding.goal_id,
                     self.store.settings.organization,
@@ -176,6 +182,7 @@ class GitHubIngress:
                     binding.run_id,
                     binding.run_attempt,
                     binding.workflow_id,
+                    binding.generation,
                 ),
             )
             self.store.audit(
@@ -220,7 +227,7 @@ class GitHubIngress:
                         event = EventCreate(
                             delivery_id=str(delivery_id),
                             goal_id=binding.goal_id,
-                            generation=1,
+                            generation=binding.generation,
                             **binding.condition().model_dump(),
                         )
                         disposition = self.store.receive(event, connection=conn)[

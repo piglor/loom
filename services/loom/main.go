@@ -36,7 +36,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=7").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=9").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {

@@ -22,5 +22,6 @@ publication is implied.
 | [0012](0012-monorepo-clients.md) | React clients and shared contracts in the monorepo | Accepted |
 | [0013](0013-go-backend-migration.md) | Incremental Go backend with existing Python writer | Accepted |
 | [0014](0014-repeatable-execution-core.md) | Pre-registered repeatable waits (internal experiment) | Proposed |
+| [0015](0015-external-event-plugins.md) | Integration-neutral external-event plugins | Proposed |
 
 Use these alongside the [architecture](../docs/architecture.md) and [implementation gates](../docs/implementation-plan.md). Implement one proof phase at a time. Record acceptance or amendments explicitly; keep superseded decisions for history. Dependency pins and tested operational behavior are evidence produced by implementation, not guesses made in an architecture record.

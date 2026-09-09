@@ -54,9 +54,9 @@ def define_workflow(hatchet, store):
 
 
 def relay_once(hatchet, workflow, store):
-    from loom.github import GitHubIngress
+    from loom.plugins import reconcile_integrations
 
-    GitHubIngress(store).reconcile_pending()
+    reconcile_integrations(store)
     for item in store.outbox_batch():
         try:
             workflow_id = None
