@@ -45,6 +45,9 @@ def failure_summary(log_text, processes):
         "invalid token",
         "error running worker",
         "error starting worker",
+        "rx: start step run",
+        "run: start step",
+        "durable event listener connected",
     )
     return {
         "process_exit_codes": [process.poll() for process in processes],
@@ -128,6 +131,7 @@ def main():
     state = Path(".loom")
     state.mkdir(exist_ok=True, mode=0o700)
     processes = []
+    goal_id = None
 
     with (state / "proof.log").open("w") as log:
 
@@ -217,6 +221,20 @@ def main():
             )
         except Exception:
             log.flush()
+            if goal_id is not None:
+                current = store.inspect(goal_id)
+                print(
+                    "Proof domain diagnostics: "
+                    + json.dumps(
+                        {
+                            "state": current["state"],
+                            "attempt_count": len(current["attempts"]),
+                            "workflow_assigned": bool(current["run"]["workflow_id"]),
+                            "outbox_pending": len(store.outbox_batch()),
+                        }
+                    ),
+                    flush=True,
+                )
             print(
                 "Proof failure diagnostics: "
                 + json.dumps(
