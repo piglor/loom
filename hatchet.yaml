@@ -1,0 +1,5 @@
+dev:
+  runCmd: ".venv/bin/loom worker"
+  files:
+    - "server/**/*.py"
+  reload: false

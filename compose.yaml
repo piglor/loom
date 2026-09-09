@@ -1,0 +1,20 @@
+services:
+  loom-postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_USER: loom
+      POSTGRES_PASSWORD: ${LOOM_POSTGRES_PASSWORD:?Run loom init first}
+      POSTGRES_DB: loom
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - loom-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loom -d loom"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  loom-data:

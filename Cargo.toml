@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/loom-agent"]
+resolver = "2"
+
+[workspace.package]
+version = "0.2.0-dev"
+edition = "2024"
+license = "MIT"
+rust-version = "1.97"

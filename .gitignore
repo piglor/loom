@@ -1,0 +1,16 @@
+.codex/
+skill-observations/
+.env
+.env.*
+!.env.example
+target/
+.venv/
+__pycache__/
+node_modules/
+*.pem
+*.key
+.DS_Store
+.loom/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/

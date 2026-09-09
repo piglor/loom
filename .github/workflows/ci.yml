@@ -1,0 +1,83 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  durable-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned Hatchet CLI
+        run: curl -fsSL https://install.hatchet.run/install.sh | HATCHET_CLI_TELEMETRY_ENABLED=false bash -s -- v0.105.16
+      - name: Install Loom
+        run: make setup
+      - name: Rust agent checks
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test --workspace --locked
+      - name: Generate local test credentials
+        run: make init
+      - name: Start real PostgreSQL and Hatchet
+        run: make infra migrate
+      - name: Lint and format
+        run: make check
+      - name: Domain and API tests against isolated PostgreSQL database
+        run: make test
+      - name: Real Hatchet restart and suspension proof
+        run: make prove
+      - name: Real outbound Rust worker restart proof
+        run: make prove-remote
+      - name: Non-root read-only container smoke test
+        run: make prove-container
+      - name: PostgreSQL backup and restore drill
+        run: make prove-backup
+  publish-image:
+    needs: durable-core
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested Linux image
+        id: image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/piglor/loom:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/piglor/loom
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: true
+          sbom: true
+      - name: Check published artifact
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --entrypoint python "ghcr.io/piglor/loom@$IMAGE_DIGEST" \
+            -c 'import os, loom.api, loom.worker; assert os.getuid() == 10001; print("Published Loom artifact verified")'
+      - name: Record immutable image
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: echo "ghcr.io/piglor/loom@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"

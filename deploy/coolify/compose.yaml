@@ -1,0 +1,85 @@
+# Pre-production finite-runtime deployment. Not a privileged Codex release.
+x-loom: &loom
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+  image: piglor-loom:local
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp]
+  environment: &environment
+    LOOM_DATABASE_URL: postgresql://loom:${LOOM_POSTGRES_PASSWORD:?required}@loom-db:5432/loom
+    LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
+    LOOM_ORGANIZATION: ${LOOM_ORGANIZATION:-local}
+
+services:
+  loom-db:
+    image: postgres:17.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loom
+      POSTGRES_DB: loom
+      POSTGRES_PASSWORD: ${LOOM_POSTGRES_PASSWORD:?required}
+    volumes: [loom-data:/var/lib/postgresql/data]
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U loom -d loom"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  loom-migrate:
+    <<: *loom
+    command: [migrate]
+    restart: "no"
+    networks: [private]
+    depends_on:
+      loom-db: {condition: service_healthy}
+
+  loom-server:
+    <<: *loom
+    command: [serve]
+    environment:
+      <<: *environment
+      LOOM_GITHUB_WEBHOOK_SECRET: ${LOOM_GITHUB_WEBHOOK_SECRET:-}
+    expose: [8000]
+    networks: [private, hatchet-existing]
+    depends_on:
+      loom-migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/readyz',headers={'Authorization':'Bearer '+os.environ['LOOM_API_TOKEN']}); urllib.request.urlopen(r,timeout=3).close()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  loom-worker:
+    <<: *loom
+    command: [worker]
+    environment:
+      <<: *environment
+      HATCHET_CLIENT_TOKEN: ${HATCHET_CLIENT_TOKEN:?required}
+      HATCHET_CLIENT_SERVER_URL: ${HATCHET_CLIENT_SERVER_URL:-https://hatchet.piglor.com}
+      HATCHET_CLIENT_HOST_PORT: ${HATCHET_CLIENT_HOST_PORT:-hatchet-engine:7070}
+      HATCHET_CLIENT_TLS_STRATEGY: ${HATCHET_CLIENT_TLS_STRATEGY:-none}
+    volumes: [loom-receipts:/var/lib/loom]
+    networks: [private, hatchet-existing]
+    depends_on:
+      loom-migrate: {condition: service_completed_successfully}
+
+volumes:
+  loom-data:
+  loom-receipts:
+
+networks:
+  private:
+    internal: true
+  hatchet-existing:
+    external: true
+    name: ${HATCHET_NETWORK:?set existing Docker network name}

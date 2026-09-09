@@ -1,0 +1,216 @@
+"""Worker-scoped durable delivery. A lost claim is never automatically reassigned."""
+
+import hashlib
+import json
+import secrets
+from uuid import uuid4
+
+from psycopg.types.json import Jsonb
+
+from loom.store import Conflict, NotFound
+
+
+class Unauthorized(Exception):
+    pass
+
+
+class Mailbox:
+    def __init__(self, store):
+        self.store = store
+
+    def enroll(self, request):
+        worker_id, token = str(uuid4()), secrets.token_urlsafe(48)
+        with self.store.connect() as conn:
+            conn.execute(
+                "INSERT INTO workers(id,runtime,capabilities,organization,"
+                "token_hash,workspace_ref,labels) VALUES "
+                "(%s,'remote-demo','[\"finite-demo\"]',%s,%s,%s,%s)",
+                (
+                    worker_id,
+                    self.store.settings.organization,
+                    hashlib.sha256(token.encode()).hexdigest(),
+                    request.workspace_ref,
+                    Jsonb(request.labels),
+                ),
+            )
+        return {
+            "worker_id": worker_id,
+            "token": token,
+            "workspace_ref": request.workspace_ref,
+            "protocol_version": 1,
+        }
+
+    def worker(self, conn, token):
+        row = conn.execute(
+            "SELECT * FROM workers WHERE organization=%s AND token_hash=%s "
+            "AND revoked_at IS NULL FOR UPDATE",
+            (
+                self.store.settings.organization,
+                hashlib.sha256(token.encode()).hexdigest(),
+            ),
+        ).fetchone()
+        if not row:
+            raise Unauthorized("Invalid worker credential")
+        return row
+
+    def revoke(self, worker_id):
+        with self.store.connect() as conn:
+            if not conn.execute(
+                "UPDATE workers SET revoked_at=clock_timestamp() WHERE id=%s "
+                "AND organization=%s RETURNING id",
+                (worker_id, self.store.settings.organization),
+            ).fetchone():
+                raise NotFound("Worker not found")
+
+    def dispatch(self, goal_id):
+        with self.store.connect() as conn:
+            goal = self.store._goal(conn, goal_id, lock=True)
+            if goal["state"] != "READY":
+                return
+            session = conn.execute(
+                "SELECT s.* FROM sessions s JOIN runs r ON r.id=s.run_id "
+                "WHERE r.goal_id=%s",
+                (goal_id,),
+            ).fetchone()
+            if session["runtime"] != "remote-demo":
+                raise Conflict("Unsupported remote runtime")
+            if (
+                goal["phase"] == 1
+                and not conn.execute(
+                    "SELECT satisfied_at FROM waits WHERE goal_id=%s", (goal_id,)
+                ).fetchone()["satisfied_at"]
+            ):
+                return
+            attempt = conn.execute(
+                "INSERT INTO attempts(id,goal_id,session_id,worker_id,phase,state) "
+                "VALUES (%s,%s,%s,%s,%s,'QUEUED') "
+                "ON CONFLICT (goal_id,phase) DO NOTHING RETURNING id",
+                (uuid4(), goal_id, session["id"], session["worker_id"], goal["phase"]),
+            ).fetchone()
+            if attempt:
+                conn.execute(
+                    "INSERT INTO commands(id,goal_id,attempt_id,worker_id,state) "
+                    "VALUES (%s,%s,%s,%s,'QUEUED')",
+                    (uuid4(), goal_id, attempt["id"], session["worker_id"]),
+                )
+                self.store.transition(conn, goal_id, "WAITING")
+                conn.execute(
+                    "UPDATE goals SET waiting_reason='worker' WHERE id=%s", (goal_id,)
+                )
+                self.store.audit(
+                    conn, goal_id, "command_queued", worker_id=session["worker_id"]
+                )
+
+    def poll(self, token):
+        with self.store.connect() as conn:
+            worker = self.worker(conn, token)
+            conn.execute(
+                "UPDATE workers SET last_seen_at=clock_timestamp() WHERE id=%s",
+                (worker["id"],),
+            )
+            rows = conn.execute(
+                "SELECT c.id,c.state FROM commands c JOIN goals g ON g.id=c.goal_id "
+                "WHERE c.worker_id=%s AND c.state IN ('QUEUED','CLAIMED') "
+                "AND g.state NOT IN ('COMPLETED','CANCELLED','FAILED','BLOCKED') "
+                "ORDER BY c.created_at LIMIT 1",
+                (worker["id"],),
+            ).fetchall()
+            return {"protocol_version": 1, "worker_id": worker["id"], "commands": rows}
+
+    def _command(self, conn, worker, command_id):
+        # Goal first, then command: the same order as dispatch/cancellation.
+        command = conn.execute(
+            "SELECT * FROM commands WHERE id=%s AND worker_id=%s",
+            (command_id, worker["id"]),
+        ).fetchone()
+        if not command:
+            raise NotFound("Command not found")
+        goal = self.store._goal(conn, command["goal_id"], lock=True)
+        command = conn.execute(
+            "SELECT * FROM commands WHERE id=%s FOR UPDATE", (command_id,)
+        ).fetchone()
+        attempt = conn.execute(
+            "SELECT * FROM attempts WHERE id=%s", (command["attempt_id"],)
+        ).fetchone()
+        return command, goal, attempt
+
+    def claim(self, token, command_id, request):
+        with self.store.connect() as conn:
+            worker = self.worker(conn, token)
+            command, goal, attempt = self._command(conn, worker, command_id)
+            if goal["state"] not in ("READY", "WAITING", "RUNNING"):
+                raise Conflict("Goal is not executable")
+            if command["state"] == "CLAIMED":
+                if command["claim_id"] != request.claim_id:
+                    raise Conflict(
+                        "Execution is already claimed; reconciliation required"
+                    )
+            elif command["state"] != "QUEUED":
+                raise Conflict("Command is not executable")
+            else:
+                conn.execute(
+                    "UPDATE commands SET state='CLAIMED',claim_id=%s,"
+                    "claimed_at=clock_timestamp() WHERE id=%s",
+                    (request.claim_id, command_id),
+                )
+                conn.execute(
+                    "UPDATE attempts SET state='RUNNING',"
+                    "started_at=clock_timestamp() WHERE id=%s",
+                    (attempt["id"],),
+                )
+                if attempt["phase"] == 1:
+                    conn.execute(
+                        "UPDATE waits SET closed_at=clock_timestamp() WHERE goal_id=%s",
+                        (goal["id"],),
+                    )
+                self.store.transition(conn, goal["id"], "RUNNING")
+                conn.execute(
+                    "UPDATE goals SET waiting_reason=NULL WHERE id=%s", (goal["id"],)
+                )
+                self.store.audit(
+                    conn, goal["id"], "attempt_started", attempt_id=str(attempt["id"])
+                )
+            return {
+                "protocol_version": 1,
+                "command_id": command_id,
+                "claim_id": request.claim_id,
+                "session_id": attempt["session_id"],
+                "worker_id": worker["id"],
+                "runtime": worker["runtime"],
+                "workspace_ref": worker["workspace_ref"],
+                "phase": attempt["phase"],
+            }
+
+    def report(self, token, command_id, report):
+        digest = hashlib.sha256(
+            json.dumps(report.model_dump(mode="json"), sort_keys=True).encode()
+        ).hexdigest()
+        with self.store.connect() as conn:
+            worker = self.worker(conn, token)
+            command, goal, attempt = self._command(conn, worker, command_id)
+            if (
+                command["claim_id"] != report.claim_id
+                or attempt["session_id"] != report.session_id
+            ):
+                raise Conflict("Claim or session binding mismatch")
+            if command["report_digest"]:
+                if command["report_digest"] != digest:
+                    raise Conflict("Conflicting stop report")
+                return {"status": "duplicate"}
+            if command["state"] != "CLAIMED":
+                raise Conflict("Command was not claimed")
+            self.store.finish(
+                attempt, report.duration_ms, report.success, connection=conn
+            )
+            conn.execute(
+                "UPDATE commands SET state='STOPPED',report_digest=%s,"
+                "stopped_at=clock_timestamp() WHERE id=%s",
+                (digest, command_id),
+            )
+            conn.execute(
+                "UPDATE goals SET waiting_reason='external_event' "
+                "WHERE id=%s AND state='WAITING'",
+                (goal["id"],),
+            )
+            self.store.enqueue(conn, goal["id"], "wake")
+            return {"status": "accepted"}

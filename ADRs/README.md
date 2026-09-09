@@ -1,0 +1,20 @@
+# Architecture decisions
+
+These records belong to standalone Piglor Loom. All are Proposed as of 2026-09-08. Technology constraints explicitly supplied in the product brief (including Hatchet and PostgreSQL) are treated as requirements; the detailed integration choices remain proposals. No external tracker publication or review approval is implied.
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0001](0001-product-domain-model.md) | Goal as the durable product object | Proposed |
+| [0002](0002-hatchet-workflow-runtime.md) | Hatchet beneath Loom | Proposed |
+| [0003](0003-postgresql-persistence.md) | PostgreSQL for central domain state | Proposed |
+| [0004](0004-worker-outbound-connectivity.md) | Outbound worker connectivity | Proposed |
+| [0005](0005-worker-session-affinity.md) | Hard affinity for local Sessions | Proposed |
+| [0006](0006-agent-runtime-interface.md) | Finite runtime attempts with exact context binding | Proposed |
+| [0007](0007-event-normalization-correlation.md) | Deterministic event correlation | Proposed |
+| [0008](0008-github-app-strategy.md) | GitHub App for event observation | Proposed |
+| [0009](0009-security-model.md) | Explicit execution authority across trust boundaries | Proposed |
+| [0010](0010-rust-loom-agent.md) | Rust machine-side daemon | Proposed |
+| [0011](0011-usage-cost-accounting.md) | Measured execution and suspension, honest cost | Proposed |
+
+Use these alongside the [architecture](../docs/architecture.md) and [implementation gates](../docs/implementation-plan.md). Implement one proof phase at a time. Record acceptance or amendments explicitly; keep superseded decisions for history. Dependency pins and tested operational behavior are evidence produced by implementation, not guesses made in an architecture record.
+

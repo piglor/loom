@@ -1,0 +1,7 @@
+*
+!pyproject.toml
+!requirements.lock
+!server/
+!server/loom/
+!server/loom/*.py
+!server/loom/*.sql
