@@ -235,6 +235,51 @@ def main():
                     ),
                     flush=True,
                 )
+                workflow_id = current["run"]["workflow_id"]
+                if workflow_id:
+                    try:
+                        result = subprocess.run(
+                            [
+                                "hatchet",
+                                "runs",
+                                "get",
+                                str(workflow_id),
+                                "-p",
+                                args.profile,
+                                "-o",
+                                "json",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=15,
+                            check=True,
+                        )
+                        engine_run = json.loads(result.stdout)
+                        expected_action = (
+                            os.environ["HATCHET_CLIENT_NAMESPACE"]
+                            + "_loom-goal-v1:loom-goal-v1"
+                        )
+                        print(
+                            "Proof engine diagnostics: "
+                            + json.dumps(
+                                {
+                                    "tasks": [
+                                        {
+                                            "expected_action": task.get("actionId")
+                                            == expected_action,
+                                            "has_started": bool(task.get("startedAt")),
+                                            "has_error": bool(task.get("errorMessage")),
+                                            "pending": task.get("status")
+                                            in ("PENDING", "QUEUED"),
+                                        }
+                                        for task in engine_run.get("tasks", [])
+                                    ],
+                                }
+                            ),
+                            flush=True,
+                        )
+                    except (subprocess.SubprocessError, ValueError, OSError):
+                        print("Proof engine diagnostics unavailable", flush=True)
             print(
                 "Proof failure diagnostics: "
                 + json.dumps(
