@@ -48,6 +48,12 @@ requirements are tracked in [production readiness](docs/production-readiness.md)
 See the [Codex conformance evidence](docs/codex-adapter.md) and
 [GitHub ingress scope](docs/github-ingress.md) before enabling integrations.
 
+GitHub is an optional integration plugin, not a core dependency. A GitLab signed
+pipeline-event adapter uses the same durable Goal/Wait/Session contract. Select
+adapters with `LOOM_INTEGRATIONS`; see [integration plugins](docs/integration-plugins.md)
+for setup, security boundaries, and current preview limitations. Repeatable
+outbound execution is opt-in through [worker protocol 2](docs/repeatable-worker.md).
+
 ## Design
 
 - [Concepts and invariants](docs/concepts.md)

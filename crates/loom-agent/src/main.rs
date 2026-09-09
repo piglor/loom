@@ -50,6 +50,8 @@ fn private_file(path: &Path, create: bool) -> Result<File> {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
+    #[serde(default = "legacy_protocol")]
+    protocol_version: u32,
     server_url: String,
     token: String,
     worker_id: Uuid,
@@ -59,9 +61,17 @@ struct Config {
     allow_insecure_localhost: bool,
 }
 
+fn legacy_protocol() -> u32 {
+    1
+}
+
 impl Config {
     fn load(path: &Path) -> Result<Self> {
         let mut config: Self = serde_json::from_reader(private_file(path, false)?)?;
+        ensure!(
+            matches!(config.protocol_version, 1 | 2),
+            "Unsupported protocol"
+        );
         let url = reqwest::Url::parse(&config.server_url)?;
         let local = matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"));
         ensure!(
@@ -165,12 +175,48 @@ struct Execution {
     runtime: String,
     workspace_ref: String,
     phase: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    context: Option<ExecutionContext>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct Condition {
+    source: String,
+    #[serde(rename = "type")]
+    event_type: String,
+    resource: String,
+    version: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct WaitContext {
+    generation: u32,
+    condition: Condition,
+    satisfied: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ExecutionContext {
+    goal_id: Uuid,
+    objective: String,
+    lifecycle: String,
+    max_attempts: u32,
+    completion_condition: Condition,
+    wait: WaitContext,
+    provider_session_id: Option<String>,
+    // External data is deliberately separate from trusted workflow instructions.
+    external_event: Option<Value>,
 }
 
 impl Execution {
     fn validate(&self, config: &Config, id: Uuid, claim: Uuid) -> Result<()> {
         ensure!(
-            self.protocol_version == 1 && self.command_id == id && self.claim_id == claim,
+            self.protocol_version == config.protocol_version
+                && self.command_id == id
+                && self.claim_id == claim,
             "Command protocol or claim mismatch"
         );
         ensure!(
@@ -178,10 +224,42 @@ impl Execution {
             "Command violates local worker/workspace policy"
         );
         ensure!(
-            self.runtime == "remote-demo" && self.phase <= 1,
+            self.runtime == "remote-demo",
             "Runtime not locally authorized"
         );
+        match (self.protocol_version, &self.context) {
+            (1, None) => ensure!(self.phase <= 1, "Legacy phase out of bounds"),
+            (2, Some(context)) => {
+                ensure!(
+                    matches!(context.lifecycle.as_str(), "legacy" | "event-driven-v1")
+                        && (2..=1000).contains(&context.max_attempts)
+                        && self.phase < context.max_attempts
+                        && context.wait.generation > 0
+                        && context.provider_session_id.is_none(),
+                    "Unsupported execution context"
+                );
+                if context.lifecycle == "legacy" {
+                    ensure!(self.phase <= 1, "Legacy phase out of bounds");
+                }
+            }
+            _ => bail!("Missing or unsupported execution context"),
+        }
         Ok(())
+    }
+
+    fn outcome(&self) -> Option<&'static str> {
+        let context = self.context.as_ref()?;
+        if context.lifecycle != "event-driven-v1" {
+            return None;
+        }
+        Some(if self.phase == 0 {
+            "yield"
+        } else if context.wait.satisfied && context.wait.condition == context.completion_condition {
+            "complete"
+        } else {
+            // The finite runtime cannot reason about or invent a next dependency.
+            "blocked"
+        })
     }
 }
 
@@ -219,10 +297,13 @@ impl Journal {
             CREATE TABLE IF NOT EXISTS identity (singleton INTEGER PRIMARY KEY CHECK(singleton=1), binding TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, claim_id TEXT NOT NULL,
                 state TEXT NOT NULL, execution TEXT, report TEXT);")?;
-        let identity = format!(
+        let mut identity = format!(
             "{}|{}|{}",
             config.server_url, config.worker_id, config.workspace_ref
         );
+        if config.protocol_version != 1 {
+            identity.push_str(&format!("|protocol:{}", config.protocol_version));
+        }
         db.execute("INSERT OR IGNORE INTO identity VALUES(1,?1)", [&identity])?;
         let saved: String =
             db.query_row("SELECT binding FROM identity WHERE singleton=1", [], |r| {
@@ -299,8 +380,11 @@ impl Journal {
             .stderr(Stdio::null())
             .status();
         let success = status.is_ok_and(|s| s.success());
-        let report = json!({"protocol_version":1,"claim_id":command.claim_id,
+        let mut report = json!({"protocol_version":command.protocol_version,"claim_id":command.claim_id,
             "session_id":command.session_id,"duration_ms":started.elapsed().as_secs_f64()*1000.0,"success":success});
+        if let Some(outcome) = command.outcome() {
+            report["outcome"] = json!(outcome);
+        }
         self.db.execute(
             "UPDATE receipts SET state='STOPPED',report=?1 WHERE id=?2",
             params![report.to_string(), command.command_id.to_string()],
@@ -331,7 +415,7 @@ fn run(config: Config) -> Result<()> {
                 let command: Execution = api.call(
                     Method::POST,
                     &format!("/v1/worker/commands/{}/claim", offered.id),
-                    Some(&json!({"protocol_version":1,"claim_id":claim_id})),
+                    Some(&json!({"protocol_version":config.protocol_version,"claim_id":claim_id})),
                 )?;
                 command.validate(&config, offered.id, claim_id)?;
                 journal.execute(&command)?;
@@ -392,6 +476,7 @@ mod tests {
 
     fn config(path: &Path) -> Config {
         Config {
+            protocol_version: 1,
             server_url: "http://127.0.0.1:8000".into(),
             token: "x".repeat(64),
             worker_id: Uuid::new_v4(),
@@ -435,6 +520,7 @@ mod tests {
         let id = Uuid::new_v4();
         let claim = Uuid::new_v4();
         let mut command = Execution {
+            context: None,
             protocol_version: 1,
             command_id: id,
             claim_id: claim,
@@ -447,6 +533,58 @@ mod tests {
         assert!(command.validate(&config, id, claim).is_ok());
         command.workspace_ref = "privileged".into();
         assert!(command.validate(&config, id, claim).is_err());
+    }
+
+    #[test]
+    fn repeatable_context_is_explicit_and_finite_outcome_is_bounded() -> Result<()> {
+        let mut config = config(Path::new("unused"));
+        config.protocol_version = 2;
+        let id = Uuid::new_v4();
+        let claim = Uuid::new_v4();
+        let condition = json!({"source":"gitlab","type":"pipeline.completed",
+            "resource":"opaque","version":"2"});
+        let mut command: Execution = serde_json::from_value(json!({
+            "protocol_version":2,"command_id":id,"claim_id":claim,
+            "session_id":Uuid::new_v4(),"worker_id":config.worker_id,
+            "runtime":"remote-demo","workspace_ref":"test","phase":0,
+            "context":{"goal_id":Uuid::new_v4(),"objective":"Wait",
+                "lifecycle":"event-driven-v1","max_attempts":3,
+                "completion_condition":condition,
+                "wait":{"generation":1,"condition":condition,"satisfied":false},
+                "provider_session_id":null,"external_event":null}
+        }))?;
+        command.validate(&config, id, claim)?;
+        assert_eq!(command.outcome(), Some("yield"));
+        command.phase = 1;
+        assert_eq!(command.outcome(), Some("blocked"));
+        command.context.as_mut().unwrap().wait.satisfied = true;
+        assert_eq!(command.outcome(), Some("complete"));
+        command.context.as_mut().unwrap().wait.condition.version = "stale".into();
+        assert_eq!(command.outcome(), Some("blocked"));
+        command.context.as_mut().unwrap().provider_session_id = Some("provider".into());
+        assert!(command.validate(&config, id, claim).is_err());
+        command.context.as_mut().unwrap().provider_session_id = None;
+        command.phase = 3;
+        assert!(command.validate(&config, id, claim).is_err());
+        command.phase = 1;
+        command.context.as_mut().unwrap().lifecycle = "legacy".into();
+        assert_eq!(command.outcome(), None);
+        command.validate(&config, id, claim)?;
+        command.context = None;
+        assert!(command.validate(&config, id, claim).is_err());
+        command.protocol_version = 1;
+        assert!(command.validate(&config, id, claim).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn journal_cannot_silently_switch_protocol() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let mut config = config(directory.path());
+        drop(Journal::open(&config)?);
+        config.protocol_version = 2;
+        assert!(Journal::open(&config).is_err());
+        Ok(())
     }
 
     #[test]

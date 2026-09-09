@@ -54,6 +54,8 @@ jobs:
         run: make prove-repeatable
       - name: Real outbound Rust worker restart proof
         run: make prove-remote
+      - name: Repeatable protocol outbound Rust worker restart proof
+        run: LOOM_PROOF_PROTOCOL=2 make prove-remote
       - name: Real durable restart through Go entry point
         run: make prove-go
       - name: Real remote worker through Go entry point

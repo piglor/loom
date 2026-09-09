@@ -76,12 +76,19 @@ def go_api(go_binary, store, tmp_path):
 
 
 def test_go_goal_read_contract(go_api, store, goal):
+    # Force the cross-language representation edge instead of waiting for a
+    # randomly generated microsecond value ending in zero.
+    with store.connect() as conn:
+        conn.execute(
+            "UPDATE runs SET created_at='2026-09-09T07:38:10.239980Z' WHERE goal_id=%s",
+            (goal["id"],),
+        )
     response = go_api.get(f"/v1/goals/{goal['id']}")
     assert response.status_code == 200
     actual = response.json()
     expected = jsonable_encoder(store.inspect(goal["id"]))
     for key in ("id", "state", "objective", "completion_criteria", "run", "session"):
-        assert actual[key] == expected[key]
+        assert normalize(actual[key]) == normalize(expected[key])
     assert actual["wait"]["condition"] == expected["wait"]["condition"]
     assert actual["metrics"]["tokens"] is None
     assert actual["metrics"]["provider_cost"] is None
@@ -131,20 +138,21 @@ def assert_contract(go_api, store, goal_id):
         actual["metrics"].pop(field)
         expected["metrics"].pop(field)
 
-    def normalize(value):
-        if isinstance(value, list):
-            return [normalize(item) for item in value]
-        if isinstance(value, dict):
-            return {
-                key: datetime.fromisoformat(item)
-                if key.endswith("_at") and isinstance(item, str)
-                else normalize(item)
-                for key, item in value.items()
-            }
-        return value
-
     # ISO timestamps may differ only in insignificant trailing fractional zeros.
     assert normalize(actual) == normalize(expected)
+
+
+def normalize(value):
+    if isinstance(value, list):
+        return [normalize(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: datetime.fromisoformat(item)
+            if key.endswith("_at") and isinstance(item, str)
+            else normalize(item)
+            for key, item in value.items()
+        }
+    return value
 
 
 @pytest.mark.parametrize("outcome", ["complete", "cancel", "uncertain", "failure"])

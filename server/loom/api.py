@@ -10,6 +10,7 @@ from loom.models import (
     ClaimRequest,
     EventCreate,
     GoalCreate,
+    PrepareWait,
     SessionBinding,
     StopReport,
     WorkerEnroll,
@@ -116,6 +117,12 @@ def create_app(settings=None):
         command_id: UUID, request: SessionBinding, token=Depends(worker_token)
     ):
         return mailbox.bind_session(token, command_id, request)
+
+    @app.post("/v1/worker/commands/{command_id}/wait")
+    def prepare_wait(
+        command_id: UUID, request: PrepareWait, token=Depends(worker_token)
+    ):
+        return mailbox.prepare_wait(token, command_id, request)
 
     for plugin in configured_plugins(store):
         app.include_router(plugin.routes(authenticate))

@@ -120,11 +120,16 @@ class Store:
         request: GoalCreate,
         *,
         completion_condition: Condition | None = None,
-        max_attempts=100,
+        max_attempts=None,
     ):
-        # Internal opt-in only: remote v1 workers cannot express yield outcomes.
-        if completion_condition is not None and request.runtime != "demo":
-            raise Conflict("Repeatable policy requires a conformant runtime adapter")
+        if (
+            completion_condition is not None
+            and request.completion_condition is not None
+            and completion_condition != request.completion_condition
+        ):
+            raise Conflict("Conflicting completion conditions")
+        completion_condition = completion_condition or request.completion_condition
+        max_attempts = request.max_attempts if max_attempts is None else max_attempts
         if (
             not isinstance(max_attempts, int)
             or isinstance(max_attempts, bool)
@@ -142,6 +147,11 @@ class Store:
                 ).fetchone()
                 if not worker or worker["runtime"] != request.runtime:
                     raise Conflict("Worker is unavailable or runtime is unauthorized")
+                if (
+                    completion_condition is not None
+                    and "event-driven-v1" not in worker["capabilities"]
+                ):
+                    raise Conflict("Repeatable Goal requires a protocol 2 worker")
             conn.execute(
                 "INSERT INTO goals(id,organization,title,objective,state,"
                 "completion_criteria) VALUES (%s,%s,%s,%s,'READY',%s)",
@@ -387,12 +397,19 @@ class Store:
             raise Conflict("Attempt binding mismatch")
         return stored
 
-    def prepare_wait(self, attempt, condition: Condition, expected_generation: int):
+    def prepare_wait(
+        self,
+        attempt,
+        condition: Condition,
+        expected_generation: int,
+        *,
+        connection=None,
+    ):
         """Register the next dependency before starting its external operation.
 
         This is an internal admitted-attempt seam, not an unauthenticated API.
         """
-        with self.connect() as conn:
+        with nullcontext(connection) if connection else self.connect() as conn:
             goal = self._goal(conn, attempt["goal_id"], lock=True)
             stored = self._bound_attempt(conn, attempt)
             policy = conn.execute(

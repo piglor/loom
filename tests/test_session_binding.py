@@ -9,10 +9,12 @@ from loom.models import ClaimRequest, Condition, GoalCreate, StopReport, WorkerE
 from tests.conftest import matching_event
 
 
-@pytest.fixture
-def binding_case(store):
+@pytest.fixture(params=[1, 2])
+def binding_case(store, request):
     box = Mailbox(store)
-    worker = box.enroll(WorkerEnroll(workspace_ref="isolated"))
+    worker = box.enroll(
+        WorkerEnroll(workspace_ref="isolated", protocol_version=request.param)
+    )
     goal = store.create(
         GoalCreate(
             title="Provider binding",
@@ -26,12 +28,12 @@ def binding_case(store):
     )
     box.dispatch(goal["id"])
     command = box.poll(worker["token"])["commands"][0]
-    claim = ClaimRequest(claim_id=uuid4())
+    claim = ClaimRequest(claim_id=uuid4(), protocol_version=request.param)
     box.claim(worker["token"], command["id"], claim)
     client = TestClient(create_app(store.settings))
     headers = {"Authorization": "Bearer " + worker["token"]}
     body = {
-        "protocol_version": 1,
+        "protocol_version": request.param,
         "claim_id": str(claim.claim_id),
         "session_id": str(goal["session"]["id"]),
         "provider_session_id": "thread-exact",
@@ -98,6 +100,7 @@ def test_bound_session_requires_exact_provider_in_stop_receipt(store, binding_ca
     box, worker, goal, command, claim, client, headers, body, path = binding_case
     assert client.post(path, headers=headers, json=body).status_code == 200
     report = StopReport(
+        protocol_version=claim.protocol_version,
         claim_id=claim.claim_id,
         session_id=goal["session"]["id"],
         duration_ms=1,
@@ -126,7 +129,7 @@ def test_bound_session_requires_exact_provider_in_stop_receipt(store, binding_ca
     store.receive(matching_event(goal))
     box.dispatch(goal["id"])
     continuation = box.poll(worker["token"])["commands"][0]
-    next_claim = ClaimRequest(claim_id=uuid4())
+    next_claim = ClaimRequest(claim_id=uuid4(), protocol_version=claim.protocol_version)
     resumed = box.claim(worker["token"], continuation["id"], next_claim)
     assert resumed["session_id"] == goal["session"]["id"]
     next_path = f"/v1/worker/commands/{continuation['id']}/session"

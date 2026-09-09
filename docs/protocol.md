@@ -6,6 +6,8 @@ The tables below describe the target protocol, not all currently available route
 For the implemented finite worker see [remote worker](remote-worker.md); for the
 implemented provider-binding endpoint and receipt extension see
 [provider session admission](session-binding.md).
+The implemented opt-in protocol 2 is documented separately in
+[repeatable worker](repeatable-worker.md); the target tables below are not its wire schema.
 
 ## Worker transport
 

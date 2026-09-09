@@ -23,6 +23,8 @@ def main():
     store = Store(Settings.from_env())
     store.migrate()
     box = Mailbox(store)
+    protocol = int(os.environ.get("LOOM_PROOF_PROTOCOL", "1"))
+    assert protocol in (1, 2)
     processes = []
     with tempfile.TemporaryDirectory(prefix="loom-remote-proof-") as directory:
         root = Path(directory)
@@ -61,7 +63,14 @@ def main():
                 assert api.poll() is None
                 assert gateway is None or gateway.poll() is None
                 workers = [
-                    request("POST", "/v1/workers", {"workspace_ref": "proof"})
+                    request(
+                        "POST",
+                        "/v1/workers",
+                        {
+                            "workspace_ref": "proof",
+                            "protocol_version": protocol,
+                        },
+                    )
                     for _ in range(2)
                 ]
                 for worker in workers:
@@ -70,6 +79,7 @@ def main():
                         path.chmod(0o600)
                         json.dump(
                             {
+                                "protocol_version": protocol,
                                 "server_url": os.environ["LOOM_URL"],
                                 "token": worker["token"],
                                 "worker_id": worker["worker_id"],
@@ -79,6 +89,12 @@ def main():
                             },
                             output,
                         )
+                condition = {
+                    "source": "proof",
+                    "type": "ready",
+                    "resource": str(uuid4()),
+                    "version": "1",
+                }
                 goal = request(
                     "POST",
                     "/v1/goals",
@@ -87,12 +103,10 @@ def main():
                         "objective": "Only the bound Rust worker may execute",
                         "runtime": "remote-demo",
                         "worker_id": workers[0]["worker_id"],
-                        "condition": {
-                            "source": "proof",
-                            "type": "ready",
-                            "resource": str(uuid4()),
-                            "version": "1",
-                        },
+                        "condition": condition,
+                        **(
+                            {"completion_condition": condition} if protocol == 2 else {}
+                        ),
                     },
                 )
                 box.dispatch(goal["id"])

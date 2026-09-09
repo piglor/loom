@@ -99,5 +99,8 @@ not a live GitLab-hosted pipeline demonstration.
 Runtime admission remains limited to finite demos. Installing either adapter does
 not authorize arbitrary public code execution on a developer machine. Codex
 worker integration, live freshness checks, and the full real PR/CI/resume proof
-remain separate acceptance gates. Public Goal creation still uses legacy demo
-semantics until the repeatable worker contract is exposed and tested.
+remain separate acceptance gates. Public Goal creation defaults to legacy demo
+semantics. An explicit `completion_condition` opts into repeatable semantics;
+remote workers must be enrolled with protocol 2. See the
+[implemented repeatable worker contract](repeatable-worker.md). The finite Rust
+adapter cannot invent a next dependency and blocks if further reasoning is needed.

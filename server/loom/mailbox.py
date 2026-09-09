@@ -24,9 +24,14 @@ class Mailbox:
             conn.execute(
                 "INSERT INTO workers(id,runtime,capabilities,organization,"
                 "token_hash,workspace_ref,labels) VALUES "
-                "(%s,'remote-demo','[\"finite-demo\"]',%s,%s,%s,%s)",
+                "(%s,'remote-demo',%s,%s,%s,%s,%s)",
                 (
                     worker_id,
+                    Jsonb(
+                        ["finite-demo", "event-driven-v1"]
+                        if request.protocol_version == 2
+                        else ["finite-demo"]
+                    ),
                     self.store.settings.organization,
                     hashlib.sha256(token.encode()).hexdigest(),
                     request.workspace_ref,
@@ -37,7 +42,7 @@ class Mailbox:
             "worker_id": worker_id,
             "token": token,
             "workspace_ref": request.workspace_ref,
-            "protocol_version": 1,
+            "protocol_version": request.protocol_version,
         }
 
     def worker(self, conn, token):
@@ -75,11 +80,23 @@ class Mailbox:
             if session["runtime"] != "remote-demo":
                 raise Conflict("Unsupported remote runtime")
             if (
-                goal["phase"] == 1
+                goal["phase"] > 0
                 and not conn.execute(
                     "SELECT satisfied_at FROM waits WHERE goal_id=%s", (goal_id,)
                 ).fetchone()["satisfied_at"]
             ):
+                return
+            policy = conn.execute(
+                "SELECT policy FROM runs WHERE goal_id=%s", (goal_id,)
+            ).fetchone()["policy"]
+            if goal["phase"] >= policy["max_attempts"]:
+                self.store.transition(conn, goal_id, "BLOCKED")
+                conn.execute(
+                    "UPDATE waits SET closed_at=COALESCE(closed_at,clock_timestamp()) "
+                    "WHERE goal_id=%s",
+                    (goal_id,),
+                )
+                self.store.audit(conn, goal_id, "attempt_budget_exhausted")
                 return
             attempt = conn.execute(
                 "INSERT INTO attempts(id,goal_id,session_id,worker_id,phase,state) "
@@ -138,6 +155,7 @@ class Mailbox:
         with self.store.connect() as conn:
             worker = self.worker(conn, token)
             command, goal, attempt = self._command(conn, worker, command_id)
+            policy = self._protocol(conn, worker, goal, request)
             if goal["state"] not in ("READY", "WAITING", "RUNNING"):
                 raise Conflict("Goal is not executable")
             if command["state"] == "CLAIMED":
@@ -158,7 +176,7 @@ class Mailbox:
                     "started_at=clock_timestamp() WHERE id=%s",
                     (attempt["id"],),
                 )
-                if attempt["phase"] == 1:
+                if attempt["phase"] > 0:
                     conn.execute(
                         "UPDATE waits SET closed_at=clock_timestamp() WHERE goal_id=%s",
                         (goal["id"],),
@@ -170,8 +188,8 @@ class Mailbox:
                 self.store.audit(
                     conn, goal["id"], "attempt_started", attempt_id=str(attempt["id"])
                 )
-            return {
-                "protocol_version": 1,
+            response = {
+                "protocol_version": request.protocol_version,
                 "command_id": command_id,
                 "claim_id": request.claim_id,
                 "session_id": attempt["session_id"],
@@ -180,6 +198,76 @@ class Mailbox:
                 "workspace_ref": worker["workspace_ref"],
                 "phase": attempt["phase"],
             }
+            if request.protocol_version == 2:
+                wait = conn.execute(
+                    "SELECT * FROM waits WHERE goal_id=%s", (goal["id"],)
+                ).fetchone()
+                session = conn.execute(
+                    "SELECT * FROM sessions WHERE id=%s", (attempt["session_id"],)
+                ).fetchone()
+                event = (
+                    conn.execute(
+                        "SELECT body FROM events WHERE id=%s", (wait["event_id"],)
+                    ).fetchone()
+                    if wait["event_id"]
+                    else None
+                )
+                response["context"] = {
+                    "goal_id": goal["id"],
+                    "objective": goal["objective"],
+                    "lifecycle": policy.get("lifecycle", "legacy"),
+                    "max_attempts": policy["max_attempts"],
+                    "completion_condition": goal["completion_criteria"][
+                        "event_matches"
+                    ],
+                    "wait": {
+                        "generation": wait["generation"],
+                        "condition": wait["condition"],
+                        "satisfied": wait["satisfied_at"] is not None,
+                    },
+                    "provider_session_id": session["provider_session_id"],
+                    "external_event": event["body"] if event else None,
+                }
+            return response
+
+    @staticmethod
+    def _protocol(conn, worker, goal, request):
+        policy = conn.execute(
+            "SELECT policy FROM runs WHERE goal_id=%s", (goal["id"],)
+        ).fetchone()["policy"]
+        if (
+            request.protocol_version == 2
+            and "event-driven-v1" not in worker["capabilities"]
+        ):
+            raise Conflict("Worker is not enrolled for protocol 2")
+        if (
+            policy.get("lifecycle") == "event-driven-v1"
+            and request.protocol_version != 2
+        ):
+            raise Conflict("Repeatable execution requires protocol 2")
+        return policy
+
+    def prepare_wait(self, token, command_id, request):
+        with self.store.connect() as conn:
+            worker = self.worker(conn, token)
+            command, goal, attempt = self._command(conn, worker, command_id)
+            self._protocol(conn, worker, goal, request)
+            if (
+                command["state"] != "CLAIMED"
+                or command["claim_id"] != request.claim_id
+                or attempt["session_id"] != request.session_id
+            ):
+                raise Conflict(
+                    "Wait preparation requires the current claim and Session"
+                )
+            wait = self.store.prepare_wait(
+                attempt, request.condition, request.expected_generation, connection=conn
+            )
+            return {
+                "protocol_version": 2,
+                "wait_id": wait["id"],
+                "generation": wait["generation"],
+            }
 
     def bind_session(self, token, command_id, request):
         """Bind only an admitted command; never choose a provider session for it."""
@@ -187,6 +275,7 @@ class Mailbox:
             # Serializes all bindings on this worker, including different Goals.
             worker = self.worker(conn, token)
             command, goal, attempt = self._command(conn, worker, command_id)
+            self._protocol(conn, worker, goal, request)
             if (
                 command["state"] != "CLAIMED"
                 or goal["state"] != "RUNNING"
@@ -229,7 +318,7 @@ class Mailbox:
                     session_id=str(session["id"]),
                 )
             return {
-                "protocol_version": 1,
+                "protocol_version": request.protocol_version,
                 "session_id": session["id"],
                 "worker_id": worker["id"],
                 "runtime": session["runtime"],
@@ -246,6 +335,7 @@ class Mailbox:
         with self.store.connect() as conn:
             worker = self.worker(conn, token)
             command, goal, attempt = self._command(conn, worker, command_id)
+            self._protocol(conn, worker, goal, report)
             if (
                 command["claim_id"] != report.claim_id
                 or attempt["session_id"] != report.session_id
@@ -264,7 +354,11 @@ class Mailbox:
             if provider != report.provider_session_id:
                 raise Conflict("Stop receipt provider session mismatch")
             self.store.finish(
-                attempt, report.duration_ms, report.success, connection=conn
+                attempt,
+                report.duration_ms,
+                report.success,
+                connection=conn,
+                outcome=report.outcome,
             )
             conn.execute(
                 "UPDATE commands SET state='STOPPED',report_digest=%s,"
