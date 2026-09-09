@@ -84,7 +84,7 @@ def main():
             print("Created .env (owner-readable only). Keep it out of version control.")
         elif args.command == "migrate":
             Store(Settings.from_env()).migrate()
-            print("Schema version 5 ready")
+            print("Schema version 6 ready")
         elif args.command == "serve":
             import uvicorn
 

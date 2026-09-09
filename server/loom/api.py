@@ -10,7 +10,14 @@ from starlette.concurrency import run_in_threadpool
 from loom.config import Settings
 from loom.github import GitHubBinding, GitHubIngress, verify
 from loom.mailbox import Mailbox, Unauthorized
-from loom.models import ClaimRequest, EventCreate, GoalCreate, StopReport, WorkerEnroll
+from loom.models import (
+    ClaimRequest,
+    EventCreate,
+    GoalCreate,
+    SessionBinding,
+    StopReport,
+    WorkerEnroll,
+)
 from loom.store import Conflict, NotFound, Store
 
 
@@ -56,7 +63,7 @@ def create_app(settings=None):
     def ready():
         with store.connect() as conn:
             if not conn.execute(
-                "SELECT version FROM schema_migrations WHERE version=5"
+                "SELECT version FROM schema_migrations WHERE version=6"
             ).fetchone():
                 raise HTTPException(503, "Database migration required")
         return {"database": "ready"}
@@ -106,6 +113,12 @@ def create_app(settings=None):
         command_id: UUID, request: StopReport, token=Depends(worker_token)
     ):
         return mailbox.report(token, command_id, request)
+
+    @app.post("/v1/worker/commands/{command_id}/session")
+    def bind_session(
+        command_id: UUID, request: SessionBinding, token=Depends(worker_token)
+    ):
+        return mailbox.bind_session(token, command_id, request)
 
     @app.post("/v1/github/bindings", dependencies=[Depends(authenticate)])
     def github_binding(binding: GitHubBinding):

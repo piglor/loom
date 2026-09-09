@@ -181,9 +181,67 @@ class Mailbox:
                 "phase": attempt["phase"],
             }
 
+    def bind_session(self, token, command_id, request):
+        """Bind only an admitted command; never choose a provider session for it."""
+        with self.store.connect() as conn:
+            # Serializes all bindings on this worker, including different Goals.
+            worker = self.worker(conn, token)
+            command, goal, attempt = self._command(conn, worker, command_id)
+            if (
+                command["state"] != "CLAIMED"
+                or goal["state"] != "RUNNING"
+                or attempt["state"] != "RUNNING"
+                or command["claim_id"] != request.claim_id
+                or attempt["session_id"] != request.session_id
+            ):
+                raise Conflict(
+                    "Session binding requires the current admitted execution"
+                )
+            session = conn.execute(
+                "SELECT * FROM sessions WHERE id=%s FOR UPDATE",
+                (request.session_id,),
+            ).fetchone()
+            existing = session["provider_session_id"]
+            if existing is not None and existing != request.provider_session_id:
+                raise Conflict("Provider session cannot be reassigned")
+            if existing is None:
+                if attempt["phase"] != 0:
+                    raise Conflict("Continuation cannot create a replacement context")
+                if conn.execute(
+                    "SELECT 1 FROM sessions WHERE worker_id=%s AND runtime=%s "
+                    "AND provider_session_id=%s AND id<>%s",
+                    (
+                        worker["id"],
+                        session["runtime"],
+                        request.provider_session_id,
+                        session["id"],
+                    ),
+                ).fetchone():
+                    raise Conflict("Provider session is already bound")
+                conn.execute(
+                    "UPDATE sessions SET provider_session_id=%s WHERE id=%s",
+                    (request.provider_session_id, session["id"]),
+                )
+                self.store.audit(
+                    conn,
+                    goal["id"],
+                    "provider_session_bound",
+                    session_id=str(session["id"]),
+                )
+            return {
+                "protocol_version": 1,
+                "session_id": session["id"],
+                "worker_id": worker["id"],
+                "runtime": session["runtime"],
+                "provider_session_id": request.provider_session_id,
+            }
+
     def report(self, token, command_id, report):
         digest = hashlib.sha256(
-            json.dumps(report.model_dump(mode="json"), sort_keys=True).encode()
+            # Preserve hashes of pre-binding v1 receipts which omitted this field.
+            json.dumps(
+                report.model_dump(mode="json", exclude_none=True), sort_keys=True
+            ).encode()
         ).hexdigest()
         with self.store.connect() as conn:
             worker = self.worker(conn, token)
@@ -199,6 +257,12 @@ class Mailbox:
                 return {"status": "duplicate"}
             if command["state"] != "CLAIMED":
                 raise Conflict("Command was not claimed")
+            provider = conn.execute(
+                "SELECT provider_session_id FROM sessions WHERE id=%s",
+                (attempt["session_id"],),
+            ).fetchone()["provider_session_id"]
+            if provider != report.provider_session_id:
+                raise Conflict("Stop receipt provider session mismatch")
             self.store.finish(
                 attempt, report.duration_ms, report.success, connection=conn
             )

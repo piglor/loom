@@ -2,6 +2,11 @@
 
 Status: proposed v1 contract; exact JSON schemas will be implemented and locked with Phase 3. No custom cryptography or general runtime plugin system.
 
+The tables below describe the target protocol, not all currently available routes.
+For the implemented finite worker see [remote worker](remote-worker.md); for the
+implemented provider-binding endpoint and receipt extension see
+[provider session admission](session-binding.md).
+
 ## Worker transport
 
 Agent initiates authenticated HTTPS requests. A long poll delivers already-authorized commands, with bounded response time, jittered reconnect and a durable cursor. The connection can be idle while all model processes are absent. Heartbeats and software recovery queries are not model inference.

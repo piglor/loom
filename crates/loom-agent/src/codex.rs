@@ -21,6 +21,9 @@ pub struct Codex {
     deadline: Instant,
     stopped: bool,
     pending: VecDeque<Value>,
+    thread_id: Option<String>,
+    binding_confirmed: bool,
+    turn_admitted: bool,
 }
 
 pub struct TurnResult {
@@ -73,6 +76,9 @@ impl Codex {
             deadline: Instant::now() + timeout,
             stopped: false,
             pending: VecDeque::new(),
+            thread_id: None,
+            binding_confirmed: false,
+            turn_admitted: false,
         };
         // SAFETY: the descriptor is an owned live ChildStdin. Set nonblocking
         // so a stalled provider cannot defeat the runtime deadline on writes.
@@ -164,8 +170,12 @@ impl Codex {
         }
     }
 
-    /// Capture this returned binding durably before calling `turn`.
-    pub fn open_thread(&mut self, workspace: &Path, thread_id: Option<&str>) -> Result<String> {
+    /// Opening a provider context never starts a model turn.
+    fn open_thread(&mut self, workspace: &Path, thread_id: Option<&str>) -> Result<String> {
+        ensure!(
+            self.thread_id.is_none() && !self.stopped,
+            "Runtime context already opened or stopped"
+        );
         let mut params = json!({"cwd":workspace,"sandbox":"read-only","approvalPolicy":"never"});
         let method = if let Some(id) = thread_id {
             params["threadId"] = json!(id);
@@ -180,7 +190,38 @@ impl Codex {
         if let Some(expected) = thread_id {
             ensure!(id == expected, "Provider resumed a different thread");
         }
+        ensure!(
+            !id.is_empty()
+                && id.chars().count() <= 256
+                && !id.chars().any(|c| c.is_whitespace() || c.is_control()),
+            "Invalid provider thread ID"
+        );
+        self.thread_id = Some(id.to_owned());
         Ok(id.to_owned())
+    }
+
+    /// The callback must durably persist this exact thread and validate any
+    /// remote acknowledgment before returning Ok. Failure leaves inference
+    /// disabled for this process; it must be stopped, never blindly retried.
+    pub fn open_bound_thread(
+        &mut self,
+        workspace: &Path,
+        thread_id: Option<&str>,
+        persist: impl FnOnce(&str) -> Result<()>,
+    ) -> Result<String> {
+        let id = self.open_thread(workspace, thread_id)?;
+        persist(&id)?;
+        self.confirm_persisted_binding(&id)?;
+        Ok(id)
+    }
+
+    fn confirm_persisted_binding(&mut self, thread_id: &str) -> Result<()> {
+        ensure!(
+            self.thread_id.as_deref() == Some(thread_id) && !self.stopped && !self.turn_admitted,
+            "Persisted binding does not match this runtime context"
+        );
+        self.binding_confirmed = true;
+        Ok(())
     }
 
     pub fn turn(
@@ -189,6 +230,17 @@ impl Codex {
         input: &str,
         output_schema: Value,
     ) -> Result<TurnResult> {
+        ensure!(
+            self.binding_confirmed && self.thread_id.as_deref() == Some(thread_id),
+            "Durable provider binding must be confirmed before inference"
+        );
+        ensure!(
+            !self.turn_admitted && !self.stopped,
+            "Attempt already admitted or runtime stopped"
+        );
+        // Mark before writing: an ambiguous transport failure must not allow a
+        // second turn/start, even if the provider never acknowledged the first.
+        self.turn_admitted = true;
         let result = self.rpc(
             "turn/start",
             json!({"threadId":thread_id,

@@ -53,6 +53,12 @@ class Store:
                 "SELECT 1 FROM schema_migrations WHERE version=5"
             ).fetchone():
                 conn.execute(files("loom").joinpath("005-reconcile.sql").read_text())
+            if not conn.execute(
+                "SELECT 1 FROM schema_migrations WHERE version=6"
+            ).fetchone():
+                conn.execute(
+                    files("loom").joinpath("006-provider-binding.sql").read_text()
+                )
 
     def _goal(self, conn, goal_id, lock=False):
         row = conn.execute(

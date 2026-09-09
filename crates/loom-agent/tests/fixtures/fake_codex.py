@@ -20,6 +20,8 @@ for line in sys.stdin:
         assert request["params"]["sandbox"] == "read-only"
         assert request["params"]["approvalPolicy"] == "never"
         result = {"thread": {"id": request["params"].get("threadId", "thread-fixture")}}
+        if result["thread"]["id"] == "wrong-resume":
+            result["thread"]["id"] = "unrelated-context"
     elif method == "turn/start":
         # Intentionally emit completion notifications BEFORE the RPC response.
         # Clients must retain them, rather than lose a fast finite turn.
@@ -32,6 +34,8 @@ for line in sys.stdin:
               "turnId": "turn-1", "item": {"type": "agentMessage", "text": '{"ok":true}'}}})
         emit({"method": "turn/completed", "params": {"threadId": thread_id,
               "turn": {"id": "turn-1", "status": "completed"}}})
+        if text == "lost-ack":
+            sys.exit(0)
         result = {"turn": {"id": "turn-1"}}
     else:
         raise AssertionError("Unexpected method")

@@ -24,11 +24,14 @@ fn main() -> Result<()> {
         "required":["remembered"],"additionalProperties":false});
     let nonce = uuid::Uuid::new_v4().to_string();
     let mut runtime = Codex::start(&binary, &workspace, Duration::from_secs(180))?;
-    let id = runtime.open_thread(&workspace, None)?;
-    writeln!(receipt, "{}", json!({"provider_thread_id":id}))?;
-    receipt.sync_all()?;
     let receipt_path = PathBuf::from(&args[3]).canonicalize()?;
-    std::fs::File::open(receipt_path.parent().context("Receipt parent required")?)?.sync_all()?;
+    let id = runtime.open_bound_thread(&workspace, None, |id| {
+        writeln!(receipt, "{}", json!({"provider_thread_id":id}))?;
+        receipt.sync_all()?;
+        std::fs::File::open(receipt_path.parent().context("Receipt parent required")?)?
+            .sync_all()?;
+        Ok(())
+    })?;
     let first = runtime.turn(&id, &format!("This is a harmless continuity test. Do not use any tools. Remember this marker: {nonce}. Return it as remembered."), schema.clone())?;
     let output: Value = serde_json::from_str(&first.text)?;
     ensure!(
@@ -39,7 +42,13 @@ fn main() -> Result<()> {
     drop(runtime);
     std::thread::sleep(Duration::from_secs(3));
     let mut runtime = Codex::start(&binary, &workspace, Duration::from_secs(180))?;
-    let resumed = runtime.open_thread(&workspace, Some(&id))?;
+    let resumed = runtime.open_bound_thread(&workspace, Some(&id), |resumed| {
+        ensure!(
+            resumed == id,
+            "Persisted binding differs from resumed context"
+        );
+        Ok(())
+    })?;
     let second = runtime.turn(
         &resumed,
         "Return the exact marker from the previous turn as remembered. Do not use any tools.",

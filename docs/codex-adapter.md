@@ -11,6 +11,12 @@ and locally generated Codex 0.153.4 schemas informed the implementation. The
 provider binding must be persisted before a model turn. The standalone probe
 syncs both receipt and parent directory before starting that turn.
 
+The adapter now enforces an explicit persistence callback through
+`open_bound_thread` and admits only one model turn per process. The server also
+implements immutable, worker/claim-scoped provider binding and validates bound
+stop receipts. See [session admission](session-binding.md) for the tested contract
+and remaining daemon integration/supervision gates.
+
 ## Live proof
 
 On 2026-09-09, two actual model turns passed the continuity check with installed

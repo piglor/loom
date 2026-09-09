@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -49,7 +49,18 @@ class ClaimRequest(Model):
     claim_id: UUID
 
 
+ProviderSessionId = Annotated[
+    str, Field(min_length=1, max_length=256, pattern=r"^[^\s\p{Cc}]+$")
+]
+
+
 class StopReport(ClaimRequest):
     session_id: UUID
     duration_ms: float = Field(ge=0, le=86400000, allow_inf_nan=False)
     success: bool
+    provider_session_id: ProviderSessionId | None = None
+
+
+class SessionBinding(ClaimRequest):
+    session_id: UUID
+    provider_session_id: ProviderSessionId
