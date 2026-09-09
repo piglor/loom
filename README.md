@@ -15,7 +15,7 @@ The durable object is the desired outcome, not a permanently running process. Co
 
 Phase 2: **runnable local durable-core development release**. Includes an authenticated API and CLI, PostgreSQL domain state, Hatchet durable waits, deterministic event correlation, audit history and active/suspended timing. The finite demo runtime invokes no model.
 
-The live restart proof preserves a stopped wait through API, worker and Hatchet engine restarts, then resumes the same logical Session exactly once. An outbound Rust finite-runtime worker and signed GitHub workflow ingress are now implemented; a standalone Codex adapter passed exact-thread continuity with real model turns. **Unattended Codex execution and production deployment are not ready.** No token or cost savings are claimed. Implementation proceeds through [eight proof gates](docs/implementation-plan.md).
+The live restart proof preserves a stopped wait through API, worker and Hatchet engine restarts, then resumes the same logical Session exactly once. An outbound Rust finite-runtime worker and signed GitHub workflow ingress are now implemented; a standalone Codex adapter passed exact-thread continuity with real model turns. The finite control plane is [deployed and acceptance-tested](docs/production-rollout.md); **unattended Codex execution and the full production release are not ready.** No token or cost savings are claimed. Implementation proceeds through [eight proof gates](docs/implementation-plan.md).
 
 ## Run locally
 
@@ -70,6 +70,11 @@ for Linux amd64. Publishing is gated on the durable-core test and recovery job;
 pull requests cannot publish images. Deploy by the immutable digest recorded in
 the workflow summary. No moving release tag is published. Images contain the finite
 control plane, not a production-enabled Codex daemon.
+
+The first image publication succeeded. GHCR currently requires authentication;
+public source availability does not automatically make the container package
+public. See the [rollout record](docs/production-rollout.md) for the tested digest
+and deployment mode.
 
 ## License
 

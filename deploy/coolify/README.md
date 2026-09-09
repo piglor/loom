@@ -30,9 +30,10 @@ proxy where appropriate. Remote workers connect only to Loom HTTPS.
 The default internal Hatchet transport is `hatchet-engine:7070` without TLS,
 matching the supplied private-engine topology. This is only for a trusted Docker
 network. Override the host and TLS strategy for any other topology; never disable
-TLS on an Internet-facing worker connection. A snapshot of this descriptor has
-been submitted to Piglor production, but the deployment has not passed live
-acceptance. See [rollout status](../../docs/production-rollout.md).
+TLS on an Internet-facing worker connection. The finite control plane has passed
+live yield/restart/wake acceptance on Piglor production using a commit-pinned
+public Git build context. See [rollout status](../../docs/production-rollout.md)
+for the exact deployed revision, image visibility and remaining release gates.
 
 ## Deploying without a source repository
 
