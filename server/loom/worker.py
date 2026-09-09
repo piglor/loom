@@ -131,14 +131,29 @@ def main():
                 stop.wait(1)
 
         thread = threading.Thread(target=relay, daemon=True)
-        thread.start()
+
+        async def relay_lifespan():
+            # Hatchet enters this after registering workflows. Publishing from
+            # an earlier thread races registration on a cold engine/namespace.
+            thread.start()
+            try:
+                yield
+            finally:
+                stop.set()
+                await asyncio.to_thread(thread.join, 6)
+
         try:
             hatchet.worker(
-                "loom-control-plane", slots=4, durable_slots=20, workflows=[workflow]
+                "loom-control-plane",
+                slots=4,
+                durable_slots=20,
+                workflows=[workflow],
+                lifespan=relay_lifespan,
             ).start()
         finally:
             stop.set()
-            thread.join(timeout=6)
+            if thread.ident is not None:
+                thread.join(timeout=6)
 
 
 if __name__ == "__main__":

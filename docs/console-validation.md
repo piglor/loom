@@ -5,7 +5,7 @@ production agent product.
 
 ## Local evidence
 
-- 56 Python/PostgreSQL tests passed, including seven real Go read/API contract
+- 59 Python/PostgreSQL tests passed, including seven real Go read/API contract
   cases. Full nested lifecycle data is compared for waiting, completion,
   cancellation, runtime failure and uncertain execution. Timestamp representations
   are normalized by instant, not silently ignored.
@@ -46,6 +46,17 @@ under concurrent build load. Browser workers are now bounded to one; the three-s
 case has its own 90-second budget. The complete matrix subsequently passed, with
 retries disabled. Browser startup runs a prebuilt Go binary rather than timing
 toolchain download/compilation as server startup.
+
+Fresh GitHub runners exposed intermittent initial dispatch stalls: the Goal was
+READY with an assigned Hatchet workflow but no execution attempt. Three runs
+failed; a diagnostics-only subsequent run passed all checks and image publication.
+Local repetition, a fresh engine and a single-CPU test did not reproduce the stall.
+Investigation also found that the outbox relay started before workflow registration.
+A regression test failed against that ordering; the relay now starts through the
+SDK lifespan after registration, and tests cover registration failure and thread
+teardown. This corrects a startup ordering defect, but does not by itself establish
+the cause of the CI stalls. Safe diagnostics now retain domain/engine progress
+without printing payloads or credentials, including when the database is unavailable.
 
 ## Reproduce and CI
 

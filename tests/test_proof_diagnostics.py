@@ -1,4 +1,4 @@
-from scripts.prove_recovery import failure_summary
+from scripts.prove_recovery import domain_progress, failure_summary
 
 
 def test_failure_summary_does_not_copy_raw_logs_or_credentials():
@@ -13,3 +13,11 @@ def test_failure_summary_does_not_copy_raw_logs_or_credentials():
         "exception_types": ["ConnectionRefusedError"],
         "signals": ["connection refused"],
     }
+
+
+def test_domain_diagnostics_survive_unavailable_database():
+    class UnavailableStore:
+        def inspect(self, goal_id):
+            raise OSError("postgresql://private:credential@host/database")
+
+    assert domain_progress(UnavailableStore(), "goal") == (None, {"available": False})

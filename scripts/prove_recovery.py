@@ -71,6 +71,20 @@ def failure_summary(log_text, processes):
     }
 
 
+def domain_progress(store, goal_id):
+    """Best-effort fixed fields: diagnostics must not replace a proof failure."""
+    try:
+        current = store.inspect(goal_id)
+        return current["run"]["workflow_id"], {
+            "state": current["state"],
+            "attempt_count": len(current["attempts"]),
+            "workflow_assigned": bool(current["run"]["workflow_id"]),
+            "outbox_pending": len(store.outbox_batch()),
+        }
+    except Exception:
+        return None, {"available": False}
+
+
 def eventually(check, timeout=90):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -222,20 +236,11 @@ def main():
         except Exception:
             log.flush()
             if goal_id is not None:
-                current = store.inspect(goal_id)
+                workflow_id, progress = domain_progress(store, goal_id)
                 print(
-                    "Proof domain diagnostics: "
-                    + json.dumps(
-                        {
-                            "state": current["state"],
-                            "attempt_count": len(current["attempts"]),
-                            "workflow_assigned": bool(current["run"]["workflow_id"]),
-                            "outbox_pending": len(store.outbox_batch()),
-                        }
-                    ),
+                    "Proof domain diagnostics: " + json.dumps(progress),
                     flush=True,
                 )
-                workflow_id = current["run"]["workflow_id"]
                 if workflow_id:
                     try:
                         result = subprocess.run(
@@ -278,7 +283,7 @@ def main():
                             ),
                             flush=True,
                         )
-                    except (subprocess.SubprocessError, ValueError, OSError):
+                    except Exception:
                         print("Proof engine diagnostics unavailable", flush=True)
             print(
                 "Proof failure diagnostics: "
