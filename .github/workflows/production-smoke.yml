@@ -1,0 +1,20 @@
+name: production-smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Read-only public production smoke (no secrets)
+        working-directory: apps/web
+        run: npx playwright test --config playwright.smoke.config.ts

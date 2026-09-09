@@ -65,6 +65,31 @@ func TestRoutesAndAuthentication(t *testing.T) {
 		})
 	}
 }
+func TestUnknownNavigationAndResourceErrors(t *testing.T) {
+	upstream := httptest.NewServer(http.NotFoundHandler())
+	defer upstream.Close()
+	h := handlerForTest(fakeReader{}, upstream.URL)
+	for _, tc := range []struct {
+		path, accept string
+		html         bool
+	}{
+		{"/not-a-loom-page", "text/html", true},
+		{"/not-a-loom-page", "application/json", false},
+		{"/assets/missing.js", "text/html", false},
+		{"/.env", "text/html", false},
+		{"/main.go", "text/html", false},
+		{"/v1/not-a-route", "text/html", false},
+	} {
+		r := httptest.NewRequest("GET", tc.path, nil)
+		r.Header.Set("Accept", tc.accept)
+		r.Header.Set("Authorization", "Bearer "+testToken)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != 404 || strings.Contains(w.Body.String(), "<!doctype html>") != tc.html {
+			t.Errorf("path=%s accept=%s status=%d html=%v", tc.path, tc.accept, w.Code, tc.html)
+		}
+	}
+}
 func TestReadFailures(t *testing.T) {
 	for _, tc := range []struct {
 		err    error

@@ -1,5 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+
+const test = base.extend<{ checkPageErrors: void }>({
+  checkPageErrors: [
+    async ({ page }, use) => {
+      const errors: Error[] = [];
+      page.on("pageerror", (error) => errors.push(error));
+      await use();
+      expect(errors, "No uncaught browser JavaScript errors").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
 
 const id = "a2222222-2222-4222-8222-222222222222";
 const token = "test-operator-token-never-persist-this";
@@ -73,6 +85,170 @@ async function login(page: Page, path = "/") {
   await page.getByLabel("Operator API token").fill(token);
   await page.getByRole("button", { name: "Connect to Loom" }).click();
 }
+test("unknown browser route retains HTTP 404 and offers recovery", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  const response = await page.goto("/not-a-loom-page");
+  expect(response?.status()).toBe(404);
+  await page.getByLabel("Operator API token").fill(token);
+  await page.getByRole("button", { name: "Connect to Loom" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Go to Goals", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
+});
+test("keyboard sign-in and skip navigation focus main content", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Operator API token")).toBeFocused();
+  await page.keyboard.type(token);
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Connect to Loom" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "Skip to content" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#content")).toBeFocused();
+});
+test("back and forward restore Goals and attention navigation", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await login(page, "/goals");
+  await page.getByRole("link", { name: "◈ Needs you" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Needs you", exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
+  await page.goForward();
+  await expect(
+    page.getByRole("heading", { name: "Needs you", exact: true }),
+  ).toBeVisible();
+});
+test("state filter and search reset restore matching Goals", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await login(page);
+  await page.getByLabel("Find a Goal").fill("unmatched");
+  await expect(
+    page.getByRole("heading", { name: "No matching Goals" }),
+  ).toBeVisible();
+  await page.getByLabel("Find a Goal").fill("");
+  await page.getByRole("combobox").selectOption("COMPLETED");
+  await expect(
+    page.getByRole("heading", { name: "No matching Goals" }),
+  ).toBeVisible();
+  await page.getByRole("combobox").selectOption("ALL");
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toBeVisible();
+});
+test("completion policy expands without horizontal overflow", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await login(page, `/goals/${id}`);
+  await page.getByText("Completion criteria & policy", { exact: true }).click();
+  await expect(page.locator("details[open] pre")).toContainText(
+    '"approved": true',
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+test("network failure hides stale Goals and refresh recovers", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await login(page);
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toBeVisible();
+  await page.route("**/v1/goals", (route) => route.abort());
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toHaveCount(0);
+  await page.unroute("**/v1/goals");
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toBeVisible();
+});
+test("expired authority signs out on refresh", async ({ page }) => {
+  await mockAPI(page);
+  await login(page);
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toBeVisible();
+  await page.route("**/v1/goals", (route) => route.fulfill({ status: 401 }));
+  await page.getByRole("button", { name: "Refresh" }).click();
+  await expect(page.getByLabel("Operator API token")).toHaveValue("");
+  await expect(
+    page.getByRole("link", { name: /Investigate deployment/ }),
+  ).toHaveCount(0);
+});
+test("unknown Goal supports retry and navigation back", async ({ page }) => {
+  await mockAPI(page);
+  const missing = "00000000-0000-4000-8000-000000000000";
+  await page.route(`**/v1/goals/${missing}`, (route) =>
+    route.fulfill({ status: 404 }),
+  );
+  await login(page, `/goals/${missing}`);
+  await expect(
+    page.getByRole("heading", { name: "Unable to open Goal" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Unable to open Goal" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Back to Goals" }).click();
+  await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
+});
+test("malformed Goal URL produces a recoverable error without a crash", async ({
+  page,
+}) => {
+  const errors: Error[] = [];
+  page.on("pageerror", (error) => errors.push(error));
+  await mockAPI(page);
+  await page.route("**/v1/goals/not-a-uuid", (route) =>
+    route.fulfill({ status: 422 }),
+  );
+  await login(page, "/goals/not-a-uuid");
+  await expect(
+    page.getByRole("heading", { name: "Unable to open Goal" }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("sign out and browser back cannot restore authority", async ({ page }) => {
+  await mockAPI(page);
+  await login(page, "/goals");
+  await page.getByRole("link", { name: /Investigate deployment/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Audit timeline" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.goBack();
+  await expect(page.getByLabel("Operator API token")).toHaveValue("");
+  await expect(page.getByRole("heading", { name: "Your Goals" })).toHaveCount(
+    0,
+  );
+});
 test("navigate real-shaped generic Goal and inspect wait evidence", async ({
   page,
 }) => {
@@ -191,14 +367,20 @@ test("accessible login, overview and detail with responsive screenshots", async 
   await mockAPI(page);
   await page.goto("/");
   expect(
-    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
-      .violations,
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
   ).toEqual([]);
   await login(page);
   await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
   expect(
-    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
-      .violations,
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
   ).toEqual([]);
   await page.screenshot({ path: info.outputPath("goals.png"), fullPage: true });
   await page.getByRole("link", { name: /Investigate deployment/ }).click();
@@ -206,8 +388,11 @@ test("accessible login, overview and detail with responsive screenshots", async 
     page.getByRole("heading", { name: "Audit timeline" }),
   ).toBeVisible();
   expect(
-    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
-      .violations,
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
   ).toEqual([]);
   await page.screenshot({
     path: info.outputPath("goal-detail.png"),

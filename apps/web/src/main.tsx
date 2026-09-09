@@ -485,7 +485,7 @@ function App() {
           <small>Operator preview · Read-only console</small>
         </div>
       </aside>
-      <main id="content" className="content">
+      <main id="content" className="content" tabIndex={-1}>
         <Routes>
           <Route
             path="/"

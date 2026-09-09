@@ -140,9 +140,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx prettier --check apps/web/src apps/web/tests apps/web/playwright.config.ts packages/client/src
+      - run: npx prettier --check apps/web/src apps/web/tests apps/web/smoke apps/web/playwright.config.ts apps/web/playwright.smoke.config.ts packages/client/src
       - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:web
+      - name: 72 browser regression and smoke checks (four profiles, no production credentials)
+        run: npm run test:web
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

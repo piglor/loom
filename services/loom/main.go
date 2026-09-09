@@ -149,6 +149,16 @@ func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http
 		}
 		proxy.ServeHTTP(w, r.WithContext(ctx))
 	}))
+	serveConsole := func(w http.ResponseWriter, status int) {
+		body, err := fs.ReadFile(assets, "index.html")
+		if err != nil {
+			http.Error(w, "Console assets unavailable", 503)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(status)
+		_, _ = w.Write(body)
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -157,7 +167,13 @@ func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http
 		}
 		if r.URL.Path != "/" && r.URL.Path != "/goals" && !strings.HasPrefix(r.URL.Path, "/goals/") && r.URL.Path != "/needs-you" {
 			if !strings.HasPrefix(r.URL.Path, "/assets/") {
-				http.NotFound(w, r)
+				// Browser navigation gets the recovery UI with a real 404. API,
+				// asset and file-like requests retain their resource error behavior.
+				if strings.Contains(r.Header.Get("Accept"), "text/html") && path.Ext(r.URL.Path) == "" {
+					serveConsole(w, http.StatusNotFound)
+				} else {
+					http.NotFound(w, r)
+				}
 				return
 			}
 			name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
@@ -172,13 +188,7 @@ func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http
 			http.FileServer(http.FS(assets)).ServeHTTP(w, r)
 			return
 		}
-		body, err := fs.ReadFile(assets, "index.html")
-		if err != nil {
-			http.Error(w, "Console assets unavailable", 503)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(body)
+		serveConsole(w, http.StatusOK)
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
