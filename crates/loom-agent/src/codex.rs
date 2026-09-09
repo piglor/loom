@@ -37,9 +37,15 @@ impl Codex {
             workspace.is_absolute() && workspace.is_dir(),
             "Absolute workspace required"
         );
-        let mut child = Command::new(binary)
+        let mut command = Command::new(binary);
+        command
             .args(["app-server", "--stdio"])
-            .current_dir(workspace)
+            .current_dir(workspace);
+        Self::from_command(command, timeout)
+    }
+
+    pub(crate) fn from_command(mut command: Command, timeout: Duration) -> Result<Self> {
+        let mut child = command
             .process_group(0)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

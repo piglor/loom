@@ -1,12 +1,14 @@
 # GitHub workflow ingress
 
-Current scope: signed `workflow_run` completion events for explicitly enrolled
-finite-runtime Goals. It is not a production privileged-agent integration yet.
+Current scope: native Go signed `workflow_run` completion events for explicitly
+enrolled Goals, with live GitHub API freshness checks before correlation.
 
 Set a random `LOOM_GITHUB_WEBHOOK_SECRET` of at least 32 characters in the server
-secret store and configure a GitHub App webhook at `/v1/github/webhook`. Until
-configured, that endpoint returns 503. The App needs Actions read and relevant
-repository access. Never send the Loom administrator bearer token to GitHub.
+secret store and configure a webhook at `/v1/github/webhook`. Until configured,
+that endpoint returns 503. Public repositories can be revalidated without an API
+token. Private repositories require a short-lived, least-privilege installation
+token in `LOOM_GITHUB_API_TOKEN`. Never send the Loom administrator token to
+GitHub.
 
 An administrator creates a Goal whose condition is:
 
@@ -14,13 +16,13 @@ An administrator creates a Goal whose condition is:
 {
   "source": "github",
   "type": "workflow.completed",
-  "resource": "REPOSITORY_ID/PR_NUMBER/RUN_ID/RUN_ATTEMPT",
+  "resource": "REPOSITORY_ID/PR_NUMBER/WORKFLOW_ID/RUN_ID/RUN_ATTEMPT",
   "version": "40-character-lowercase-head-sha"
 }
 ```
 
 Then `POST /v1/github/bindings` with administrator authorization and:
-`goal_id`, `installation_id`, `repository_id`, `pull_request`, `head_sha`,
+`goal_id`, `installation_id`, `repository_id`, `repository_full_name`, `pull_request`, `head_sha`,
 `run_id`, `run_attempt`, `workflow_id`. The binding must match the Goal condition;
 it cannot replace the Goal's worker/session or expand its scope. Previously
 received unbound deliveries are retained and reconciled when the binding is
@@ -36,12 +38,13 @@ SHA, installation, workflow/run/attempt and `pull_request` trigger. Missing or
 ambiguous PR associations, forks and `pull_request_target` are rejected. Tests
 include GitHub's official signature vector and tampered bytes.
 
-Privileged runtime bindings are explicitly rejected. Before enabling Codex, add
-GitHub App installation authentication, current PR/run revalidation, missed-event
-reconciliation, revocation handling, and captured live payload tests. A correctly
-signed historical event is not proof that its PR head is still current. Review
-events, check-run providers, required-check policies and approval freshness are
-also outstanding. See [research](research/github.md) and [release gates](production-readiness.md).
+Repository webhook bindings use `installation_id: 0` and are restricted to
+finite demo runtimes. Privileged Codex bindings remain disabled until GitHub App
+installation authorization and revocation checks are implemented. Finite
+bindings are checked against the current PR head and workflow run both when
+bound and when delivered, so retained early evidence cannot wake after becoming
+stale. Missed-delivery API reconciliation, required-check policy and the full
+live Codex round trip remain release gates.
 
 Sources: [GitHub signature validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries),
 [webhook events](https://docs.github.com/en/webhooks/webhook-events-and-payloads),

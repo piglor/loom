@@ -13,9 +13,19 @@ The durable object is the desired outcome, not a permanently running process. Co
 
 ## Status
 
-Phase 2: **runnable local durable-core development release**. Includes an authenticated API and CLI, PostgreSQL domain state, Hatchet durable waits, deterministic event correlation, audit history and active/suspended timing. The finite demo runtime invokes no model.
+Status: **Go-only finite control plane release candidate; privileged Codex remains gated.** PostgreSQL
+domain persistence, generic external-event correlation, outbound worker
+admission, exact Session binding and active/suspended accounting are implemented
+in Go. The browser is React/TypeScript and the machine Agent is Rust.
 
-The live restart proof preserves a stopped wait through API, worker and Hatchet engine restarts, then resumes the same logical Session exactly once. An outbound Rust finite-runtime worker and signed GitHub workflow ingress are now implemented; a standalone Codex adapter passed exact-thread continuity with real model turns. The finite control plane is [deployed and acceptance-tested](docs/production-rollout.md); **unattended Codex execution and the full production release are not ready.** No token or cost savings are claimed. Implementation proceeds through [eight proof gates](docs/implementation-plan.md).
+The Go persistence and HTTP tests prove that an outbound execution can yield,
+remain stopped through a control-plane restart, accept a correlated external
+approval, and resume the same Loom Session on the same Worker. The control plane
+uses the official Hatchet Go SDK to transfer durable dispatch intents. A
+standalone Codex adapter previously passed exact-thread continuity. Signed
+GitHub workflow ingress and live PR/run freshness validation are implemented. A
+full GitHub App-to-Codex production proof remains unfinished. No token or cost
+savings are claimed.
 
 ## Run locally
 
@@ -28,17 +38,21 @@ With Node 24 and the Go version pinned in `services/loom/go.mod`, run
 `make console-setup`, then follow the console guide to start it alongside the
 existing API. Native iOS/Android clients are planned, not shipped.
 
-With Linux, Python 3.12, Docker Compose v2 and Hatchet CLI 0.105.16 installed:
+With Go 1.26, Rust 1.97, Node 24, Docker Compose v2 and Hatchet CLI 0.105.16:
 
 ```bash
 make setup
+cp .env.example .env
+# Fill .env with fresh local values, then:
 make init
 make infra
 make migrate
 make serve
 ```
 
-Run `make worker` in another terminal. Follow the [quickstart](docs/quickstart.md) to create a Goal, observe suspension and send its matching event. Run `make check test` for checks and `make prove` for the live restart proof (stop manual API/worker processes first).
+Run `make worker` in a second terminal after configuring a reachable Hatchet
+gRPC endpoint and scoped client token. Run `make check test` for the maintained
+gates and `make prove` for the PostgreSQL lifecycle proof.
 
 The local Hatchet stack is development-only. Your production Hatchet deployment is not modified.
 
@@ -48,11 +62,12 @@ requirements are tracked in [production readiness](docs/production-readiness.md)
 See the [Codex conformance evidence](docs/codex-adapter.md) and
 [GitHub ingress scope](docs/github-ingress.md) before enabling integrations.
 
-GitHub is an optional integration plugin, not a core dependency. A GitLab signed
-pipeline-event adapter uses the same durable Goal/Wait/Session contract. Select
-adapters with `LOOM_INTEGRATIONS`; see [integration plugins](docs/integration-plugins.md)
-for setup, security boundaries, and current preview limitations. Repeatable
-outbound execution is opt-in through [worker protocol 2](docs/repeatable-worker.md).
+GitHub and GitLab are optional integration plugins, not core dependencies. Their
+normalized conditions use the same durable Goal/Wait/Session contract as every
+other external system. Native signed provider HTTP ingress is still a release
+gate; see [integration plugins](docs/integration-plugins.md) for the contract and
+current limitations. Repeatable outbound execution is opt-in through
+[worker protocol 2](docs/repeatable-worker.md).
 
 ## Design
 
@@ -68,11 +83,8 @@ outbound execution is opt-in through [worker protocol 2](docs/repeatable-worker.
 - [Validation and live connection status](docs/validation.md)
 - Upstream research: [Hatchet](docs/research/hatchet.md), [Codex](docs/research/codex.md), [GitHub](docs/research/github.md)
 
-The accepted target is a monorepo with React web/React Native mobile clients,
-a Go control plane, PostgreSQL/Hatchet, and a Rust Loom Agent. Migration is
-incremental: Go currently serves the console and native read APIs; Python remains
-the mutation and orchestration authority. Do not remove its worker while Runs
-depend on it. See [ADR-0013](ADRs/0013-go-backend-migration.md).
+The monorepo uses React web/future React Native clients, a Go control plane,
+PostgreSQL/Hatchet, and a Rust Loom Agent. No second backend stack is maintained.
 Hatchet remains an implementation dependency; users interact with Loom concepts.
 
 ## Contributing
@@ -85,9 +97,8 @@ Secrets belong in a deployment secret store or local ignored environment configu
 
 ## Container images
 
-Successful `main` CI runs publish `ghcr.io/piglor/loom:sha-<commit>` and
-`ghcr.io/piglor/loom-console:sha-<commit>` for Linux amd64. Publishing is gated
-on the durable-core/recovery and browser test jobs;
+Successful `main` CI runs publish `ghcr.io/piglor/loom:sha-<commit>` for Linux
+amd64. Publishing is gated on the Go/Rust and browser test jobs;
 pull requests cannot publish images. Deploy by the immutable digest recorded in
 the workflow summary. No moving release tag is published. Images contain the finite
 control plane, not a production-enabled Codex daemon.

@@ -1,8 +1,9 @@
-# Pre-production finite-runtime deployment. Not a privileged Codex release.
+# Go control plane with an official Hatchet Go SDK worker. Remote machine Agents
+# still connect outbound to loom-server over HTTPS.
 x-loom: &loom
   build:
     context: ../..
-    dockerfile: Dockerfile
+    dockerfile: services/loom/Dockerfile
   image: piglor-loom:local
   restart: unless-stopped
   read_only: true
@@ -11,7 +12,6 @@ x-loom: &loom
   tmpfs: [/tmp]
   environment: &environment
     LOOM_DATABASE_URL: postgresql://loom:${LOOM_POSTGRES_PASSWORD:?required}@loom-db:5432/loom
-    LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
     LOOM_ORGANIZATION: ${LOOM_ORGANIZATION:-local}
 
 services:
@@ -36,24 +36,44 @@ services:
     restart: "no"
     networks: [private]
     depends_on:
+      loom-backup: {condition: service_completed_successfully}
+
+  loom-backup:
+    image: postgres:17.6
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PGHOST: loom-db
+      PGUSER: loom
+      PGDATABASE: loom
+      PGPASSWORD: ${LOOM_POSTGRES_PASSWORD:?required}
+    volumes: [loom-backups:/backups]
+    networks: [private]
+    depends_on:
       loom-db: {condition: service_healthy}
+    entrypoint: [sh, -ec]
+    command:
+      - 'umask 077; backup_file=$$(mktemp /backups/pre-migration-XXXXXXXX.dump); pg_dump --format=custom --file="$$backup_file"; pg_restore --list "$$backup_file" >/dev/null; echo "Loom pre-migration backup validated"'
 
   loom-server:
     <<: *loom
     command: [serve]
     environment:
       <<: *environment
+      LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
       LOOM_GITHUB_WEBHOOK_SECRET: ${LOOM_GITHUB_WEBHOOK_SECRET:-}
-    expose: [8000]
-    networks: [private, hatchet-existing]
+      LOOM_GITHUB_API_TOKEN: ${LOOM_GITHUB_API_TOKEN:-}
+    expose: [8080]
+    networks: [private, egress]
     depends_on:
       loom-migrate: {condition: service_completed_successfully}
     healthcheck:
       test:
         - CMD
-        - python
-        - -c
-        - "import os, urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/readyz',headers={'Authorization':'Bearer '+os.environ['LOOM_API_TOKEN']}); urllib.request.urlopen(r,timeout=3).close()"
+        - /loom-server
+        - healthcheck
       interval: 30s
       timeout: 5s
       retries: 3
@@ -68,18 +88,18 @@ services:
       HATCHET_CLIENT_SERVER_URL: ${HATCHET_CLIENT_SERVER_URL:-https://hatchet.piglor.com}
       HATCHET_CLIENT_HOST_PORT: ${HATCHET_CLIENT_HOST_PORT:-hatchet-engine:7070}
       HATCHET_CLIENT_TLS_STRATEGY: ${HATCHET_CLIENT_TLS_STRATEGY:-none}
-    volumes: [loom-receipts:/var/lib/loom]
     networks: [private, hatchet-existing]
     depends_on:
       loom-migrate: {condition: service_completed_successfully}
 
 volumes:
   loom-data:
-  loom-receipts:
+  loom-backups:
 
 networks:
   private:
     internal: true
+  egress:
   hatchet-existing:
     external: true
     name: ${HATCHET_NETWORK:?set existing Docker network name}

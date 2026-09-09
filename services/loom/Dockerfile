@@ -13,7 +13,7 @@ FROM golang:1.26-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f6003
 WORKDIR /src
 COPY services/loom/go.mod services/loom/go.sum ./
 RUN go mod download
-COPY services/loom/*.go ./
+COPY services/loom ./
 RUN CGO_ENABLED=0 go build -trimpath -o /loom-server .
 
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab

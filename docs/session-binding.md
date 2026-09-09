@@ -80,11 +80,8 @@ concurrent requests, wrong claim/session/worker, revocation, continuation identi
 legacy receipt compatibility, and refusal to infer before persistence. Existing
 Hatchet/worker/container restart proofs remain separate regression gates.
 
-Local validation for this slice: 77 Python/PostgreSQL tests, 13 Rust tests,
-Go race tests and vet, Ruff, Rust formatting and Clippy all passed. Real Hatchet
-restart, outbound worker reconnection and PostgreSQL dump/restore proofs passed
-through the Go gateway. Adapter line coverage was 92.79%; overall Rust coverage
-was 69.15%, with the opt-in live-provider probe intentionally not executed. These
+Current validation includes Go PostgreSQL/race tests, Rust unit and Codex
+protocol conformance tests, static checks and the 72-browser matrix. These
 results do not constitute a composed remote Codex or production deployment proof.
 
 The first CI run exposed intermittent Linux `ETXTBSY` in parallel tests that wrote

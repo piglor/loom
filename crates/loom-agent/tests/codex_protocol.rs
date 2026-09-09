@@ -7,7 +7,7 @@ fn fixture_binary() -> PathBuf {
     // Execute an immutable checked-in fixture. Writing executable fixtures in
     // parallel with fork/exec can leave a transient inherited writer in another
     // child and make Linux reject execution with ETXTBSY, even after local close.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fake_codex.py")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fake_codex.js")
 }
 
 #[test]

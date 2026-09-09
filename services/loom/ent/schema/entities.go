@@ -1,0 +1,251 @@
+// Persistence schemas map to the existing versioned database. Do not auto-migrate production.
+package schema
+
+import (
+	"entgo.io/ent"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/entsql"
+	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
+)
+
+type Goal struct{ ent.Schema }
+
+func (Goal) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("title"),
+		field.String("objective"),
+		field.String("state"),
+		field.Int("phase").Default(0),
+		field.JSON("completion_criteria", map[string]any{}),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+		field.Time("ended_at").Optional().Nillable(),
+		field.String("waiting_reason").Optional().Nillable(),
+	}
+}
+func (Goal) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "goals"}}
+}
+
+type Run struct{ ent.Schema }
+
+func (Run) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.JSON("policy", map[string]any{}),
+		field.String("workflow_id").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+	}
+}
+func (Run) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "runs"}}
+}
+
+type Worker struct{ ent.Schema }
+
+func (Worker) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").DefaultFunc(uuid.NewString),
+		field.String("runtime"),
+		field.JSON("capabilities", []string{}),
+		field.String("organization").Optional().Nillable(),
+		field.String("token_hash").Optional().Nillable(),
+		field.Time("revoked_at").Optional().Nillable(),
+		field.Time("last_seen_at").Optional().Nillable(),
+		field.String("workspace_ref").Optional().Nillable(),
+		field.JSON("labels", map[string]any{}).Optional(),
+	}
+}
+func (Worker) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "workers"}}
+}
+
+type Session struct{ ent.Schema }
+
+func (Session) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("worker_id"),
+		field.String("runtime"),
+		field.String("provider_session_id").Optional().Nillable(),
+	}
+}
+func (Session) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "sessions"}}
+}
+
+type Wait struct{ ent.Schema }
+
+func (Wait) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.Int("generation").Default(1),
+		field.JSON("condition", map[string]any{}),
+		field.Time("armed_at").Optional().Nillable(),
+		field.Time("satisfied_at").Optional().Nillable(),
+		field.String("event_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.Time("closed_at").Optional().Nillable(),
+		field.String("prepared_by_attempt").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+	}
+}
+func (Wait) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "waits"}}
+}
+
+type WaitHistory struct{ ent.Schema }
+
+func (WaitHistory) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.Int("generation"),
+		field.JSON("condition", map[string]any{}),
+		field.Time("armed_at").Optional().Nillable(),
+		field.Time("satisfied_at").Optional().Nillable(),
+		field.String("event_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.Time("closed_at").Optional().Nillable(),
+		field.String("prepared_by_attempt").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+	}
+}
+func (WaitHistory) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "wait_history"}}
+}
+
+type Attempt struct{ ent.Schema }
+
+func (Attempt) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("session_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("worker_id"),
+		field.Int("phase"),
+		field.String("state"),
+		field.String("outcome").Optional().Nillable(),
+		field.Time("started_at").Optional(),
+		field.Time("stopped_at").Optional().Nillable(),
+		field.Float("duration_ms").Optional().Nillable(),
+	}
+}
+func (Attempt) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "attempts"}}
+}
+
+type Event struct{ ent.Schema }
+
+func (Event) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("source"),
+		field.String("delivery_id"),
+		field.String("digest"),
+		field.JSON("body", map[string]any{}),
+		field.String("disposition"),
+		field.Time("received_at").Optional(),
+	}
+}
+func (Event) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "events"}}
+}
+
+type Command struct{ ent.Schema }
+
+func (Command) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("attempt_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("worker_id"),
+		field.String("state"),
+		field.String("claim_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.String("report_digest").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+		field.Time("claimed_at").Optional().Nillable(),
+		field.Time("stopped_at").Optional().Nillable(),
+	}
+}
+func (Command) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "commands"}}
+}
+
+type Audit struct{ ent.Schema }
+
+func (Audit) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int64("id").StorageKey("sequence"),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("action"),
+		field.JSON("details", map[string]any{}),
+		field.Time("recorded_at").Optional(),
+	}
+}
+func (Audit) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "audit"}}
+}
+
+type Outbox struct{ ent.Schema }
+
+func (Outbox) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("kind"),
+		field.Time("available_at").Optional(),
+		field.Time("delivered_at").Optional().Nillable(),
+		field.Int("failures").Default(0),
+	}
+}
+func (Outbox) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "outbox"}}
+}
+
+type IntegrationBinding struct{ ent.Schema }
+
+func (IntegrationBinding) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.Int("generation"),
+		field.String("organization"),
+		field.String("source"),
+		field.String("instance"),
+		field.String("event_type"),
+		field.String("resource"),
+		field.String("version"),
+		field.JSON("attributes", map[string]any{}).Optional(),
+		field.Time("reconciled_at").Optional().Nillable(),
+	}
+}
+func (IntegrationBinding) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "integration_bindings"}}
+}
+
+type IntegrationDelivery struct{ ent.Schema }
+
+func (IntegrationDelivery) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("source"),
+		field.String("instance"),
+		field.String("delivery_id"),
+		field.String("digest"),
+		field.String("fingerprint").Optional().Nillable(),
+		field.JSON("condition", map[string]any{}).Optional(),
+		field.JSON("details", map[string]any{}),
+		field.Bytes("raw_body").Optional(),
+		field.String("disposition"),
+		field.Time("received_at").Optional(),
+	}
+}
+func (IntegrationDelivery) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "integration_deliveries"}}
+}

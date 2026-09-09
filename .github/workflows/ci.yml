@@ -10,9 +10,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Reject retired language artifacts
+        run: |
+          test -z "$(find . -path ./.git -prune -o -path ./node_modules -prune -o -path ./target -prune -o -name '*.py' -print)"
+          test ! -e pyproject.toml
+          test ! -e requirements.lock
       - uses: actions/setup-go@v5
         with:
           go-version-file: services/loom/go.mod
@@ -21,6 +23,8 @@ jobs:
         working-directory: services/loom
         run: |
           test -z "$(gofmt -l .)"
+          go generate ./ent
+          git diff --exit-code -- ent
           go vet ./...
           go test -race ./...
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
@@ -32,7 +36,7 @@ jobs:
         run: npm ci && npm run build
       - name: Install pinned Hatchet CLI
         run: curl -fsSL https://install.hatchet.run/install.sh | HATCHET_CLI_TELEMETRY_ENABLED=false bash -s -- v0.105.16
-      - name: Install Loom
+      - name: Install Loom dependencies
         run: make setup
       - name: Rust agent checks
         run: |
@@ -40,34 +44,13 @@ jobs:
           cargo fmt --all --check
           cargo clippy --workspace --all-targets --locked -- -D warnings
           cargo test --workspace --locked
-      - name: Generate local test credentials
-        run: make init
-      - name: Start real PostgreSQL and Hatchet
-        run: make infra migrate
-      - name: Lint and format
-        run: make check
-      - name: Domain and API tests against isolated PostgreSQL database
-        run: make test
-      - name: Real Hatchet restart and suspension proof
-        run: make prove
-      - name: Repeatable finite runtime, Go reader parity, and gateway restart proof
-        run: make prove-repeatable
-      - name: Real outbound Rust worker restart proof
-        run: make prove-remote
-      - name: Repeatable protocol outbound Rust worker restart proof
-        run: LOOM_PROOF_PROTOCOL=2 make prove-remote
-      - name: Real durable restart through Go entry point
-        run: make prove-go
-      - name: Real remote worker through Go entry point
-        run: make prove-go-remote
-      - name: Non-root read-only container smoke test
-        run: make prove-container
-      - name: PostgreSQL backup and restore drill
-        run: make prove-backup
+      - name: Generic Goal wait and exact Session lifecycle against PostgreSQL
+        working-directory: services/loom
+        run: go test -race ./internal/control -count=1
       - name: Build Go console container
         run: docker build -f services/loom/Dockerfile -t piglor-loom-console:local .
-      - name: Go container restart and API proof
-        run: .venv/bin/python -m scripts.prove_go_container
+      - name: Run image, signed ingress, and backup/restore acceptance
+        run: ./scripts/verify_image.sh piglor-loom-console:local
   publish-image:
     needs: [durable-core, console]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -84,33 +67,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish tested Linux image
-        id: image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/piglor/loom:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/piglor/loom
-            org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.revision=${{ github.sha }}
-          provenance: true
-          sbom: true
-      - name: Check published artifact
-        env:
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
-        run: |
-          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
-            --entrypoint python "ghcr.io/piglor/loom@$IMAGE_DIGEST" \
-            -c 'import os, loom.api, loom.worker; assert os.getuid() == 10001; print("Published Loom artifact verified")'
-      - name: Record immutable image
-        env:
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
-        run: echo "ghcr.io/piglor/loom@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish tested Go console image
+      - name: Publish tested Loom image
         id: console-image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -118,17 +75,17 @@ jobs:
           file: services/loom/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/piglor/loom-console:sha-${{ github.sha }}
+          tags: ghcr.io/piglor/loom:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/piglor/loom
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.revision=${{ github.sha }}
           provenance: true
           sbom: true
-      - name: Record immutable console image
+      - name: Record immutable image
         env:
           IMAGE_DIGEST: ${{ steps.console-image.outputs.digest }}
-        run: echo "ghcr.io/piglor/loom-console@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "ghcr.io/piglor/loom@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
   console:
     runs-on: ubuntu-latest
     timeout-minutes: 15

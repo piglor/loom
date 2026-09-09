@@ -8,10 +8,16 @@ use Rust on every platform. Backend language and UI language are separate
 decisions; recommendations must not be presented as completed migrations.
 
 Accepted client direction: React + TypeScript + Vite on web, future React Native
-on iOS/Android. Accepted backend target: Go with PostgreSQL and Hatchet; keep Rust
-for the Agent. Follow ADRs 0012/0013 for incremental migration and proof gates.
-Do not replace the existing Python writer/orchestrator until its replacement
-passes recovery/compatibility tests and in-flight Runs are accounted for.
+on iOS/Android. The control plane and all maintained tooling are Go with
+PostgreSQL and Hatchet; the machine Agent is Rust. The retired implementation
+was removed on 2026-09-09. Do not restore it, add a service bridge to it, or use
+another language as a permanent proof-tool dependency.
+Use Ent schemas and generated typed persistence builders rather than handwritten
+CRUD SQL. PostgreSQL remains the initial database for both Lite and Server;
+Hatchet Lite is the low-volume deployment, not a different orchestration engine.
+Keep domain policy, generated persistence, integrations and runtime adapters
+separate. SQL exceptions are limited to reviewed migrations, database-level
+coordination and genuinely specialized operations behind the persistence seam.
 
 Keep the durable control plane integration-agnostic. GitHub is one external
 integration plugin, and Codex is one agent-runtime adapter; neither defines the
@@ -19,6 +25,16 @@ core Goal/Session/Wait/Event model. Use `piglor/loom` as the first GitHub testin
 repository, with bounded test resources and existing trust/authorization checks.
 Also test the same core suspension/resumption contract with a non-GitHub event
 source. Do not make repository, PR or SHA mandatory on generic core objects.
+Core persistence must express generic external resource bindings, event receipts
+and versioned wait conditions, including external-system approvals. Adding an
+integration must not require a new core table or a provider-specific Goal state.
+Prefer the generic binding/inbox model over one binding table per provider;
+plugin-owned storage is justified only for genuinely provider-specific needs.
+Verify approvals deterministically against tenant, integration instance,
+resource, version and authorization before waking the bound Session/Worker.
+An event satisfies a wait; it does not authorize unrelated execution or imply
+Goal completion. Preserve existing provider data during migration, and test
+non-code workflows as well as CI before claiming integration independence.
 
 The Loom-building session is a reference acceptance case, not proof that the
 running conversation has been handed over to Loom. See

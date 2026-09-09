@@ -4,14 +4,13 @@ package main
 import (
 	"context"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -21,6 +20,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/piglor/loom/services/loom/internal/control"
+	githubintegration "github.com/piglor/loom/services/loom/internal/integrations/github"
+	"github.com/piglor/loom/services/loom/internal/orchestration"
 )
 
 type reader interface {
@@ -32,30 +35,16 @@ type reader interface {
 type postgresReader struct {
 	pool         *pgxpool.Pool
 	organization string
+	store        *control.Store
 }
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=9").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=13").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
-	rows, err := p.pool.Query(ctx, `SELECT row_to_json(g) FROM
-		(SELECT id,title,state,created_at,updated_at FROM goals
-		WHERE organization=$1 ORDER BY created_at DESC LIMIT 100) g`, p.organization)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	result := []json.RawMessage{}
-	for rows.Next() {
-		var value json.RawMessage
-		if err := rows.Scan(&value); err != nil {
-			return nil, err
-		}
-		result = append(result, value)
-	}
-	return result, rows.Err()
+	return p.store.ListGoals(ctx)
 }
 
 func (p postgresReader) inspect(ctx context.Context, id string) (json.RawMessage, error) {
@@ -84,18 +73,8 @@ func jsonResponse(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http.Handler {
+func newHandler(data reader, token string, api http.Handler, assets fs.FS) http.Handler {
 	mux := http.NewServeMux()
-	proxy := &httputil.ReverseProxy{
-		Rewrite: func(r *httputil.ProxyRequest) { r.SetURL(upstream) },
-		// A fresh connection prevents net/http from transparently replaying a
-		// bodyless mutation carrying an Idempotency-Key after a pooled EOF.
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, DisableKeepAlives: true, ResponseHeaderTimeout: 40 * time.Second},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			slog.Warn("upstream_unavailable", "method", r.Method)
-			jsonResponse(w, http.StatusBadGateway, map[string]string{"detail": "Control plane unavailable"})
-		},
-	}
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
@@ -139,8 +118,7 @@ func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http
 		}
 		jsonResponse(w, 200, result)
 	}))
-	// Existing API remains the sole mutation/admission authority during migration.
-	mux.Handle("/v1/", proxy)
+	mux.Handle("/v1/", api)
 	mux.HandleFunc("GET /readyz", auth(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
@@ -148,7 +126,7 @@ func newHandler(data reader, token string, upstream *url.URL, assets fs.FS) http
 			jsonResponse(w, http.StatusServiceUnavailable, map[string]string{"detail": "Read database is not ready"})
 			return
 		}
-		proxy.ServeHTTP(w, r.WithContext(ctx))
+		jsonResponse(w, 200, map[string]string{"database": "ready"})
 	}))
 	serveConsole := func(w http.ResponseWriter, status int) {
 		body, err := fs.ReadFile(assets, "index.html")
@@ -220,13 +198,73 @@ func validUUID(value string) bool {
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	operation := run
-	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
-		operation = healthcheck
+	if len(os.Args) > 2 {
+		slog.Error("invalid_command")
+		os.Exit(2)
+	}
+	if len(os.Args) == 2 {
+		switch os.Args[1] {
+		case "serve":
+			operation = run
+		case "migrate":
+			operation = migrate
+		case "worker":
+			operation = worker
+		case "healthcheck":
+			operation = healthcheck
+		default:
+			slog.Error("invalid_command")
+			os.Exit(2)
+		}
 	}
 	if err := operation(); err != nil {
 		slog.Error("server_stopped", "error", err)
 		os.Exit(1)
 	}
+}
+
+func database() (*sql.DB, error) {
+	value := os.Getenv("LOOM_DATABASE_URL")
+	if value == "" {
+		return nil, errors.New("LOOM_DATABASE_URL is required")
+	}
+	config, err := pgx.ParseConfig(value)
+	if err != nil {
+		return nil, errors.New("Invalid database configuration")
+	}
+	db := stdlib.OpenDB(*config)
+	db.SetMaxOpenConns(10)
+	return db, nil
+}
+
+func migrate() error {
+	db, err := database()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	org := os.Getenv("LOOM_ORGANIZATION")
+	if org == "" {
+		org = "local"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return (&control.Store{DB: db, Organization: org, EnableCodex: os.Getenv("LOOM_ENABLE_CODEX_CONTAINER") == "true"}).Migrate(ctx)
+}
+
+func worker() error {
+	db, err := database()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	org := os.Getenv("LOOM_ORGANIZATION")
+	if org == "" {
+		org = "local"
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return orchestration.Run(ctx, &control.Store{DB: db, Organization: org, EnableCodex: os.Getenv("LOOM_ENABLE_CODEX_CONTAINER") == "true"})
 }
 
 func healthcheck() error {
@@ -260,10 +298,6 @@ func run() error {
 	if len(token) < 32 {
 		return errors.New("LOOM_API_TOKEN must contain at least 32 characters")
 	}
-	upstream, err := url.Parse(os.Getenv("LOOM_UPSTREAM_URL"))
-	if err != nil || upstream.Host == "" || (upstream.Scheme != "http" && upstream.Scheme != "https") || upstream.User != nil || upstream.RawQuery != "" || upstream.Fragment != "" || (upstream.Path != "" && upstream.Path != "/") {
-		return errors.New("LOOM_UPSTREAM_URL must be a fixed HTTP(S) origin")
-	}
 	config, err := pgxpool.ParseConfig(os.Getenv("LOOM_DATABASE_URL"))
 	if err != nil {
 		return errors.New("Invalid database configuration")
@@ -279,6 +313,11 @@ func run() error {
 		return errors.New("Cannot create database pool")
 	}
 	defer pool.Close()
+	db, err := database()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 	org := os.Getenv("LOOM_ORGANIZATION")
 	if org == "" {
 		org = "local"
@@ -294,7 +333,11 @@ func run() error {
 	if addr == "" {
 		addr = "127.0.0.1:8080"
 	}
-	server := &http.Server{Addr: addr, Handler: newHandler(postgresReader{pool, org}, token, upstream, os.DirFS(dir)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
+	store := &control.Store{DB: db, Organization: org, EnableCodex: os.Getenv("LOOM_ENABLE_CODEX_CONTAINER") == "true"}
+	api := http.NewServeMux()
+	api.Handle("/v1/github/", githubintegration.NewHandler(store, token, os.Getenv("LOOM_GITHUB_WEBHOOK_SECRET"), githubintegration.NewAPI(os.Getenv("LOOM_GITHUB_API_TOKEN"))))
+	api.Handle("/v1/", control.NewAPIHandler(store, token))
+	server := &http.Server{Addr: addr, Handler: newHandler(postgresReader{pool, org, store}, token, api, os.DirFS(dir)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

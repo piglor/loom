@@ -5,10 +5,11 @@ not evidence of a safe privileged coding agent.
 
 Implemented since the initial demo: scoped revocable worker credentials; Rust
 outbound daemon and private SQLite journal; real remote affinity/restart proof;
-standalone Codex exact-thread continuity proof with actual model turns; signed
-GitHub workflow ingress, deterministic bindings, retained early-event evidence,
-and negative authorization/correlation tests. Those boundaries are tested
-individually, not yet as the complete unattended coding workflow.
+standalone Codex exact-thread continuity proof with actual model turns; native Go
+signed GitHub workflow ingress, deterministic bindings, live public-API
+freshness, retained early-event evidence, and negative authorization/correlation
+tests. Those boundaries are tested individually, not yet as the complete
+unattended coding workflow.
 
 Local packaging also passed a non-root/read-only API smoke test and a scoped
 PostgreSQL restore drill. These do not substitute for a deployment-specific TLS,

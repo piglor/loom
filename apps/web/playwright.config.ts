@@ -13,7 +13,6 @@ export default defineConfig({
     env: {
       LOOM_API_TOKEN: "browser-fixture-token-not-a-real-credential",
       LOOM_DATABASE_URL: "postgresql://unused@127.0.0.1:1/unused",
-      LOOM_UPSTREAM_URL: "http://127.0.0.1:1",
       LOOM_LISTEN_ADDR: "127.0.0.1:4173",
       LOOM_WEB_DIR: "dist",
     },

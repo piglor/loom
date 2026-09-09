@@ -15,8 +15,8 @@ worker admission. See [ADR-0014](../ADRs/0014-repeatable-execution-core.md).
 - Early events can satisfy prepared waits but cannot start overlapping execution.
 - Stop-receipt recovery, unknown-execution blocking, and cumulative wait metrics.
 - Outbox acknowledgments cannot clear a newer publication of the same row.
-- Schema-6 suspended Goals preserve identity and their original two-attempt policy
-  when upgraded to schema 7. Go and Python readers expose the same history.
+- Imported suspended Goals preserve identity and their original two-attempt
+  policy. The Go read model exposes the same retained history.
 
 ## Reproduce
 
@@ -25,9 +25,7 @@ Use the isolated local development stack, never production credentials:
 ```sh
 make setup init infra migrate
 make test
-npm ci
-npm run build
-make prove-repeatable
+make prove
 ```
 
 `make test` includes repeated cycles, generation mismatch, early event admission,
@@ -35,13 +33,9 @@ receipt conflict/recovery, completion rejection, attempt exhaustion, wrong
 attempt/session/worker bindings, failed preparation without execution, unknown
 recovery, and a real schema-6 upgrade fixture.
 
-`make prove-repeatable` requires a loopback `_test` PostgreSQL database. It runs
-four finite, non-model subprocess attempts, three waits, and three Go-reader
-restarts, then compares cumulative metrics with Python. Calls made while waiting
-do not launch subprocesses. It uses a dedicated organization and receipt directory.
-The proof does not invoke Codex, GitHub, or a Hatchet workflow. It retains scoped
-proof Goals in the test database. The ordinary `make prove-go` separately tests
-legacy v1 orchestration recovery through real Hatchet and the Go gateway.
+`make prove` runs the generic multi-generation lifecycle against an isolated
+PostgreSQL schema. Calls made while waiting do not create commands or launch a
+runtime. The proof does not invoke Codex or a provider webhook.
 
 Both the unit/integration tests and the new repeatable proof are mandatory in the
 `durable-core` GitHub Actions job; the existing 72-case browser suite remains a

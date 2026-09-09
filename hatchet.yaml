@@ -1,5 +1,5 @@
 dev:
-  runCmd: ".venv/bin/loom worker"
+  runCmd: "cd services/loom && go run . worker"
   files:
-    - "server/**/*.py"
+    - "services/loom/**/*.go"
   reload: false
