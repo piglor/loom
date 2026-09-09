@@ -5,6 +5,7 @@ import json
 import os
 import signal
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -12,6 +13,8 @@ from uuid import uuid4
 from loom.cli import load_env, request
 from loom.config import Settings
 from loom.store import Store
+
+from scripts.go_entrypoint import start_go
 
 
 def failure_summary(log_text, processes):
@@ -94,7 +97,13 @@ def main():
     if labels.get("com.docker.compose.service") != "hatchet":
         raise SystemExit("Expected the loom-dev Hatchet service")
     load_env()
+    # Do not connect to or collide with an already-running developer API.
+    os.environ["LOOM_PORT"] = "18005"
+    os.environ["LOOM_URL"] = "http://127.0.0.1:18005"
     os.environ["LOOM_ORGANIZATION"] = "proof-" + str(uuid4())
+    os.environ["HATCHET_CLIENT_NAMESPACE"] = "proof-" + uuid4().hex
+    receipts = tempfile.TemporaryDirectory(prefix="loom-recovery-receipts-")
+    os.environ["LOOM_STATE_DIR"] = receipts.name
     os.environ["HATCHET_CLI_TELEMETRY_ENABLED"] = "false"
     store = Store(Settings.from_env())
     store.migrate()
@@ -118,6 +127,7 @@ def main():
 
         try:
             api = start([".venv/bin/loom", "serve"])
+            gateway = start_go(start, "http://127.0.0.1:18005", 18002)
             eventually(lambda: request("GET", "/readyz"))
             assert api.poll() is None, "Proof API could not bind its port"
             worker = start_worker()
@@ -151,11 +161,14 @@ def main():
             print("PASS: suspension created no additional runtime attempt", flush=True)
             stop(worker)
             stop(api)
+            if gateway:
+                stop(gateway)
             subprocess.run(
                 ["docker", "restart", args.restart_container], check=True, stdout=log
             )
             assert store.inspect(goal_id)["state"] == "WAITING"
             api = start([".venv/bin/loom", "serve"])
+            gateway = start_go(start, "http://127.0.0.1:18005", 18002)
             eventually(lambda: request("GET", "/readyz"))
             event = {
                 **goal["wait"]["condition"],
@@ -199,6 +212,7 @@ def main():
         finally:
             for process in reversed(processes):
                 stop(process)
+            receipts.cleanup()
 
 
 if __name__ == "__main__":

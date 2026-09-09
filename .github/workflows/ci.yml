@@ -13,6 +13,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/loom/go.mod
+          cache-dependency-path: services/loom/go.sum
+      - name: Go API race and static checks
+        working-directory: services/loom
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Build console assets for gateway recovery proofs
+        run: npm ci && npm run build
       - name: Install pinned Hatchet CLI
         run: curl -fsSL https://install.hatchet.run/install.sh | HATCHET_CLI_TELEMETRY_ENABLED=false bash -s -- v0.105.16
       - name: Install Loom
@@ -35,12 +52,20 @@ jobs:
         run: make prove
       - name: Real outbound Rust worker restart proof
         run: make prove-remote
+      - name: Real durable restart through Go entry point
+        run: make prove-go
+      - name: Real remote worker through Go entry point
+        run: make prove-go-remote
       - name: Non-root read-only container smoke test
         run: make prove-container
       - name: PostgreSQL backup and restore drill
         run: make prove-backup
+      - name: Build Go console container
+        run: docker build -f services/loom/Dockerfile -t piglor-loom-console:local .
+      - name: Go container restart and API proof
+        run: .venv/bin/python -m scripts.prove_go_container
   publish-image:
-    needs: durable-core
+    needs: [durable-core, console]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -81,3 +106,45 @@ jobs:
         env:
           IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
         run: echo "ghcr.io/piglor/loom@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish tested Go console image
+        id: console-image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: services/loom/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/piglor/loom-console:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/piglor/loom
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: true
+          sbom: true
+      - name: Record immutable console image
+        env:
+          IMAGE_DIGEST: ${{ steps.console-image.outputs.digest }}
+        run: echo "ghcr.io/piglor/loom-console@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+  console:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/loom/go.mod
+          cache-dependency-path: services/loom/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx prettier --check apps/web/src apps/web/tests apps/web/playwright.config.ts packages/client/src
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: console-test-results
+          path: apps/web/test-results

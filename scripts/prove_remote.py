@@ -12,6 +12,7 @@ from loom.config import Settings
 from loom.mailbox import Mailbox
 from loom.store import Store
 
+from scripts.go_entrypoint import start_go
 from scripts.prove_recovery import eventually, stop
 
 
@@ -55,8 +56,10 @@ def main():
                         "18000",
                     ]
                 )
+                gateway = start_go(start, "http://127.0.0.1:18000", 18002)
                 eventually(lambda: request("GET", "/readyz"))
                 assert api.poll() is None
+                assert gateway is None or gateway.poll() is None
                 workers = [
                     request("POST", "/v1/workers", {"workspace_ref": "proof"})
                     for _ in range(2)
@@ -133,6 +136,7 @@ def main():
                     return current if current["state"] == "COMPLETED" else None
 
                 final = eventually(completed)
+                assert request("GET", f"/v1/goals/{goal['id']}")["state"] == "COMPLETED"
                 assert final["session"]["id"] == first["session"]["id"]
                 assert len(final["attempts"]) == 2
                 assert final["metrics"]["wake_ups"] == 1

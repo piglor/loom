@@ -2,6 +2,12 @@
 
 Status: proposed Phase 1 design. See [ADRs](../ADRs/README.md) and [proof gates](implementation-plan.md).
 
+Update 2026-09-09: [ADR-0013](../ADRs/0013-go-backend-migration.md) accepts an
+incremental Go migration. `services/loom` serves native read APIs and the compiled
+React console; it forwards existing mutations to this Python architecture.
+The topology below still describes the active mutation/orchestration path, not
+a completed Go migration. See [console operations](console.md).
+
 ## Boundary and topology
 
 ```mermaid

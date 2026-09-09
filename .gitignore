@@ -7,6 +7,10 @@ target/
 .venv/
 __pycache__/
 node_modules/
+apps/web/dist/
+apps/web/test-results/
+apps/web/playwright-report/
+services/loom/loom-server
 *.pem
 *.key
 .DS_Store

@@ -97,7 +97,7 @@ make prove
 
 Tests use `LOOM_TEST_DATABASE_URL`, require its database name to end in `_test`, create it through the local database role if absent, and remove their own fixture rows. They do not fall back to the application database. The proof uses a fresh organization in the local application database and retains its Goal/audit as evidence.
 
-`make prove` checks stopped waiting, restarts the API, worker and explicitly identified `loom-dev` Hatchet container while retaining PostgreSQL, delivers stale/duplicate/matching events while the worker is absent, and requires one continuation on the same Session. It refuses to restart a container from another Docker project. Use `--suspend-seconds 120` on `scripts/prove_recovery.py` for a longer observation.
+`make prove` checks stopped waiting, restarts the API, worker and explicitly identified `loom-dev` Hatchet container while retaining PostgreSQL, delivers stale/duplicate/matching events while the worker is absent, and requires one continuation on the same Session. It refuses to restart a container from another Docker project. Use `--suspend-seconds 120` with `python -m scripts.prove_recovery --restart-container loom-dev-hatchet-1` for a longer observation.
 
 ## Release limits
 

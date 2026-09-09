@@ -19,6 +19,15 @@ The live restart proof preserves a stopped wait through API, worker and Hatchet 
 
 ## Run locally
 
+The [operator console](docs/console.md) adds a React/TypeScript browser interface
+and Go API entry point. It shows real Goals, wait contracts, session/worker
+bindings, audit history and recorded timing. It is currently read-only and uses
+the existing operator credential; multi-user SSO is not implemented.
+
+With Node 24 and the Go version pinned in `services/loom/go.mod`, run
+`make console-setup`, then follow the console guide to start it alongside the
+existing API. Native iOS/Android clients are planned, not shipped.
+
 With Linux, Python 3.12, Docker Compose v2 and Hatchet CLI 0.105.16 installed:
 
 ```bash
@@ -53,7 +62,12 @@ See the [Codex conformance evidence](docs/codex-adapter.md) and
 - [Validation and live connection status](docs/validation.md)
 - Upstream research: [Hatchet](docs/research/hatchet.md), [Codex](docs/research/codex.md), [GitHub](docs/research/github.md)
 
-The proposed stack is a Python control plane using Hatchet's official SDK, central PostgreSQL, and a Rust Loom Agent. Hatchet remains an implementation dependency; users interact with Goals, Runs, Sessions, Workers, Events, Waits and Execution Attempts.
+The accepted target is a monorepo with React web/React Native mobile clients,
+a Go control plane, PostgreSQL/Hatchet, and a Rust Loom Agent. Migration is
+incremental: Go currently serves the console and native read APIs; Python remains
+the mutation and orchestration authority. Do not remove its worker while Runs
+depend on it. See [ADR-0013](ADRs/0013-go-backend-migration.md).
+Hatchet remains an implementation dependency; users interact with Loom concepts.
 
 ## Contributing
 
@@ -65,8 +79,9 @@ Secrets belong in a deployment secret store or local ignored environment configu
 
 ## Container images
 
-Successful `main` CI runs publish `ghcr.io/piglor/loom:sha-<commit>`
-for Linux amd64. Publishing is gated on the durable-core test and recovery job;
+Successful `main` CI runs publish `ghcr.io/piglor/loom:sha-<commit>` and
+`ghcr.io/piglor/loom-console:sha-<commit>` for Linux amd64. Publishing is gated
+on the durable-core/recovery and browser test jobs;
 pull requests cannot publish images. Deploy by the immutable digest recorded in
 the workflow summary. No moving release tag is published. Images contain the finite
 control plane, not a production-enabled Codex daemon.

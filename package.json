@@ -1,0 +1,19 @@
+{
+  "name": "piglor-loom",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/client"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @piglor/loom-web",
+    "test:web": "npm run test --workspace @piglor/loom-web",
+    "check:web": "npm run check --workspace @piglor/loom-web"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

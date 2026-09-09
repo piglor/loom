@@ -1,0 +1,27 @@
+{
+  "name": "@piglor/loom-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "pretest": "cd ../.. && make go-build",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@piglor/loom-client": "0.1.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  }
+}

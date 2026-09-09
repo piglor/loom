@@ -1,6 +1,10 @@
 # Architecture decisions
 
-These records belong to standalone Piglor Loom. All are Proposed as of 2026-09-08. Technology constraints explicitly supplied in the product brief (including Hatchet and PostgreSQL) are treated as requirements; the detailed integration choices remain proposals. No external tracker publication or review approval is implied.
+These records belong to standalone Piglor Loom. Initial records remain Proposed;
+the client stack and incremental Go migration were accepted by the user on
+2026-09-09. Technology constraints explicitly supplied in the product brief
+(including Hatchet and PostgreSQL) are requirements. No external tracker
+publication is implied.
 
 | ADR | Decision | Status |
 | --- | --- | --- |
@@ -15,6 +19,7 @@ These records belong to standalone Piglor Loom. All are Proposed as of 2026-09-0
 | [0009](0009-security-model.md) | Explicit execution authority across trust boundaries | Proposed |
 | [0010](0010-rust-loom-agent.md) | Rust machine-side daemon | Proposed |
 | [0011](0011-usage-cost-accounting.md) | Measured execution and suspension, honest cost | Proposed |
+| [0012](0012-monorepo-clients.md) | React clients and shared contracts in the monorepo | Accepted |
+| [0013](0013-go-backend-migration.md) | Incremental Go backend with existing Python writer | Accepted |
 
 Use these alongside the [architecture](../docs/architecture.md) and [implementation gates](../docs/implementation-plan.md). Implement one proof phase at a time. Record acceptance or amendments explicitly; keep superseded decisions for history. Dependency pins and tested operational behavior are evidence produced by implementation, not guesses made in an architecture record.
-
