@@ -1,5 +1,54 @@
 # Piglor production rollout — 2026-09-09
 
+## Current deployment: Go console and session admission
+
+The production endpoint now serves the React console through the Go gateway:
+**https://loom.piglor.com**. Sign in with `LOOM_API_TOKEN` from this Loom service's
+Coolify environment settings, not a Coolify or Hatchet token.
+
+Deployed source: `428596a369d3e9b30fc9a7850297aa3ec4a13c81`, pinned for both
+the Python service image and Go console image. Its
+[CI run](https://github.com/piglor/loom/actions/runs/34310255845) passed the backend,
+Rust, browser, recovery, container and image-publication gates. Python remains the
+sole writer/Hatchet orchestrator; Go serves the browser, reads and mutation proxy.
+Schema 6 is installed. Unattended Codex remains disabled.
+
+After obtaining sensitive-read access, the existing Coolify descriptor was
+retrieved and preserved privately alongside a rollback payload. The update kept
+the original database and receipt mounts, networks and environment values. It
+added the console and moved the public route from `loom-server:8000` to
+`loom-console:8080`. Existing Hatchet was not redeployed.
+
+A one-shot `loom-backup` job writes a custom-format PostgreSQL dump into the new
+`yidv3el41pezd8qp22s6el2w_loom-backups` volume and checks that `pg_restore --list`
+can read it. Migration depends on that job succeeding. Each invocation uses a
+new private filename; existing backups are not overwritten. This is an on-host
+pre-migration checkpoint, **not an off-site backup or a production restore drill**.
+
+Live acceptance:
+
+- HTTPS root and public health: 200; authenticated readiness: 200; unauthenticated
+  readiness: 401. Browser responses include the configured CSP.
+- Production Chromium sign-in, Goal/detail navigation, audit history, responsive
+  layout and clearing credentials on reload passed at 1440px and 390px widths.
+- Goal `b1910fe3-5a54-442c-8bca-964a24e82ac8` was WAITING before deployment and
+  remained WAITING afterward, with one STOPPED attempt and no wake-up.
+- Session `845049b7-9cd4-4c63-bd5f-4eb5e559ad80` remained unchanged.
+- Stale event: `mismatch`; matching event: `accepted`; redelivery: `duplicate`.
+  The Goal then COMPLETED with two STOPPED attempts and one wake-up.
+- Lifetime 257.510 seconds; suspended 257.020 seconds; finite execution 0.080
+  seconds. No model was invoked; no token/cost savings are claimed.
+
+Coolify's resource summary still reports `loom-console` as exited despite the
+successful live browser and API checks. Its recorded `last_online_at` is a stale
+initial value. The status-reporting discrepancy remains unresolved; do not use
+that summary alone as application health evidence. Operator alerts, off-site
+backups/restore drills and exposed credential rotation remain release gates.
+
+The following section records the initial rollout, not the current revision.
+
+## Initial finite control-plane rollout
+
 Status: **finite control plane live; not a production-ready privileged agent**.
 
 The authorized target was resolved through authenticated Coolify discovery:
