@@ -14,6 +14,39 @@ from loom.config import Settings
 from loom.store import Store
 
 
+def failure_summary(log_text, processes):
+    """Expose diagnostic categories, never raw SDK logs or credentials."""
+    signals = (
+        "connection refused",
+        "permission denied",
+        "address already in use",
+        "unauthorized",
+        "unavailable",
+        "timed out",
+        "worker started",
+    )
+    return {
+        "process_exit_codes": [process.poll() for process in processes],
+        "exception_types": [
+            name
+            for name in (
+                "ConnectionRefusedError",
+                "HTTPError",
+                "ImportError",
+                "ModuleNotFoundError",
+                "OperationalError",
+                "PermissionError",
+                "RuntimeError",
+                "TimeoutError",
+                "ValidationError",
+                "ValueError",
+            )
+            if name in log_text
+        ],
+        "signals": [signal for signal in signals if signal in log_text.lower()],
+    }
+
+
 def eventually(check, timeout=90):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -151,6 +184,18 @@ def main():
                     {"goal_id": goal_id, "metrics": completed["metrics"]}, indent=2
                 )
             )
+        except Exception:
+            log.flush()
+            print(
+                "Proof failure diagnostics: "
+                + json.dumps(
+                    failure_summary(
+                        (state / "proof.log").read_text(errors="replace"), processes
+                    )
+                ),
+                flush=True,
+            )
+            raise
         finally:
             for process in reversed(processes):
                 stop(process)
