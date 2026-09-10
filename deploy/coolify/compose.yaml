@@ -36,26 +36,7 @@ services:
     restart: "no"
     networks: [private]
     depends_on:
-      loom-backup: {condition: service_completed_successfully}
-
-  loom-backup:
-    image: postgres:17.6
-    restart: "no"
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    environment:
-      PGHOST: loom-db
-      PGUSER: loom
-      PGDATABASE: loom
-      PGPASSWORD: ${LOOM_POSTGRES_PASSWORD:?required}
-    volumes: [loom-backups:/backups]
-    networks: [private]
-    depends_on:
       loom-db: {condition: service_healthy}
-    entrypoint: [sh, -ec]
-    command:
-      - 'umask 077; backup_file=$$(mktemp /backups/pre-migration-XXXXXXXX.dump); pg_dump --format=custom --file="$$backup_file"; pg_restore --list "$$backup_file" >/dev/null; echo "Loom pre-migration backup validated"'
 
   loom-server:
     <<: *loom
@@ -99,7 +80,6 @@ services:
 
 volumes:
   loom-data:
-  loom-backups:
 
 networks:
   private:

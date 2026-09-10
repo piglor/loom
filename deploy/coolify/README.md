@@ -7,9 +7,7 @@ before using developer credentials or public-repository workloads.
 Use a new Coolify Compose resource from this repository with the root build
 context and `deploy/coolify/compose.yaml`. The multi-stage image builds the React
 console and static Go binary, then runs as the distroless non-root user with a
-read-only root filesystem and no Linux capabilities. A one-shot pre-migration
-job writes and validates a PostgreSQL custom archive in the persistent
-`loom-backups` volume.
+read-only root filesystem and no Linux capabilities.
 
 Supply these in Coolify's secret/environment settings, not in the Compose file:
 
@@ -33,6 +31,13 @@ that Coolify attaches to its proxy; the explicit `traefik.docker.network` label
 prevents Traefik from selecting a private network and timing out. No database or
 worker inbound port should be published. Restrict administrator routes at the
 proxy where appropriate. Remote workers connect only to Loom HTTPS.
+
+Configure PostgreSQL backups in Coolify against the `loom-db` component and
+upload them to a validated S3-compatible storage. Keep a small local retention
+window as a fallback, configure independent S3 retention, trigger a backup
+immediately after setup, and restore that artifact into a disposable database.
+Do not add a backup sidecar to this Compose stack: backup scheduling, credentials
+and retention belong to the deployment control plane.
 
 The default internal Hatchet transport is `hatchet-engine:7070` without TLS,
 matching the supplied private-engine topology. This is only for a trusted Docker
