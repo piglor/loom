@@ -67,6 +67,11 @@ services:
       LOOM_GITHUB_API_TOKEN: ${LOOM_GITHUB_API_TOKEN:-}
     expose: [8080]
     networks: [private, egress]
+    labels:
+      # The server has multiple Docker networks. Without this label Traefik may
+      # select the private or egress network and return a gateway timeout even
+      # while the container-local health check passes.
+      traefik.docker.network: ${LOOM_INGRESS_NETWORK:-coolify}
     depends_on:
       loom-migrate: {condition: service_completed_successfully}
     healthcheck:

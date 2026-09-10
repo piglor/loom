@@ -34,6 +34,7 @@ no-python:
 	@test ! -e requirements.lock
 
 check: no-python
+	./scripts/verify_deployment_config.sh
 	cd services/loom && test -z "$$(gofmt -l .)" && go generate ./ent && git diff --exit-code -- ent && go vet ./...
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets --locked -- -D warnings

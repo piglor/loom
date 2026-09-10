@@ -17,6 +17,8 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
 - `HATCHET_CLIENT_TOKEN`: a scoped Hatchet worker/client credential.
 - `HATCHET_NETWORK`: the exact existing Docker network shared with Hatchet.
+- `LOOM_INGRESS_NETWORK`: the Docker network used by Coolify's reverse proxy
+  for this resource (the resource UUID network on Coolify 4.1.2).
 - `HATCHET_CLIENT_HOST_PORT`: normally `hatchet-engine:7070` on that network.
 - `HATCHET_CLIENT_TLS_STRATEGY`: `none` only for the private in-network gRPC hop.
 
@@ -25,7 +27,10 @@ still exists on the same Docker host with `docker network inspect` before using
 that value. `external: true` attaches the application to it without recreating or
 deleting it. Hatchet's own PostgreSQL and RabbitMQ services are not redeployed.
 
-Set the Loom server's Coolify HTTPS domain to container port 8080. No database or
+Set the Loom server's Coolify HTTPS domain to container port 8080. The server is
+attached to multiple networks, so `LOOM_INGRESS_NETWORK` must match the network
+that Coolify attaches to its proxy; the explicit `traefik.docker.network` label
+prevents Traefik from selecting a private network and timing out. No database or
 worker inbound port should be published. Restrict administrator routes at the
 proxy where appropriate. Remote workers connect only to Loom HTTPS.
 
