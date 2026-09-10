@@ -7,7 +7,7 @@ Sign in with `LOOM_API_TOKEN` from this Loom service's Coolify environment, not 
 Coolify or Hatchet token.
 
 Production builds the public repository at the immutable source revision
-`8e1c9f793d1d3843fc9e575e752602081cc975f7`. Its
+`e542ef25f062c8401f4b3e0cd6fa8d553ad2fd3f`. The original acceptance revision's
 [CI run](https://github.com/piglor/loom/actions/runs/34350521938) passed Go race,
 generated persistence, Rust containment, durable lifecycle, packaged-image
 backup/restore, and all 72 browser gates before promotion. CI also published:
@@ -23,10 +23,9 @@ implementation; all Python source and tooling have been removed. Schema 13 is
 installed. The existing Hatchet service and its database were not redeployed.
 
 The rollout preserved the existing PostgreSQL volume and all prior Goal data.
-The pre-migration backup job wrote a new custom archive into the persistent
-`loom-backups` volume and validated it with `pg_restore --list`; migration and
-server startup could only proceed after that job succeeded. This is an on-host
-rollback checkpoint, not an off-site restore drill.
+Database backup scheduling is now owned by Coolify and an S3-compatible storage,
+not a Compose sidecar. The retired on-host `loom-backups` volume is preserved
+until the first platform-managed S3 backup and disposable restore test succeed.
 
 Live production acceptance on 2026-09-09:
 
@@ -62,6 +61,18 @@ one-release, no-ingress migration tombstone; the generated descriptor routes the
 public hostname only to `loom-server:8080`. Coolify's resource status for the
 tombstone is stale, so public probes and the generated label set—not that row—are
 the acceptance evidence.
+
+On 2026-09-10, the public route returned gateway timeouts while the container's
+local health check remained green. `loom-server` has private, egress and Coolify
+ingress networks; generated Traefik labels did not select one deterministically.
+Revision `f7189355bc38cf1b4b3e929624686a4a0ee06863` pinned
+`traefik.docker.network` to the Coolify ingress network and added a deployment
+configuration regression check to `make check`. Revision
+`e542ef25f062c8401f4b3e0cd6fa8d553ad2fd3f` removed the redundant Compose backup
+job. Repeated public checks and the authenticated readiness probe returned 200,
+and the read-only Chromium production smoke passed 3/3 after deployment. The
+separate exited `loom-build-check` Coolify application was deleted; GitHub
+Actions remains the sole build and test gate.
 
 This is a production deployment of the finite control-plane capability, not the
 full privileged Codex promise. GitHub bindings to `codex-container` remain
