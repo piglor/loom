@@ -257,23 +257,20 @@ export function PluginSetup({
               {storageNeedsCredentials ? (
                 <>
                   <p>
-                    OpenBao is bundled with this Loom deployment. Finish its
-                    one-time setup, then Loom can securely save GitHub
-                    credentials.
+                    OpenBao is bundled with this Loom deployment. Loom is
+                    preparing its private secret store and GitHub AppRole
+                    automatically.
                   </p>
                   <ol className="configuration-steps">
                     <li>
-                      Open the <code>openbao</code> terminal in your Coolify
-                      Loom service.
+                      Keep this page open while the first deployment finishes.
                     </li>
                     <li>
-                      Initialize and unseal OpenBao, then create the Loom
-                      AppRole.
+                      Click <strong>Check again</strong> after about a minute.
                     </li>
                     <li>
-                      Add <code>LOOM_OPENBAO_ROLE_ID</code> and{" "}
-                      <code>LOOM_OPENBAO_SECRET_ID</code> to the Loom service
-                      environment and redeploy.
+                      If it still needs attention, open the setup guide for
+                      advanced/external OpenBao deployments.
                     </li>
                   </ol>
                 </>

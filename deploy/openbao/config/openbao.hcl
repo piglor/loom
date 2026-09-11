@@ -21,3 +21,13 @@ listener "tcp" {
 telemetry {
   disable_hostname = true
 }
+
+# OpenBao 2.5 treats API-created audit devices as unsafe by default. Keep the
+# audit device declarative so every restart has the same protected destination.
+audit "file" "loom" {
+  description = "Loom OpenBao audit log"
+  options {
+    file_path = "/openbao/logs/audit.log"
+    mode      = "0600"
+  }
+}

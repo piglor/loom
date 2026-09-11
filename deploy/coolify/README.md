@@ -11,11 +11,13 @@ first-time installation is therefore one resource and one deploy; OpenBao has
 no host port or public proxy route and Loom reaches it at the internal default
 `http://openbao:8200`.
 
-OpenBao starts sealed and uninitialized. Bootstrap it from the OpenBao service
-terminal after the first deploy, then put only the generated AppRole ID and
-SecretID into Coolify and redeploy Loom. See
-[`deploy/openbao/README.md`](../openbao/README.md) for bootstrap, backup and
-restore commands.
+OpenBao is initialized and configured automatically by the bundled
+`openbao-bootstrap` service on the first deploy. Its companion monitor
+re-unseals the convenience-mode instance after restarts, and Loom reads the
+generated AppRole files from a private volume. No terminal visit or AppRole
+copy/paste is required for the easy path. See
+[`deploy/openbao/README.md`](../openbao/README.md) for the advanced manual/KMS,
+backup and restore procedures.
 
 Coolify 4.1.2 injects a resource's `.env` file into every service in that
 resource. The bundled path is optimized for simple setup, so OpenBao will see
@@ -28,12 +30,14 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
 - `LOOM_POSTGRES_PASSWORD`: fresh random URL-safe password (hex is simplest).
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
 - `LOOM_PUBLIC_URL`: canonical HTTPS origin used for GitHub setup callbacks.
-- `LOOM_OPENBAO_MOUNT`, `LOOM_OPENBAO_ROLE_ID` and
-  `LOOM_OPENBAO_SECRET_ID`: the bundled address is already the default, so no
-  address is required for the easy path. Set the role values after bootstrap.
-  For the advanced topology, set `LOOM_OPENBAO_ADDR` to a verified HTTPS URL
-  and set `LOOM_OPENBAO_CA_CERT` when the private CA is not in the system trust
-  store.
+- `LOOM_OPENBAO_MOUNT`: optional mount name (defaults to `loom`). The bundled
+  address and AppRole files are already configured; no address or credential
+  values are required for the easy path. For the advanced topology, set
+  `LOOM_OPENBAO_AUTO_BOOTSTRAP=false`, `LOOM_OPENBAO_ADDR` to a verified HTTPS
+  URL, and `LOOM_OPENBAO_CA_CERT` when the private CA is not in the system trust
+  store, then provide AppRole credentials through the deployment secret store.
+  The bundled default `LOOM_OPENBAO_AUTO_BOOTSTRAP=true` should only be used
+  when the Docker host is trusted with the generated convenience-mode seal key.
 - `LOOM_GITHUB_APP_INSTALL_URL`: HTTPS installation page for the GitHub App shown
   in the console plugin store.
 - `LOOM_GITHUB_WEBHOOK_SECRET`: GitHub App webhook secret, at least 32 characters.
@@ -78,13 +82,12 @@ live yield/restart/wake acceptance on Piglor production using a commit-pinned
 public Git build context. See [rollout status](../../docs/production-rollout.md)
 for the exact deployed revision, image visibility and remaining release gates.
 
-The first Coolify deployment requires an operator bootstrap from the bundled
-OpenBao service terminal: initialize once, retain the unseal/recovery material
-off-host, unseal, enable and tune the `loom` KV v2 mount, write the policy and
-AppRole, enable the file audit device, then copy only the AppRole ID/secret into
-Loom's Coolify environment variables. Redeploy Loom after setting those values.
-Revoke the temporary root token after bootstrap. Never put a root token in the
-Compose file or GitHub Actions.
+The easy Coolify deployment uses convenience mode: the bootstrap service keeps
+only the generated unseal key in its protected volume, revokes the temporary
+root token, and never writes root/unseal material to Compose, GitHub Actions or
+application logs. This trades the barrier against Docker-host theft for a
+zero-touch first run; use the advanced external/KMS topology when that tradeoff
+is not acceptable. Do not delete the OpenBao volumes during upgrades.
 
 Coolify 4.1.2 uses `docker compose up ... --build` for custom services. Its parser
 adds declared top-level networks to services and injects the service environment

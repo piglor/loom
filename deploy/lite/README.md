@@ -1,21 +1,23 @@
 # Loom Lite secret storage
 
 The standard Compose deployment already contains a persistent single-node
-OpenBao service. This Lite overlay only makes Loom's internal address explicit;
-it is not OpenBao development mode and it is not an HA Server topology.
+OpenBao service and an automatic bootstrap/unseal companion. This Lite overlay
+only makes Loom's internal address explicit; it is not OpenBao development mode
+and it is not an HA Server topology.
 
 ```sh
 docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml up -d
-docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml exec openbao bao operator init
-docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml exec openbao bao operator unseal
 ```
 
-Keep the returned unseal/recovery material outside the Loom host and never put
-it in `.env`, PostgreSQL, logs, or a support conversation. OpenBao must be
-unsealed after restart before plugin credentials can be used.
+The bundled convenience mode initializes the store, configures Loom's AppRole,
+and re-unseals after restart without operator copy/paste. It retains a generated
+single-key seal in a protected Docker volume; use the advanced manual procedure
+in [`../openbao/README.md`](../openbao/README.md) when you need off-host KMS/HSM
+key custody.
 
-Unseal the service, set `BAO_TOKEN` to the temporary root token inside the
-OpenBao container, then create Loom's KV v2 mount and scoped AppRole:
+For the advanced/manual path, unseal the service, set `BAO_TOKEN` to the
+temporary root token inside the OpenBao container, then create Loom's KV v2
+mount and scoped AppRole:
 
 ```sh
 bao secrets enable -path=loom kv-v2
@@ -27,7 +29,11 @@ bao read auth/approle/role/loom/role-id
 bao write -f auth/approle/role/loom/secret-id
 ```
 
-Enable an audit device appropriate to the host before accepting credentials.
+The file audit device is declared in `openbao.hcl` and is enabled automatically
+on startup.
+
+Verify the declarative audit device is writing to the protected audit volume
+before accepting credentials.
 Put the resulting role ID and secret ID in the deployment secret store as
 `LOOM_OPENBAO_ROLE_ID` and `LOOM_OPENBAO_SECRET_ID`, unset the temporary root
 token, revoke it with `bao token revoke -self`, and start the remaining services

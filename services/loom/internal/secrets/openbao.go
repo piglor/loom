@@ -27,18 +27,24 @@ type OpenBaoConfig struct {
 	Address       string
 	Mount         string
 	RoleID        string
+	RoleIDFile    string
 	SecretID      string
+	SecretIDFile  string
 	Token         string
+	TokenFile     string
 	CACertificate string
 }
 
 type OpenBao struct {
-	base     *url.URL
-	mount    string
-	roleID   string
-	secretID string
-	static   string
-	client   *http.Client
+	base         *url.URL
+	mount        string
+	roleID       string
+	roleIDFile   string
+	secretID     string
+	secretIDFile string
+	static       string
+	staticFile   string
+	client       *http.Client
 
 	mu          sync.Mutex
 	token       string
@@ -46,29 +52,28 @@ type OpenBao struct {
 }
 
 func OpenBaoFromEnvironment() (*OpenBao, error) {
-	secretID, err := readCredential("LOOM_OPENBAO_SECRET_ID", "LOOM_OPENBAO_SECRET_ID_FILE")
-	if err != nil {
-		return nil, err
-	}
-	token, err := readCredential("LOOM_OPENBAO_TOKEN", "LOOM_OPENBAO_TOKEN_FILE")
-	if err != nil {
-		return nil, err
-	}
 	return NewOpenBao(OpenBaoConfig{
-		Address: os.Getenv("LOOM_OPENBAO_ADDR"), RoleID: os.Getenv("LOOM_OPENBAO_ROLE_ID"),
-		SecretID: secretID, Token: token, Mount: os.Getenv("LOOM_OPENBAO_MOUNT"),
+		Address: os.Getenv("LOOM_OPENBAO_ADDR"), Mount: os.Getenv("LOOM_OPENBAO_MOUNT"),
+		RoleID: os.Getenv("LOOM_OPENBAO_ROLE_ID"), RoleIDFile: os.Getenv("LOOM_OPENBAO_ROLE_ID_FILE"),
+		SecretID: os.Getenv("LOOM_OPENBAO_SECRET_ID"), SecretIDFile: os.Getenv("LOOM_OPENBAO_SECRET_ID_FILE"),
+		Token: os.Getenv("LOOM_OPENBAO_TOKEN"), TokenFile: os.Getenv("LOOM_OPENBAO_TOKEN_FILE"),
 		CACertificate: os.Getenv("LOOM_OPENBAO_CA_CERT"),
 	})
 }
 
-func readCredential(valueName, fileName string) (string, error) {
-	file := os.Getenv(fileName)
+func readCredential(value, file string) (string, error) {
 	if file == "" {
-		return strings.TrimSpace(os.Getenv(valueName)), nil
+		return strings.TrimSpace(value), nil
 	}
 	body, err := os.ReadFile(file)
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", fileName, err)
+		// The bundled bootstrap writes these files after the server starts. A
+		// missing file is therefore an actionable, not fatal, state; callers
+		// re-read it on the next request/status check.
+		if errors.Is(err, os.ErrNotExist) {
+			return strings.TrimSpace(value), nil
+		}
+		return "", fmt.Errorf("read OpenBao credential file: %w", err)
 	}
 	return strings.TrimSpace(string(body)), nil
 }
@@ -104,7 +109,13 @@ func NewOpenBao(config OpenBaoConfig) (*OpenBao, error) {
 		return nil, errors.New("invalid OpenBao mount")
 	}
 	base.Path = strings.TrimSuffix(base.Path, "/")
-	return &OpenBao{base: base, mount: mount, roleID: config.RoleID, secretID: config.SecretID, static: config.Token, client: &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	return &OpenBao{
+		base: base, mount: mount,
+		roleID: config.RoleID, roleIDFile: config.RoleIDFile,
+		secretID: config.SecretID, secretIDFile: config.SecretIDFile,
+		static: config.Token, staticFile: config.TokenFile,
+		client: &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+	}, nil
 }
 
 func (o *OpenBao) configured() bool { return o.base != nil }
@@ -119,10 +130,15 @@ func (o *OpenBao) Status(ctx context.Context) Status {
 	if !o.configured() {
 		return StatusUnconfigured
 	}
-	// The bundled OpenBao starts before an operator has entered its AppRole
-	// credentials. Keep the process healthy and let the plugin store explain
-	// the missing setup instead of failing the whole server at startup.
-	if o.static == "" && (o.roleID == "" || o.secretID == "") {
+	// The bundled bootstrap writes AppRole files after the server starts. Keep
+	// this transient state actionable instead of failing Loom at startup.
+	static, staticErr := readCredential(o.static, o.staticFile)
+	roleID, roleErr := readCredential(o.roleID, o.roleIDFile)
+	secretID, secretErr := readCredential(o.secretID, o.secretIDFile)
+	if staticErr != nil || roleErr != nil || secretErr != nil {
+		return StatusUnavailable
+	}
+	if static == "" && (roleID == "" || secretID == "") {
 		return StatusNeedsCredentials
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.endpoint("sys", "health"), nil)
@@ -148,10 +164,22 @@ func (o *OpenBao) authenticate(ctx context.Context, force bool) (string, error) 
 	if !o.configured() {
 		return "", ErrNotConfigured
 	}
-	if o.static != "" {
-		return o.static, nil
+	static, err := readCredential(o.static, o.staticFile)
+	if err != nil {
+		return "", ErrUnavailable
 	}
-	if o.roleID == "" || o.secretID == "" {
+	if static != "" {
+		return static, nil
+	}
+	roleID, err := readCredential(o.roleID, o.roleIDFile)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	secretID, err := readCredential(o.secretID, o.secretIDFile)
+	if err != nil {
+		return "", ErrUnavailable
+	}
+	if roleID == "" || secretID == "" {
 		return "", ErrNotConfigured
 	}
 	o.mu.Lock()
@@ -159,7 +187,7 @@ func (o *OpenBao) authenticate(ctx context.Context, force bool) (string, error) 
 	if !force && o.token != "" && time.Now().Before(o.tokenExpiry.Add(-30*time.Second)) {
 		return o.token, nil
 	}
-	body, _ := json.Marshal(map[string]string{"role_id": o.roleID, "secret_id": o.secretID})
+	body, _ := json.Marshal(map[string]string{"role_id": roleID, "secret_id": secretID})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.endpoint("auth", "approle", "login"), bytes.NewReader(body))
 	if err != nil {
 		return "", ErrUnavailable

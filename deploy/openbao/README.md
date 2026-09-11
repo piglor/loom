@@ -12,13 +12,20 @@ Easy bundled setup (Coolify or a local Compose project):
 
 ```sh
 docker compose -f deploy/coolify/compose.yaml up -d
-docker compose -f deploy/coolify/compose.yaml exec openbao bao operator init
-docker compose -f deploy/coolify/compose.yaml exec openbao bao operator unseal
 ```
 
-The bundled service is private at `http://openbao:8200`; it has persistent Raft
-and audit volumes and starts sealed. Loom does not hard-depend on OpenBao health,
-so the console remains available while an operator completes bootstrap.
+The bundled Compose starts a short-lived bootstrap service that initializes the
+single-node Raft store, creates Loom's scoped AppRole, enables audit logging,
+and writes only the AppRole files to a private shared volume. A companion
+monitor automatically unseals that instance after restarts. The service is
+private at `http://openbao:8200` and has persistent Raft, audit, bootstrap-state
+and credential volumes.
+
+This is convenience mode: the generated 1/1 Shamir key is retained in the
+protected Docker volume so restarts require no terminal visit. It is appropriate
+for a self-hosted single machine where the Docker host is trusted. Set
+`LOOM_OPENBAO_AUTO_BOOTSTRAP=false` and use the manual procedure below when
+the host is not the root of trust or when an external KMS/HSM seal is required.
 
 Advanced standalone setup:
 
@@ -44,8 +51,10 @@ bao auth enable approle
 bao write auth/approle/role/loom token_policies=loom token_ttl=1h token_max_ttl=4h secret_id_ttl=720h secret_id_num_uses=0
 bao read auth/approle/role/loom/role-id
 bao write -f auth/approle/role/loom/secret-id
-bao audit enable file file_path=/openbao/logs/audit.log
 ```
+
+The file audit device is declared in `openbao.hcl` because OpenBao 2.5 blocks
+API-created audit devices by default. It writes to the persistent audit volume.
 
 The mount-wide retention limit is a safety net for rotations. A soft delete
 keeps the current version recoverable; only an operator may permanently

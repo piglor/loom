@@ -58,6 +58,44 @@ services:
       retries: 12
       start_period: 20s
 
+  # The easy path is zero-touch: initialize OpenBao, create Loom's scoped
+  # AppRole, and write only the AppRole files into a separate shared volume.
+  # Root/unseal material never enters Compose interpolation or CI output.
+  openbao-bootstrap:
+    image: piglor-loom-openbao:local
+    entrypoint: ["/openbao/bootstrap.sh"]
+    restart: "no"
+    environment:
+      BAO_ADDR: http://openbao:8200
+      LOOM_OPENBAO_AUTO_BOOTSTRAP: ${LOOM_OPENBAO_AUTO_BOOTSTRAP:-true}
+      LOOM_OPENBAO_MOUNT: ${LOOM_OPENBAO_MOUNT:-loom}
+      LOOM_OPENBAO_BOOTSTRAP_DIR: /openbao/bootstrap
+      LOOM_OPENBAO_CREDENTIALS_DIR: /openbao/credentials
+    volumes:
+      - openbao-bootstrap:/openbao/bootstrap
+      - loom-openbao-credentials:/openbao/credentials
+      - openbao-audit:/openbao/logs
+    networks: [openbao]
+    depends_on:
+      openbao: { condition: service_healthy }
+
+  # A restart of a Shamir-sealed convenience instance should not require a
+  # Coolify operator to visit the terminal again. This monitor has only the
+  # persisted unseal key; the root token is removed by bootstrap.sh.
+  openbao-unseal:
+    image: piglor-loom-openbao:local
+    entrypoint: ["/openbao/unseal-monitor.sh"]
+    restart: unless-stopped
+    environment:
+      BAO_ADDR: http://openbao:8200
+      LOOM_OPENBAO_AUTO_BOOTSTRAP: ${LOOM_OPENBAO_AUTO_BOOTSTRAP:-true}
+      LOOM_OPENBAO_BOOTSTRAP_DIR: /openbao/bootstrap
+    volumes:
+      - openbao-bootstrap:/openbao/bootstrap:ro
+    networks: [openbao]
+    depends_on:
+      openbao-bootstrap: { condition: service_completed_successfully }
+
   loom-db:
     image: postgres:17.6
     restart: unless-stopped
@@ -96,11 +134,15 @@ services:
       LOOM_OPENBAO_MOUNT: ${LOOM_OPENBAO_MOUNT:-loom}
       LOOM_OPENBAO_ROLE_ID: ${LOOM_OPENBAO_ROLE_ID:-}
       LOOM_OPENBAO_SECRET_ID: ${LOOM_OPENBAO_SECRET_ID:-}
+      LOOM_OPENBAO_ROLE_ID_FILE: ${LOOM_OPENBAO_ROLE_ID_FILE:-/run/secrets/loom-openbao/role_id}
+      LOOM_OPENBAO_SECRET_ID_FILE: ${LOOM_OPENBAO_SECRET_ID_FILE:-/run/secrets/loom-openbao/secret_id}
       LOOM_OPENBAO_CA_CERT: ${LOOM_OPENBAO_CA_CERT:-}
       LOOM_GITHUB_WEBHOOK_SECRET: ${LOOM_GITHUB_WEBHOOK_SECRET:-}
       LOOM_GITHUB_APP_INSTALL_URL: ${LOOM_GITHUB_APP_INSTALL_URL:-}
       LOOM_GITHUB_API_TOKEN: ${LOOM_GITHUB_API_TOKEN:-}
     expose: [8080]
+    volumes:
+      - loom-openbao-credentials:/run/secrets/loom-openbao:ro
     networks: [private, egress, openbao]
     labels:
       # The server has multiple Docker networks. Without this label Traefik may
@@ -109,6 +151,7 @@ services:
       traefik.docker.network: ${LOOM_INGRESS_NETWORK:-coolify}
     depends_on:
       loom-migrate: { condition: service_completed_successfully }
+      openbao-bootstrap: { condition: service_completed_successfully }
     healthcheck:
       test:
         - CMD
@@ -136,6 +179,8 @@ volumes:
   loom-data:
   openbao-data:
   openbao-audit:
+  openbao-bootstrap:
+  loom-openbao-credentials:
 
 networks:
   private:

@@ -232,6 +232,9 @@ test("bundled OpenBao setup gives an actionable next step", async ({
   await expect(
     page.getByText("OpenBao is bundled with this Loom deployment."),
   ).toBeVisible();
+  await expect(
+    page.getByText(/preparing its private secret store.*automatically/),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Open setup guide ↗" }),

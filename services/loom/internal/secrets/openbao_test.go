@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -90,5 +92,52 @@ func TestOpenBaoConfigurationAndFailures(t *testing.T) {
 		if _, err = store.Put(context.Background(), reference, map[string]string{"key": "value"}); err == nil {
 			t.Fatalf("accepted reference %q", reference)
 		}
+	}
+}
+
+func TestOpenBaoReloadsCredentialFiles(t *testing.T) {
+	roleFile := filepath.Join(t.TempDir(), "role_id")
+	secretFile := filepath.Join(filepath.Dir(roleFile), "secret_id")
+	if err := os.WriteFile(roleFile, []byte("role-1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/sys/health":
+			w.WriteHeader(http.StatusOK)
+		case "/v1/auth/approle/login":
+			var input map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				t.Fatal(err)
+			}
+			if input["role_id"] != "role-1" || input["secret_id"] != "secret-1" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"auth": map[string]any{"client_token": "file-token", "lease_duration": 300}})
+		default:
+			if r.Header.Get("X-Vault-Token") != "file-token" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"version": 1}})
+		}
+	}))
+	defer server.Close()
+	store, err := NewOpenBao(OpenBaoConfig{Address: server.URL, RoleIDFile: roleFile, SecretIDFile: secretFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.Status(context.Background()) != StatusNeedsCredentials {
+		t.Fatal("expected missing file credential to remain actionable")
+	}
+	if err := os.WriteFile(secretFile, []byte("secret-1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if store.Status(context.Background()) != StatusReady {
+		t.Fatal("expected credential files to be reloaded")
+	}
+	if _, err := store.Put(context.Background(), "organizations/test/plugins/github/credentials/id", map[string]string{"key": "value"}); err != nil {
+		t.Fatalf("expected file credentials to authenticate: %v", err)
 	}
 }

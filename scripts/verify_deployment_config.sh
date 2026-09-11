@@ -29,8 +29,18 @@ printf '%s' "$config" | jq -e '
   (.services.openbao.healthcheck.test[1] | contains("503")) and
   .volumes["openbao-data"] != null and
   .volumes["openbao-audit"] != null and
+  .volumes["openbao-bootstrap"] != null and
+  .volumes["loom-openbao-credentials"] != null and
+  .services["openbao-bootstrap"].entrypoint[0] == "/openbao/bootstrap.sh" and
+  .services["openbao-bootstrap"].depends_on.openbao.condition == "service_healthy" and
+  .services["openbao-unseal"].entrypoint[0] == "/openbao/unseal-monitor.sh" and
+  .services["openbao-unseal"].depends_on["openbao-bootstrap"].condition == "service_completed_successfully" and
   (.services["loom-server"].networks | has("openbao")) and
   (.services["loom-server"].depends_on.openbao == null) and
+  (.services["loom-server"].depends_on["openbao-bootstrap"].condition == "service_completed_successfully") and
+  (.services["loom-server"].volumes[] | select(.target == "/run/secrets/loom-openbao") | .read_only == true) and
+  .services["loom-server"].environment.LOOM_OPENBAO_ROLE_ID_FILE == "/run/secrets/loom-openbao/role_id" and
+  .services["loom-server"].environment.LOOM_OPENBAO_SECRET_ID_FILE == "/run/secrets/loom-openbao/secret_id" and
   (.services["loom-server"].environment.LOOM_OPENBAO_ADDR == "http://openbao:8200")
 ' >/dev/null
 
@@ -55,8 +65,10 @@ grep -Fq 'capabilities = ["create", "read", "update", "delete"]' deploy/openbao/
 ! grep -Fq 'loom/metadata/' deploy/openbao/config/loom-policy.hcl
 grep -Fq 'path "loom/data/restore-check"' deploy/openbao/config/loom-restore-verify-policy.hcl
 grep -Fq 'capabilities = ["read"]' deploy/openbao/config/loom-restore-verify-policy.hcl
+grep -Fq 'audit "file" "loom"' deploy/openbao/config/openbao.hcl
+grep -Fq 'file_path = "/openbao/logs/audit.log"' deploy/openbao/config/openbao.hcl
 
-echo "PASS: OpenBao AppRole policy permits soft delete but not metadata destruction"
+echo "PASS: OpenBao policies and declarative audit device are constrained"
 
 lite=$(LOOM_POSTGRES_PASSWORD=deployment-test-password \
   LOOM_API_TOKEN=deployment-test-api-token-0000000000000000 \
