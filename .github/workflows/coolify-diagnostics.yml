@@ -1,0 +1,38 @@
+name: Coolify diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect Loom service without exposing secrets
+        env:
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$COOLIFY_API_TOKEN"
+          api=https://coolify.piglor.com/api/v1
+          uuid=yidv3el41pezd8qp22s6el2w
+          headers=(-H "Authorization: Bearer $COOLIFY_API_TOKEN" -H "Accept: application/json")
+
+          service=$(curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid")
+          printf '%s' "$service" | jq '{uuid,name,environment_id,server_id,destination_id,connect_to_docker_network,config_hash,service_type,updated_at,applications:[.applications[]? | {name,human_name,status}],databases:[.databases[]? | {name,human_name,status}]}'
+
+          envs=$(curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/envs")
+          printf '%s' "$envs" | jq '[.[] | {key, is_preview, is_literal, configured: (((.real_value // .value // "") | length) > 0)}]'
+
+          for sub_service in loom-server loom-migrate loom-worker openbao openbao-bootstrap openbao-unseal loom-db; do
+            echo "--- logs: $sub_service ---"
+            curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/logs?sub_service_name=$sub_service&lines=120&show_timestamps=true" \
+              | jq -r '.logs // .message // "(no logs)"' || true
+          done
+
+          echo "--- active deployments ---"
+          curl --fail-with-body --silent --show-error "${headers[@]}" "$api/deployments" \
+            | jq '[.[] | select((.application_name // "") | test("loom"; "i")) | {deployment_uuid,status,created_at,updated_at,commit,application_name,logs:(.logs // "" | split("\\n") | .[-40:])}]'
