@@ -22,7 +22,7 @@ jobs:
           headers=(-H "Authorization: Bearer $COOLIFY_API_TOKEN" -H "Accept: application/json")
 
           service=$(curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid")
-          printf '%s' "$service" | jq '{uuid,name,environment_id,server_id,destination_id,connect_to_docker_network,config_hash,service_type,updated_at,applications:[.applications[]? | {name,human_name,status}],databases:[.databases[]? | {name,human_name,status}]}'
+          printf '%s' "$service" | jq '{uuid,name,environment_id,server_id,destination_id,connect_to_docker_network,config_hash,service_type,updated_at,domains:(.domains // .docker_compose_domains),applications:[.applications[]? | {uuid,name,human_name,status,domains:(.domains // .fqdn),ports_exposes,ports_mappings,custom_labels}],databases:[.databases[]? | {uuid,name,human_name,status}]}'
 
           envs=$(curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/envs")
           printf '%s' "$envs" | jq '[.[] | {key, is_preview, is_literal, configured: (((.real_value // .value // "") | length) > 0)}]'
