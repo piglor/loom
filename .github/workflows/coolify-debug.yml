@@ -1,0 +1,37 @@
+name: Coolify deployment diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Coolify service state
+        env:
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_SERVICE_UUID: yidv3el41pezd8qp22s6el2w
+        run: |
+          set -eu
+          if [ -z "$COOLIFY_API_TOKEN" ]; then
+            echo "::error::COOLIFY_API_TOKEN is not configured"
+            exit 1
+          fi
+          service=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            -H "Accept: application/json" \
+            "https://coolify.piglor.com/api/v1/services/$COOLIFY_SERVICE_UUID")
+          printf '%s' "$service" | jq '{uuid,name,service_type,status,config_hash,updated_at,applications:[.applications[]? | {name,status}]}'
+          for app in loom-server loom-migrate loom-worker; do
+            echo "--- $app logs ---"
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+              -H "Accept: application/json" \
+              "https://coolify.piglor.com/api/v1/services/$COOLIFY_SERVICE_UUID/logs?sub_service_name=$app&lines=80" \
+              | jq -r '.logs // .message // empty' \
+              | sed -E 's#(postgres(ql)?://[^[:space:]]+)#postgresql://[REDACTED]#g; s#(LOOM_[A-Z_]+)[=:][^[:space:]]+#\1=[REDACTED]#g'
+          done
