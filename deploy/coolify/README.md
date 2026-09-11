@@ -47,9 +47,10 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
   private repository validation is required.
 - `HATCHET_CLIENT_TOKEN`: a scoped Hatchet worker/client credential.
 - `HATCHET_NETWORK`: the exact existing Docker network shared with Hatchet.
-- `LOOM_INGRESS_NETWORK`: the Docker network used by Coolify's reverse proxy
-  for this resource (the resource UUID network on Coolify 4.1.2). The GitHub
-  deployment workflow fills this with the service UUID when it is missing.
+- `LOOM_INGRESS_NETWORK`: optional Docker network used by Coolify's reverse
+  proxy. The GitHub deployment workflow enables Coolify's predefined `coolify`
+  network and fills this default automatically; keep this variable only when
+  an operator intentionally uses a different proxy network.
 - `HATCHET_CLIENT_HOST_PORT`: normally `hatchet-engine:7070` on that network.
 - `HATCHET_CLIENT_TLS_STRATEGY`: `none` only for the private in-network gRPC hop.
 

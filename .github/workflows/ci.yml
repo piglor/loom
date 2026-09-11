@@ -122,6 +122,15 @@ jobs:
             -H "Content-Type: application/json" \
             --data "{\"docker_compose_raw\":\"$compose_b64\"}" \
             "$coolify_api/services/$loom_service_uuid"
+          # The Coolify proxy lives on its predefined `coolify` network. Keep
+          # this enabled for the bundled Compose resource so the server remains
+          # reachable even though the stack also declares private networks.
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X PATCH \
+            "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            --data '{"connect_to_docker_network":true}' \
+            "$coolify_api/services/$loom_service_uuid"
           # Coolify materializes the :?required error text as an environment
           # value when a new variable has not been configured yet. Remove only
           # that exact placeholder; never overwrite a real operator value.
@@ -150,9 +159,12 @@ jobs:
           fi
           ingress_network_present=$(printf '%s' "$service_envs" | jq -r \
             'first(.[] | select(.key == "LOOM_INGRESS_NETWORK") | (.real_value // .value // "")) // ""')
-          if [ -z "$ingress_network_present" ]; then
-            loom_ingress_env=$(jq -n --arg network "$loom_service_uuid" \
-              '{data:[{key:"LOOM_INGRESS_NETWORK",value:$network,is_preview:false,is_literal:true}]}')
+          # Older runs filled this with the resource UUID before the proxy
+          # network was enabled. Migrate that generated value to Coolify's
+          # predefined network; keep any other value supplied by an operator.
+          if [ -z "$ingress_network_present" ] || [ "$ingress_network_present" = "$loom_service_uuid" ]; then
+            loom_ingress_env=$(jq -n \
+              '{data:[{key:"LOOM_INGRESS_NETWORK",value:"coolify",is_preview:false,is_literal:true}]}')
             curl --fail-with-body --retry 3 --retry-delay 5 \
               -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
               --data "$loom_ingress_env" "$coolify_api/services/$loom_service_uuid/envs/bulk"
