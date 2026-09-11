@@ -21,6 +21,8 @@ echo "PASS: reverse proxy is pinned to the configured Coolify ingress network"
 printf '%s' "$config" | jq -e '
   (.services.openbao.image | startswith("piglor-loom-openbao:local")) and
   (.services.openbao.build.dockerfile == "deploy/openbao/Dockerfile") and
+  (.services["openbao-bootstrap"].build.dockerfile == "deploy/openbao/Dockerfile") and
+  (.services["openbao-unseal"].build.dockerfile == "deploy/openbao/Dockerfile") and
   (.services.openbao.networks | has("openbao")) and
   (.services.openbao.expose | index("8200") != null) and
   (.services.openbao.ports == null) and

@@ -66,6 +66,9 @@ services:
   # AppRole, and write only the AppRole files into a separate shared volume.
   # Root/unseal material never enters Compose interpolation or CI output.
   openbao-bootstrap:
+    build:
+      context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
+      dockerfile: deploy/openbao/Dockerfile
     image: piglor-loom-openbao:${LOOM_BUILD_SHA:-local}
     entrypoint: ["/openbao/bootstrap.sh"]
     restart: "no"
@@ -87,6 +90,9 @@ services:
   # Coolify operator to visit the terminal again. This monitor has only the
   # persisted unseal key; the root token is removed by bootstrap.sh.
   openbao-unseal:
+    build:
+      context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
+      dockerfile: deploy/openbao/Dockerfile
     image: piglor-loom-openbao:${LOOM_BUILD_SHA:-local}
     entrypoint: ["/openbao/unseal-monitor.sh"]
     restart: unless-stopped
