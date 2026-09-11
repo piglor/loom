@@ -1,7 +1,6 @@
 name: Coolify diagnostics
 
-on:
-  workflow_dispatch: {}
+on: [workflow_dispatch]
 
 permissions:
   contents: read
