@@ -158,7 +158,7 @@ jobs:
             --data "$loom_openbao_envs" "$coolify_api/services/$loom_service_uuid/envs/bulk"
           fi
           ingress_network_present=$(printf '%s' "$service_envs" | jq -r \
-            'first(.[] | select(.key == "LOOM_INGRESS_NETWORK") | (.real_value // .value // "")) // ""')
+            'first(.[] | select(.key == "LOOM_INGRESS_NETWORK") | (.value // .real_value // "")) // ""')
           # Older runs filled this with the resource UUID before the proxy
           # network was enabled. Migrate that generated value to Coolify's
           # predefined network; keep any other value supplied by an operator.
