@@ -21,6 +21,10 @@
 !services/loom/go.sum
 !scripts/
 !scripts/source_fingerprint.sh
+!deploy/
+deploy/*
+!deploy/openbao/
+!deploy/openbao/**
 **/node_modules/
 **/__pycache__/
 apps/web/dist/

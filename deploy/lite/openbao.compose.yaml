@@ -1,32 +1,10 @@
-# Overlay for a single-host Loom Lite deployment. The OpenBao API is available
-# only on the Compose private network; public TLS still terminates at Loom.
+# Overlay for a single-host Loom Lite deployment. The base Coolify descriptor
+# now carries the pinned, persistent OpenBao service; this file only wires the
+# application to it and keeps the dependency optional for Server deployments.
 services:
-  openbao:
-    image: openbao/openbao:2.5.4
-    command: ["server", "-config=/openbao/config/openbao.hcl"]
-    restart: unless-stopped
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    environment:
-      BAO_ADDR: http://127.0.0.1:8200
-    volumes:
-      - ../lite/openbao.hcl:/openbao/config/openbao.hcl:ro
-      - ../lite/loom-policy.hcl:/openbao/config/loom-policy.hcl:ro
-      - loom-openbao-data:/openbao/data
-    expose: [8200]
-    networks: [private]
-    healthcheck:
-      test: ["CMD", "bao", "status"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   loom-server:
     environment:
       LOOM_OPENBAO_ADDR: http://openbao:8200
       LOOM_OPENBAO_MOUNT: loom
     depends_on:
       openbao: { condition: service_started }
-
-volumes:
-  loom-openbao-data:

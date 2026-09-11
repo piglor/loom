@@ -18,6 +18,19 @@ printf '%s' "$config" | jq -e '
 
 echo "PASS: reverse proxy is pinned to the configured Coolify ingress network"
 
+printf '%s' "$config" | jq -e '
+  (.services.openbao.image | startswith("piglor-openbao:local")) and
+  (.services.openbao.networks | has("private")) and
+  (.services.openbao.expose | index("8200") != null) and
+  (.services.openbao.ports == null) and
+  (.services.openbao.labels["traefik.enable"] == "false") and
+  .volumes["loom-openbao-data"] != null and
+  .volumes["loom-openbao-audit"] != null and
+  (.services["loom-server"].depends_on.openbao == null)
+' >/dev/null
+
+echo "PASS: Coolify embeds private persistent OpenBao without a hard app dependency"
+
 lite=$(LOOM_POSTGRES_PASSWORD=deployment-test-password \
   LOOM_API_TOKEN=deployment-test-api-token-0000000000000000 \
   LOOM_PUBLIC_URL=https://loom.example \

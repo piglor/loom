@@ -18,6 +18,34 @@ x-loom: &loom
     LOOM_ORGANIZATION: ${LOOM_ORGANIZATION:-local}
 
 services:
+  # Coolify 4.1.2 parses this service stack itself, so the OpenBao module is
+  # expanded here instead of relying on Compose's top-level `include`.
+  openbao:
+    build:
+      context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
+      dockerfile: deploy/openbao/Dockerfile
+    image: piglor-openbao:local
+    command: ["server"]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    user: "100:1000"
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    volumes:
+      - loom-openbao-data:/openbao/data
+      - loom-openbao-audit:/openbao/logs
+    expose: [8200]
+    networks: [private]
+    labels:
+      traefik.enable: "false"
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   loom-db:
     image: postgres:17.6
     restart: unless-stopped
@@ -93,6 +121,8 @@ services:
 
 volumes:
   loom-data:
+  loom-openbao-data:
+  loom-openbao-audit:
 
 networks:
   private:

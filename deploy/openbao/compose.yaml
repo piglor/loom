@@ -1,0 +1,36 @@
+# Standalone OpenBao module. It has no public port and can be included in an
+# all-in-one Compose project or deployed as its own Coolify service.
+services:
+  openbao:
+    build:
+      context: ../..
+      dockerfile: deploy/openbao/Dockerfile
+    image: loom-openbao:local
+    command: ["server"]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    user: "100:1000"
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    volumes:
+      - openbao-data:/openbao/data
+      - openbao-audit:/openbao/logs
+    expose: [8200]
+    networks: [openbao]
+    labels:
+      traefik.enable: "false"
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  openbao-data:
+  openbao-audit:
+
+networks:
+  openbao:
+    internal: true
