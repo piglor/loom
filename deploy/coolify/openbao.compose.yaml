@@ -70,6 +70,8 @@ services:
       traefik.enable: "true"
       traefik.http.routers.openbao-provenance.rule: >-
         Host(`${OPENBAO_DOMAIN:-openbao.piglor.com}`) && PathPrefix(`/_loom/`)
+      traefik.http.routers.openbao-provenance.entrypoints: https
+      traefik.http.routers.openbao-provenance.tls: "true"
       traefik.http.routers.openbao-provenance.priority: "100"
       traefik.http.routers.openbao-provenance.middlewares: openbao-provenance-strip
       traefik.http.middlewares.openbao-provenance-strip.stripprefix.prefixes: /_loom

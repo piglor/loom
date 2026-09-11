@@ -41,6 +41,8 @@ printf '%s' "$openbao" | jq -e '
   (.services.openbao.labels["traefik.http.services.openbao.loadbalancer.server.port"] == "8200") and
   (.services["openbao-provenance"].image | startswith("busybox:1.36.1@sha256:")) and
   (.services["openbao-provenance"].labels["traefik.http.routers.openbao-provenance.rule"] == "Host(`openbao.example`) && PathPrefix(`/_loom/`)" ) and
+  (.services["openbao-provenance"].labels["traefik.http.routers.openbao-provenance.entrypoints"] == "https") and
+  (.services["openbao-provenance"].labels["traefik.http.routers.openbao-provenance.tls"] == "true") and
   (.services["openbao-provenance"].labels["traefik.http.services.openbao-provenance.loadbalancer.server.port"] == "8080") and
   (.services.openbao.environment.BAO_API_ADDR == "https://openbao.example") and
   (.services.openbao.healthcheck.test[0] == "CMD-SHELL") and
@@ -54,6 +56,8 @@ echo "PASS: Dedicated Coolify OpenBao resource uses HTTPS ingress, provenance pr
 grep -Fq 'path "loom/data/organizations/*"' deploy/openbao/config/loom-policy.hcl
 grep -Fq 'capabilities = ["create", "read", "update", "delete"]' deploy/openbao/config/loom-policy.hcl
 ! grep -Fq 'loom/metadata/' deploy/openbao/config/loom-policy.hcl
+grep -Fq 'path "loom/data/restore-check"' deploy/openbao/config/loom-restore-verify-policy.hcl
+grep -Fq 'capabilities = ["read"]' deploy/openbao/config/loom-restore-verify-policy.hcl
 
 echo "PASS: OpenBao AppRole policy permits soft delete but not metadata destruction"
 

@@ -5,6 +5,7 @@ FROM openbao/openbao:2.5.4@sha256:436eaf9778cad75507ff70ea26ace30dcbe15606e619ac
 # the least-privilege runtime user instead of becoming root-owned.
 COPY --chown=openbao:openbao deploy/openbao/config/openbao.hcl /openbao/config/openbao.hcl
 COPY --chown=openbao:openbao deploy/openbao/config/loom-policy.hcl /openbao/config/loom-policy.hcl
+COPY --chown=openbao:openbao deploy/openbao/config/loom-restore-verify-policy.hcl /openbao/config/loom-restore-verify-policy.hcl
 RUN mkdir -p /openbao/data /openbao/logs \
     && chown -R openbao:openbao /openbao/data /openbao/logs /openbao/config
 

@@ -23,6 +23,7 @@ After unsealing, authenticate the CLI with the temporary root token and run:
 bao secrets enable -path=loom kv-v2
 bao write loom/config max_versions=10
 bao policy write loom /openbao/config/loom-policy.hcl
+bao policy write loom-restore-verify /openbao/config/loom-restore-verify-policy.hcl
 bao auth enable approle
 bao write auth/approle/role/loom token_policies=loom token_ttl=1h token_max_ttl=4h secret_id_ttl=720h secret_id_num_uses=0
 bao read auth/approle/role/loom/role-id
@@ -59,15 +60,21 @@ Compose file or committed environment. Copy the snapshot off the host before
 removing the temporary file; a snapshot is encrypted by OpenBao's barrier and
 still requires the source cluster's unseal/recovery material to restore.
 
-Immediately before the snapshot, also create a short-lived, non-root token with
-the `loom` policy and keep it only in the protected backup record. This token
-is the restore-read check; it is not an application credential and must never
-be written to Compose, `.env`, PostgreSQL or logs:
+Immediately before the snapshot, write a non-sensitive canary and create an
+orphaned, non-root token with the dedicated read-only policy. Keep the canary
+value and token only in the protected backup record. The token is independent
+of the operator token that created it, lasts 30 days, and is the restore-read
+check; it must never be written to Compose, `.env`, PostgreSQL or logs:
 
 ```sh
-SOURCE_VERIFY_TOKEN=$(bao token create -policy=loom -ttl=24h -format=json \
+RESTORE_MARKER="$(date -u +%Y%m%dT%H%M%SZ)-<random>"
+bao kv put -mount=loom restore-check value="$RESTORE_MARKER"
+SOURCE_VERIFY_TOKEN=$(bao token create -orphan -policy=loom-restore-verify -ttl=720h -format=json \
   | jq -er '.auth.client_token')
 ```
+
+Run the drill before this token expires (within 30 days of the snapshot), or
+create a fresh canary/token and snapshot. Revoke the token after verification.
 
 ```sh
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -102,12 +109,13 @@ docker compose -p loom-openbao-restore -f deploy/openbao/compose.yaml exec -T op
   bao operator unseal "$SOURCE_UNSEAL_KEY"
 docker compose -p loom-openbao-restore -f deploy/openbao/compose.yaml exec -T \
   -e BAO_TOKEN="$SOURCE_VERIFY_TOKEN" openbao bao kv get -mount=loom \
-  organizations/<hash>/plugins/github/credentials/<id>
+  -field=value restore-check
 ```
 
 The restored cluster uses the source barrier and unseal key, while the
-short-lived scoped verification token captured with the snapshot proves that
-the data is readable without retaining a source root token. Revoke the
+orphaned, read-only canary token captured with the snapshot proves that the
+snapshot is readable without retaining a source root token. Compare the output
+to `$RESTORE_MARKER`, then revoke the
 temporary target token after the drill and destroy the disposable resource
 without touching production volumes. Let the verification token expire or
 revoke it on the source after the drill.
