@@ -2,11 +2,11 @@
 # still connect outbound to loom-server over HTTPS.
 x-loom: &loom
   build:
-    context: ../..
+    context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
     dockerfile: services/loom/Dockerfile
     args:
       LOOM_BUILD_SHA: ${LOOM_BUILD_SHA:-development}
-      LOOM_SOURCE_REF: ${LOOM_SOURCE_REF:-local}
+      LOOM_SOURCE_REF: local
   image: piglor-loom:local
   restart: unless-stopped
   read_only: true
