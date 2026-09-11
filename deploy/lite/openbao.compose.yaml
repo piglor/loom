@@ -6,5 +6,3 @@ services:
     environment:
       LOOM_OPENBAO_ADDR: http://openbao:8200
       LOOM_OPENBAO_MOUNT: loom
-    depends_on:
-      openbao: { condition: service_started }

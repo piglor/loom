@@ -1,4 +1,4 @@
-FROM openbao/openbao:2.5.4@sha256:d0424c95859f7b4c1e308abf57c4cd72b9cba835bb946eb397172b799fba9477
+FROM openbao/openbao:2.5.4@sha256:436eaf9778cad75507ff70ea26ace30dcbe15606e619ac3823495663d7f7c115
 
 # The official image drops from root to the openbao user at startup. Seed the
 # data directory with the same ownership so a newly-created Docker volume keeps
