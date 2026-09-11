@@ -146,7 +146,16 @@ jobs:
               ]}')
             curl --fail-with-body --retry 3 --retry-delay 5 \
               -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
-              --data "$loom_openbao_envs" "$coolify_api/services/$loom_service_uuid/envs/bulk"
+            --data "$loom_openbao_envs" "$coolify_api/services/$loom_service_uuid/envs/bulk"
+          fi
+          ingress_network_present=$(printf '%s' "$service_envs" | jq -r \
+            'first(.[] | select(.key == "LOOM_INGRESS_NETWORK") | (.real_value // .value // "")) // ""')
+          if [ -z "$ingress_network_present" ]; then
+            loom_ingress_env=$(jq -n --arg network "$loom_service_uuid" \
+              '{data:[{key:"LOOM_INGRESS_NETWORK",value:$network,is_preview:false,is_literal:true}]}')
+            curl --fail-with-body --retry 3 --retry-delay 5 \
+              -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
+              --data "$loom_ingress_env" "$coolify_api/services/$loom_service_uuid/envs/bulk"
           fi
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
