@@ -12,6 +12,7 @@
   font-synthesis: none;
   line-height: 1.5;
 }
+
 * {
   box-sizing: border-box;
 }
@@ -1258,4 +1259,373 @@ summary {
     grid-column: 1 / -1;
     min-height: 44px;
   }
+}
+/* Blue night theme: calm blue surfaces with a clear sky-blue action color. */
+:root {
+  color: #eef6ff;
+  background: #0a1220;
+}
+
+body {
+  background: #0a1220;
+}
+
+button,
+.button-link,
+.mark,
+.orbit-core,
+.skip {
+  background: #79b8ff;
+  color: #071a2e;
+}
+
+button.secondary {
+  background: #182a43;
+  color: #dcecff;
+  border-color: #355274;
+}
+
+input,
+select,
+textarea {
+  background: #0f1b2d;
+  color: #eaf4ff;
+  border-color: #3d5877;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline-color: #8ec5ff;
+}
+
+small,
+.footnote,
+.muted {
+  color: #9fb3cc;
+}
+
+.eyebrow {
+  color: #8fa8c4;
+}
+
+.brand small {
+  color: #9fb3cc;
+}
+
+.sidebar {
+  border-color: #283d5a;
+  background: #0e1a2b;
+}
+
+.sidebar nav a {
+  color: #b5c5da;
+}
+
+.sidebar nav a span {
+  color: #8199b6;
+}
+
+.sidebar nav a.active {
+  background: #1e3655;
+  color: #d9edff;
+}
+
+.sidebar-bottom {
+  color: #9fb3cc;
+}
+
+.sidebar-bottom strong {
+  color: #d2e6fa;
+}
+
+.stat {
+  background: #17253b;
+  border-color: #2e4564;
+}
+
+.stat span {
+  color: #9eb2cc;
+}
+
+.panel {
+  background: #142238;
+  border-color: #2e4562;
+}
+
+.text-link,
+.back,
+.login-story h1 span,
+.guided-form .eyebrow {
+  color: #8ec5ff;
+}
+
+.page-intro,
+.welcome p:last-child,
+.plugin-hero p:last-child,
+.login-story > div:nth-child(2) > p:last-child {
+  color: #adc0d7;
+}
+
+.welcome {
+  border-color: #304864;
+  background:
+    radial-gradient(
+      circle at 84% 48%,
+      rgba(121, 184, 255, 0.16),
+      transparent 27%
+    ),
+    linear-gradient(135deg, #172a43 0%, #0e1a2b 70%);
+}
+
+.welcome-orbit {
+  border-color: #31577e;
+}
+
+.welcome-orbit::before {
+  border-color: #466b91;
+}
+
+.orbit-node {
+  background: #1f3048;
+  border-color: #4d729a;
+  color: #c9dcf1;
+}
+
+.progress-pill,
+.time-pill {
+  border-color: #3d5875;
+  color: #a6b9d1;
+}
+
+.setup-card,
+.plugin-card {
+  background: #132238;
+  border-color: #2e4562;
+}
+
+.setup-card.featured {
+  border-color: #4e79a8;
+  background: linear-gradient(160deg, #1b3554, #132238);
+}
+
+.setup-card p,
+.plugin-card p,
+.coming-label {
+  color: #9fb1c6;
+}
+
+.step-number {
+  color: #7189a5;
+}
+
+.setup-icon,
+.plugin-logo {
+  border-color: #466180;
+  background: #203047;
+  color: #ecf4ff;
+}
+
+.explainer-strip {
+  border-color: #293f5e;
+  background: #0e1a2b;
+}
+
+.explainer-strip div > span {
+  background: #213d62;
+  color: #8ec5ff;
+}
+
+.explainer-strip p {
+  color: #8fa7be;
+}
+
+.explainer-strip strong {
+  color: #d9e7f8;
+}
+
+.explainer-strip i {
+  color: #587292;
+}
+
+.category-tabs {
+  border-color: #293e5b;
+  color: #8ba1bc;
+}
+
+.category-tabs .active {
+  border-color: #8ec5ff;
+  color: #deebfa;
+}
+
+.plugin-card:hover {
+  border-color: #6289b8;
+}
+
+.plugin-state.ready_to_connect,
+.plugin-state.connected {
+  background: #20466b;
+  color: #a9d4ff;
+}
+
+.trust-note {
+  border-color: #304d72;
+  color: #9eafc4;
+}
+
+.trust-note > span {
+  color: #8ec5ff;
+}
+
+.trust-note strong {
+  color: #d8e6f7;
+}
+
+.install-steps li {
+  border-color: #2b4160;
+}
+
+.install-steps li > span {
+  border-color: #446083;
+  color: #8ec5ff;
+}
+
+.install-steps p,
+.guided-form p,
+.manual-credentials p {
+  color: #9caec7;
+}
+
+.guided-form fieldset {
+  border-color: #344f72;
+}
+
+.guided-form legend,
+.choice-row {
+  color: #d7e5f6;
+}
+
+.choice-row input {
+  accent-color: #8ec5ff;
+}
+
+.manual-credentials,
+.connection-card,
+.panel-footer,
+.goal-row,
+.timeline li,
+.attempt {
+  border-color: #2b4260;
+}
+
+.connection-card {
+  background: #142238;
+}
+
+.connection-card p {
+  color: #91a6c0;
+}
+
+.configuration-block {
+  background: #263d5a;
+  color: #d5eaff;
+}
+
+.configuration-block p {
+  color: #afc7e2;
+}
+
+.configuration-block code {
+  color: #d6ebff;
+}
+
+.readiness-panel h2 {
+  color: #e7f2ff;
+}
+
+.check {
+  background: #263d5a;
+  color: #b7d7f7;
+}
+
+.check.yes {
+  background: #20466b;
+  color: #a9d4ff;
+}
+
+.check-row small,
+.fine-print,
+.panel-footer,
+.timeline time,
+pre {
+  color: #91a6c0;
+}
+
+.goal-row:hover h2 {
+  color: #8ec5ff;
+}
+
+.status {
+  background: #273b56;
+  border-color: #405c7d;
+  color: #c3d8ef;
+}
+
+.state-waiting {
+  background: #20466b;
+  color: #a9d4ff;
+  border-color: #3f6590;
+}
+
+.state-running {
+  background: #213d5e;
+  color: #a8d7ff;
+  border-color: #315f86;
+}
+
+.state-completed {
+  color: #9fc5ee;
+}
+
+.note {
+  border-color: #6d9cd1;
+  color: #a9bad2;
+}
+
+.note strong {
+  color: #d2e4f7;
+}
+
+.empty,
+.objective {
+  color: #b6c8dd;
+}
+
+.wait-callout {
+  background: #213f64;
+  color: #a9d4ff;
+}
+
+.login-proof {
+  color: #a9bad2;
+}
+
+.login-proof i {
+  color: #56749a;
+}
+
+.login-card {
+  border-color: #344f72;
+  background: linear-gradient(155deg, #192e49, #111e33);
+}
+
+.login-intro,
+.login-card .muted {
+  color: #9eafc7;
+}
+
+.token-note {
+  color: #728baa;
 }
