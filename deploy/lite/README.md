@@ -19,10 +19,10 @@ OpenBao container, then create Loom's KV v2 mount and scoped AppRole:
 
 ```sh
 bao secrets enable -path=loom kv-v2
-bao write loom/config max_versions=10 delete_version_after=720h
+bao write loom/config max_versions=10
 bao policy write loom /openbao/config/loom-policy.hcl
 bao auth enable approle
-bao write auth/approle/role/loom token_policies=loom token_ttl=1h token_max_ttl=4h secret_id_ttl=24h secret_id_num_uses=1
+bao write auth/approle/role/loom token_policies=loom token_ttl=1h token_max_ttl=4h secret_id_ttl=720h secret_id_num_uses=0
 bao read auth/approle/role/loom/role-id
 bao write -f auth/approle/role/loom/secret-id
 ```

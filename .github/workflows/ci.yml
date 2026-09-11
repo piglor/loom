@@ -52,6 +52,8 @@ jobs:
       - name: Calculate source fingerprint
         id: source-fingerprint
         run: echo "sha=$(sh scripts/source_fingerprint.sh)" >> "$GITHUB_OUTPUT"
+      - name: Build pinned OpenBao deployment image
+        run: docker build --pull -f deploy/openbao/Dockerfile -t loom-openbao:ci .
       - name: Build Go console container
         run: docker build --build-arg LOOM_BUILD_SHA=${GITHUB_SHA:-development} -f services/loom/Dockerfile -t piglor-loom-console:local .
       - name: Run image, signed ingress, and backup/restore acceptance
@@ -106,6 +108,10 @@ jobs:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
           COOLIFY_OPENBAO_SERVICE_UUID: ${{ vars.COOLIFY_OPENBAO_SERVICE_UUID || secrets.COOLIFY_OPENBAO_SERVICE_UUID }}
           COOLIFY_OPENBAO_DOMAIN: ${{ vars.COOLIFY_OPENBAO_DOMAIN || secrets.COOLIFY_OPENBAO_DOMAIN }}
+          COOLIFY_PROJECT_UUID: ${{ vars.COOLIFY_PROJECT_UUID || secrets.COOLIFY_PROJECT_UUID }}
+          COOLIFY_ENVIRONMENT_UUID: ${{ vars.COOLIFY_ENVIRONMENT_UUID || secrets.COOLIFY_ENVIRONMENT_UUID }}
+          COOLIFY_SERVER_UUID: ${{ vars.COOLIFY_SERVER_UUID || secrets.COOLIFY_SERVER_UUID }}
+          COOLIFY_DESTINATION_UUID: ${{ vars.COOLIFY_DESTINATION_UUID || secrets.COOLIFY_DESTINATION_UUID }}
         run: |
           if [ -z "$COOLIFY_API_TOKEN" ]; then
             echo "::error::COOLIFY_API_TOKEN is not configured; refusing to report production success."
@@ -122,17 +128,69 @@ jobs:
           # using the same project/environment/server placement.
           loom_service=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
             "${auth_headers[@]}" "$coolify_api/services/$loom_service_uuid")
-          project_uuid=$(printf '%s' "$loom_service" | jq -er '.project_uuid')
-          environment_name=$(printf '%s' "$loom_service" | jq -er '.environment_name // .environment.name // "production"')
-          environment_uuid=$(printf '%s' "$loom_service" | jq -er '.environment_uuid')
-          server_uuid=$(printf '%s' "$loom_service" | jq -er '.server_uuid')
-          destination_uuid=$(printf '%s' "$loom_service" | jq -r '.destination_uuid // empty')
+          environment_id=$(printf '%s' "$loom_service" | jq -er '.environment_id')
+          server_id=$(printf '%s' "$loom_service" | jq -er '.server_id')
+          destination_id=$(printf '%s' "$loom_service" | jq -r '.destination_id // empty')
+          project_uuid="${COOLIFY_PROJECT_UUID:-}"
+          environment_uuid="${COOLIFY_ENVIRONMENT_UUID:-}"
+          server_uuid="${COOLIFY_SERVER_UUID:-}"
+          destination_uuid="${COOLIFY_DESTINATION_UUID:-}"
+          if [ -z "$project_uuid" ] || [ -z "$environment_uuid" ]; then
+            # GET /services/{uuid} exposes numeric placement IDs, not project or
+            # environment UUIDs. Resolve those IDs through the documented APIs.
+            projects=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+              "${auth_headers[@]}" "$coolify_api/projects")
+            while IFS= read -r candidate_project; do
+              [ -n "$candidate_project" ] || continue
+              environments=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+                "${auth_headers[@]}" "$coolify_api/projects/$candidate_project/environments")
+              environment=$(printf '%s' "$environments" | jq -r --arg id "$environment_id" \
+                '[.[] | select((.id | tostring) == $id)][0] // empty')
+              if [ -n "$environment" ]; then
+                project_uuid="$candidate_project"
+                environment_uuid=$(printf '%s' "$environment" | jq -er '.uuid')
+                environment_name=$(printf '%s' "$environment" | jq -er '.name')
+                break
+              fi
+            done < <(printf '%s' "$projects" | jq -r '.[].uuid')
+          else
+            environment_name=$(printf '%s' "$loom_service" | jq -r '.environment_name // "production"')
+          fi
+          if [ -z "$project_uuid" ] || [ -z "$environment_uuid" ]; then
+            echo "::error::Could not resolve Loom's Coolify project/environment placement. Set COOLIFY_PROJECT_UUID and COOLIFY_ENVIRONMENT_UUID."
+            exit 1
+          fi
+          if [ -z "$server_uuid" ]; then
+            servers=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+              "${auth_headers[@]}" "$coolify_api/servers")
+            server_uuid=$(printf '%s' "$servers" | jq -r --arg id "$server_id" \
+              '[.[] | select((.id | tostring) == $id)][0].uuid // empty')
+          fi
+          if [ -z "$server_uuid" ]; then
+            echo "::error::Could not resolve Loom's Coolify server placement. Set COOLIFY_SERVER_UUID."
+            exit 1
+          fi
+          if [ -z "$destination_uuid" ] && [ -n "$destination_id" ]; then
+            destinations=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+              "${auth_headers[@]}" "$coolify_api/servers/$server_uuid/destinations")
+            destination_uuid=$(printf '%s' "$destinations" | jq -r --arg id "$destination_id" \
+              '[.[] | select((.id | tostring) == $id)][0].uuid // empty')
+          fi
+          if [ -n "$destination_id" ] && [ -z "$destination_uuid" ]; then
+            echo "::error::Could not resolve Loom's Coolify destination placement. Set COOLIFY_DESTINATION_UUID."
+            exit 1
+          fi
+          if [ -z "$environment_name" ]; then
+            environment_name=$(printf '%s' "$loom_service" | jq -r '.environment_name // "production"')
+          fi
           openbao_uuid="${COOLIFY_OPENBAO_SERVICE_UUID:-}"
           if [ -z "$openbao_uuid" ]; then
             services=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
               "${auth_headers[@]}" "$coolify_api/services")
             openbao_uuid=$(printf '%s' "$services" | jq -r \
-              --arg name loom-openbao '[.[] | select(.name == $name) | .uuid][0] // empty')
+              --arg name loom-openbao --arg environment_id "$environment_id" \
+              --arg server_id "$server_id" --arg destination_id "$destination_id" \
+              '[.[] | select(.name == $name and (.environment_id | tostring) == $environment_id and (.server_id | tostring) == $server_id and ($destination_id == "" or (.destination_id | tostring) == $destination_id)) | .uuid][0] // empty')
           fi
           openbao_domain="${COOLIFY_OPENBAO_DOMAIN:-openbao.piglor.com}"
           if ! printf '%s' "$openbao_domain" | grep -Eq '^[A-Za-z0-9.-]+$'; then
@@ -182,9 +240,37 @@ jobs:
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
             --data "$openbao_envs" "$coolify_api/services/$openbao_uuid/envs/bulk"
+          openbao_source_ref=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+            "${auth_headers[@]}" "$coolify_api/services/$openbao_uuid/envs" | jq -r \
+            'first(.[] | select(.key == "LOOM_SOURCE_REF") | (.real_value // .value // "")) // ""')
+          if [ "$openbao_source_ref" != "$GITHUB_SHA" ]; then
+            echo "::error::OpenBao resource did not retain the commit-pinned source reference."
+            exit 1
+          fi
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X GET "${auth_headers[@]}" \
             "$coolify_api/deploy?uuid=$openbao_uuid&force=true"
+          bao_deadline=$((SECONDS + 300))
+          bao_ready=false
+          while (( SECONDS < bao_deadline )); do
+            bao_code=$(curl --silent --show-error --max-time 10 \
+              -o /dev/null -w '%{http_code}' "https://${openbao_domain}/v1/sys/health" || true)
+            case "$bao_code" in
+              200|429|501|503)
+                bao_ready=true
+                echo "OpenBao HTTPS endpoint is reachable (HTTP $bao_code)."
+                break
+                ;;
+              *)
+                echo "Waiting for OpenBao HTTPS endpoint (HTTP ${bao_code:-unreachable})."
+                sleep 10
+                ;;
+            esac
+          done
+          if [ "$bao_ready" != true ]; then
+            echo "::error::OpenBao service $openbao_uuid did not become reachable at https://${openbao_domain}."
+            exit 1
+          fi
 
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \

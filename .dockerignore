@@ -25,6 +25,10 @@
 deploy/*
 !deploy/openbao/
 !deploy/openbao/**
+!deploy/coolify/
+!deploy/coolify/**
+!deploy/lite/
+!deploy/lite/**
 **/node_modules/
 **/__pycache__/
 apps/web/dist/
