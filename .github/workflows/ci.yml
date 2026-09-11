@@ -116,20 +116,20 @@ jobs:
           loom_service_uuid=yidv3el41pezd8qp22s6el2w
           auth_headers=(-H "Authorization: Bearer $COOLIFY_API_TOKEN" -H "Accept: application/json")
 
+          # The proxy lives on Coolify's predefined network. Disable label
+          # escaping before uploading the Compose source so the network
+          # interpolation below is evaluated instead of stored as `$${...}`.
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X PATCH \
+            "${auth_headers[@]}" \
+            -H "Content-Type: application/json" \
+            --data '{"connect_to_docker_network":true,"is_container_label_escape_enabled":false}' \
+            "$coolify_api/services/$loom_service_uuid"
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
             "${auth_headers[@]}" \
             -H "Content-Type: application/json" \
             --data "{\"docker_compose_raw\":\"$compose_b64\"}" \
-            "$coolify_api/services/$loom_service_uuid"
-          # The Coolify proxy lives on its predefined `coolify` network. Keep
-          # this enabled for the bundled Compose resource so the server remains
-          # reachable even though the stack also declares private networks.
-          curl --fail-with-body --retry 3 --retry-delay 5 \
-            -X PATCH \
-            "${auth_headers[@]}" \
-            -H "Content-Type: application/json" \
-            --data '{"connect_to_docker_network":true}' \
             "$coolify_api/services/$loom_service_uuid"
           # Coolify materializes the :?required error text as an environment
           # value when a new variable has not been configured yet. Remove only
