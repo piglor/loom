@@ -28,7 +28,11 @@ services:
     build:
       context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
       dockerfile: deploy/openbao/Dockerfile
-    image: piglor-loom-openbao:local
+    # Include the immutable build revision in the local image tag. Coolify
+    # otherwise may reuse a previously built local tag for the bootstrap and
+    # monitor helpers, leaving a rollout with an image that predates those
+    # scripts.
+    image: piglor-loom-openbao:${LOOM_BUILD_SHA:-local}
     command: ["server"]
     restart: unless-stopped
     cap_drop: [ALL]
@@ -62,7 +66,7 @@ services:
   # AppRole, and write only the AppRole files into a separate shared volume.
   # Root/unseal material never enters Compose interpolation or CI output.
   openbao-bootstrap:
-    image: piglor-loom-openbao:local
+    image: piglor-loom-openbao:${LOOM_BUILD_SHA:-local}
     entrypoint: ["/openbao/bootstrap.sh"]
     restart: "no"
     environment:
@@ -83,7 +87,7 @@ services:
   # Coolify operator to visit the terminal again. This monitor has only the
   # persisted unseal key; the root token is removed by bootstrap.sh.
   openbao-unseal:
-    image: piglor-loom-openbao:local
+    image: piglor-loom-openbao:${LOOM_BUILD_SHA:-local}
     entrypoint: ["/openbao/unseal-monitor.sh"]
     restart: unless-stopped
     environment:

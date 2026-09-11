@@ -19,9 +19,12 @@ status_json() {
   bao status -format=json 2>/dev/null || true
 }
 
-while [ ! -s "$unseal_file" ]; do
+attempt=0
+while [ ! -s "$unseal_file" ] && [ "$attempt" -lt 30 ]; do
   sleep 2
+  attempt=$((attempt + 1))
 done
+[ -s "$unseal_file" ] || exit 0
 
 while :; do
   status=$(status_json)
