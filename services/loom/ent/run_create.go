@@ -35,6 +35,12 @@ func (_c *RunCreate) SetPolicy(v map[string]interface{}) *RunCreate {
 	return _c
 }
 
+// SetContext sets the "context" field.
+func (_c *RunCreate) SetContext(v map[string]interface{}) *RunCreate {
+	_c.mutation.SetContext(v)
+	return _c
+}
+
 // SetWorkflowID sets the "workflow_id" field.
 func (_c *RunCreate) SetWorkflowID(v string) *RunCreate {
 	_c.mutation.SetWorkflowID(v)
@@ -303,6 +309,10 @@ func (_c *RunCreate) createSpec() (*Run, *sqlgraph.CreateSpec) {
 		_spec.SetField(run.FieldPolicy, field.TypeJSON, value)
 		_node.Policy = value
 	}
+	if value, ok := _c.mutation.Context(); ok {
+		_spec.SetField(run.FieldContext, field.TypeJSON, value)
+		_node.Context = value
+	}
 	if value, ok := _c.mutation.WorkflowID(); ok {
 		_spec.SetField(run.FieldWorkflowID, field.TypeString, value)
 		_node.WorkflowID = &value
@@ -420,6 +430,24 @@ func (u *RunUpsert) SetPolicy(v map[string]interface{}) *RunUpsert {
 // UpdatePolicy sets the "policy" field to the value that was provided on create.
 func (u *RunUpsert) UpdatePolicy() *RunUpsert {
 	u.SetExcluded(run.FieldPolicy)
+	return u
+}
+
+// SetContext sets the "context" field.
+func (u *RunUpsert) SetContext(v map[string]interface{}) *RunUpsert {
+	u.Set(run.FieldContext, v)
+	return u
+}
+
+// UpdateContext sets the "context" field to the value that was provided on create.
+func (u *RunUpsert) UpdateContext() *RunUpsert {
+	u.SetExcluded(run.FieldContext)
+	return u
+}
+
+// ClearContext clears the value of the "context" field.
+func (u *RunUpsert) ClearContext() *RunUpsert {
+	u.SetNull(run.FieldContext)
 	return u
 }
 
@@ -688,6 +716,27 @@ func (u *RunUpsertOne) SetPolicy(v map[string]interface{}) *RunUpsertOne {
 func (u *RunUpsertOne) UpdatePolicy() *RunUpsertOne {
 	return u.Update(func(s *RunUpsert) {
 		s.UpdatePolicy()
+	})
+}
+
+// SetContext sets the "context" field.
+func (u *RunUpsertOne) SetContext(v map[string]interface{}) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetContext(v)
+	})
+}
+
+// UpdateContext sets the "context" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateContext() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateContext()
+	})
+}
+
+// ClearContext clears the value of the "context" field.
+func (u *RunUpsertOne) ClearContext() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearContext()
 	})
 }
 
@@ -1155,6 +1204,27 @@ func (u *RunUpsertBulk) SetPolicy(v map[string]interface{}) *RunUpsertBulk {
 func (u *RunUpsertBulk) UpdatePolicy() *RunUpsertBulk {
 	return u.Update(func(s *RunUpsert) {
 		s.UpdatePolicy()
+	})
+}
+
+// SetContext sets the "context" field.
+func (u *RunUpsertBulk) SetContext(v map[string]interface{}) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetContext(v)
+	})
+}
+
+// UpdateContext sets the "context" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateContext() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateContext()
+	})
+}
+
+// ClearContext clears the value of the "context" field.
+func (u *RunUpsertBulk) ClearContext() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearContext()
 	})
 }
 

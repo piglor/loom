@@ -69,6 +69,11 @@ func GoalID(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldEQ(FieldGoalID, v))
 }
 
+// RunID applies equality check predicate on the "run_id" field. It's identical to RunIDEQ.
+func RunID(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunID, v))
+}
+
 // SessionID applies equality check predicate on the "session_id" field. It's identical to SessionIDEQ.
 func SessionID(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldEQ(FieldSessionID, v))
@@ -172,6 +177,71 @@ func GoalIDEqualFold(v string) predicate.Attempt {
 // GoalIDContainsFold applies the ContainsFold predicate on the "goal_id" field.
 func GoalIDContainsFold(v string) predicate.Attempt {
 	return predicate.Attempt(sql.FieldContainsFold(FieldGoalID, v))
+}
+
+// RunIDEQ applies the EQ predicate on the "run_id" field.
+func RunIDEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEQ(FieldRunID, v))
+}
+
+// RunIDNEQ applies the NEQ predicate on the "run_id" field.
+func RunIDNEQ(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNEQ(FieldRunID, v))
+}
+
+// RunIDIn applies the In predicate on the "run_id" field.
+func RunIDIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldIn(FieldRunID, vs...))
+}
+
+// RunIDNotIn applies the NotIn predicate on the "run_id" field.
+func RunIDNotIn(vs ...string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldNotIn(FieldRunID, vs...))
+}
+
+// RunIDGT applies the GT predicate on the "run_id" field.
+func RunIDGT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGT(FieldRunID, v))
+}
+
+// RunIDGTE applies the GTE predicate on the "run_id" field.
+func RunIDGTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldGTE(FieldRunID, v))
+}
+
+// RunIDLT applies the LT predicate on the "run_id" field.
+func RunIDLT(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLT(FieldRunID, v))
+}
+
+// RunIDLTE applies the LTE predicate on the "run_id" field.
+func RunIDLTE(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldLTE(FieldRunID, v))
+}
+
+// RunIDContains applies the Contains predicate on the "run_id" field.
+func RunIDContains(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContains(FieldRunID, v))
+}
+
+// RunIDHasPrefix applies the HasPrefix predicate on the "run_id" field.
+func RunIDHasPrefix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasPrefix(FieldRunID, v))
+}
+
+// RunIDHasSuffix applies the HasSuffix predicate on the "run_id" field.
+func RunIDHasSuffix(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldHasSuffix(FieldRunID, v))
+}
+
+// RunIDEqualFold applies the EqualFold predicate on the "run_id" field.
+func RunIDEqualFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldEqualFold(FieldRunID, v))
+}
+
+// RunIDContainsFold applies the ContainsFold predicate on the "run_id" field.
+func RunIDContainsFold(v string) predicate.Attempt {
+	return predicate.Attempt(sql.FieldContainsFold(FieldRunID, v))
 }
 
 // SessionIDEQ applies the EQ predicate on the "session_id" field.

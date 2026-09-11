@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/piglor/loom/services/loom/internal/control"
@@ -86,4 +87,24 @@ func CompileTopology(definitionID, versionID string, version int, spec control.W
 		return edges[i].From < edges[j].From
 	})
 	return WorkflowTopology{DefinitionID: definitionID, VersionID: versionID, Version: version, Nodes: nodes, Edges: edges}, nil
+}
+
+// ValidateDispatchTopology makes the adapter consume the immutable Loom
+// topology on every agent dispatch. Loom remains the relationship authority;
+// the scheduler may execute a single ready node, but it must not silently
+// accept a missing or mismatched graph.
+func ValidateDispatchTopology(topology WorkflowTopology, versionID, stepKey string) error {
+	if topology.VersionID != versionID || stepKey == "" {
+		return fmt.Errorf("workflow topology identity mismatch")
+	}
+	for _, node := range topology.Nodes {
+		if node.Key != stepKey {
+			continue
+		}
+		if node.Type != "agent" {
+			return fmt.Errorf("workflow topology step %q is not dispatchable", stepKey)
+		}
+		return nil
+	}
+	return fmt.Errorf("workflow topology step %q is missing", stepKey)
 }

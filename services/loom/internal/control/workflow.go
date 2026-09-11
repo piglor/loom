@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ import (
 )
 
 const WorkflowSchemaVersion = 1
+const maxWorkflowSubflowDepth = 8
 
 var workflowKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 
@@ -145,6 +147,9 @@ func ValidateWorkflowSpec(spec WorkflowSpec) WorkflowValidation {
 			errors = append(errors, "step keys must be unique")
 		}
 		steps[step.Key] = step
+		for _, key := range unknownWorkflowConfigKeys(step) {
+			errors = append(errors, "unsupported "+step.Type+" config key: "+key)
+		}
 		switch step.Type {
 		case "agent":
 			runtime, _ := step.Config["runtime"].(string)
@@ -166,9 +171,13 @@ func ValidateWorkflowSpec(spec WorkflowSpec) WorkflowValidation {
 				errors = append(errors, "wait_event steps require an exact event condition")
 			}
 		case "condition":
-			errors = append(errors, "condition steps are not publishable in workflow schema version 1")
+			if _, _, _, ok := workflowPredicateFromConfig(step.Config); !ok {
+				errors = append(errors, "condition steps require path and equals, not_equals, or exists")
+			}
 		case "subflow":
-			errors = append(errors, "subflow steps are not publishable in workflow schema version 1")
+			if !ValidID(subflowDefinitionID(step.Config)) {
+				errors = append(errors, "subflow steps require a workflow_definition_id")
+			}
 		case "complete":
 			complete++
 		default:
@@ -200,6 +209,17 @@ func ValidateWorkflowSpec(spec WorkflowSpec) WorkflowValidation {
 		indegree[edge.To]++
 		if steps[edge.From].Type == "complete" {
 			errors = append(errors, "complete steps cannot have outgoing edges")
+		}
+	}
+	for _, step := range spec.Steps {
+		if step.Type != "complete" && !edges[step.Key+"\x00success"] {
+			errors = append(errors, "every executable step requires a success relationship")
+		}
+		if step.Type != "condition" {
+			continue
+		}
+		if !edges[step.Key+"\x00success"] || !edges[step.Key+"\x00failure"] {
+			errors = append(errors, "condition steps require both success and failure relationships")
 		}
 	}
 	roots := []string{}
@@ -236,10 +256,43 @@ func ValidateWorkflowSpec(spec WorkflowSpec) WorkflowValidation {
 	return WorkflowValidation{Valid: len(errors) == 0, Errors: errors}
 }
 
+func unknownWorkflowConfigKeys(step WorkflowStep) []string {
+	allowed := map[string]bool{}
+	switch step.Type {
+	case "agent":
+		allowed["runtime"], allowed["worker_id"] = true, true
+	case "wait_event":
+		allowed["integration_instance_id"], allowed["condition"] = true, true
+	case "condition":
+		allowed["path"], allowed["equals"], allowed["not_equals"], allowed["exists"] = true, true, true, true
+	case "subflow":
+		allowed["workflow_definition_id"], allowed["workflow_version_id"] = true, true
+	case "complete":
+		// Complete steps intentionally have no configuration.
+	}
+	keys := make([]string, 0)
+	for key := range step.Config {
+		if !allowed[key] {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func conditionFromConfig(config map[string]any) (Condition, bool) {
 	value, ok := config["condition"]
 	if !ok {
 		return Condition{}, false
+	}
+	object, ok := value.(map[string]any)
+	if !ok {
+		return Condition{}, false
+	}
+	for key := range object {
+		if key != "source" && key != "type" && key != "resource" && key != "version" {
+			return Condition{}, false
+		}
 	}
 	body, err := json.Marshal(value)
 	var condition Condition
@@ -247,6 +300,168 @@ func conditionFromConfig(config map[string]any) (Condition, bool) {
 		return Condition{}, false
 	}
 	return condition, true
+}
+
+func workflowPredicateFromConfig(config map[string]any) (string, any, string, bool) {
+	path, _ := config["path"].(string)
+	path = strings.TrimSpace(path)
+	if !textBetween(path, 256) || strings.HasPrefix(path, ".") || strings.HasSuffix(path, ".") || strings.Contains(path, "..") {
+		return "", nil, "", false
+	}
+	for _, part := range strings.Split(path, ".") {
+		if !workflowKeyPattern.MatchString(part) {
+			return "", nil, "", false
+		}
+	}
+	if path != "trigger" && !strings.HasPrefix(path, "trigger.") && path != "last_event" && !strings.HasPrefix(path, "last_event.") {
+		return "", nil, "", false
+	}
+	value, equals := config["equals"]
+	notValue, notEquals := config["not_equals"]
+	existsValue, exists := config["exists"]
+	if equals == notEquals || (exists && (equals || notEquals)) {
+		return "", nil, "", false
+	}
+	if equals {
+		return path, value, "equals", true
+	}
+	if notEquals {
+		return path, notValue, "not_equals", true
+	}
+	if exists {
+		value, ok := existsValue.(bool)
+		if ok {
+			return path, value, "exists", true
+		}
+	}
+	return "", nil, "", false
+}
+
+func subflowDefinitionID(config map[string]any) string {
+	id, _ := config["workflow_definition_id"].(string)
+	return strings.ToLower(strings.TrimSpace(id))
+}
+
+func (s *Store) pinAndValidateSubflows(ctx context.Context, t *transaction, rootID string, spec *WorkflowSpec) error {
+	for index, step := range spec.Steps {
+		if step.Type != "subflow" {
+			continue
+		}
+		childID := subflowDefinitionID(step.Config)
+		child, err := t.client.WorkflowDefinition.Query().Where(workflowdefinition.IDEQ(childID), workflowdefinition.OrganizationEQ(s.Organization), workflowdefinition.StateEQ("published")).Only(ctx)
+		if ent.IsNotFound(err) {
+			return conflict("Subflow workflow is not published")
+		}
+		if err != nil {
+			return err
+		}
+		version, err := t.client.WorkflowVersion.Query().Where(workflowversion.DefinitionIDEQ(child.ID), workflowversion.VersionEQ(child.LatestVersion), workflowversion.OrganizationEQ(s.Organization)).Only(ctx)
+		if err != nil {
+			return err
+		}
+		config := map[string]any{}
+		for key, value := range step.Config {
+			config[key] = value
+		}
+		config["workflow_version_id"] = version.ID
+		spec.Steps[index].Config = config
+	}
+	visiting := map[string]bool{}
+	visited := map[string]bool{}
+	var visit func(string, WorkflowSpec, int) error
+	visit = func(id string, current WorkflowSpec, depth int) error {
+		if depth > maxWorkflowSubflowDepth {
+			return conflict("Workflow subflow nesting exceeds the safety limit")
+		}
+		if visiting[id] {
+			return conflict("Workflow subflow relationships must be acyclic")
+		}
+		if visited[id] {
+			return nil
+		}
+		visiting[id] = true
+		for _, step := range current.Steps {
+			if step.Type != "subflow" {
+				continue
+			}
+			childID := subflowDefinitionID(step.Config)
+			if childID == rootID {
+				return conflict("Workflow subflow relationships must be acyclic")
+			}
+			versionID, _ := step.Config["workflow_version_id"].(string)
+			var childSpec WorkflowSpec
+			var err error
+			if ValidID(versionID) {
+				version, lookupErr := t.client.WorkflowVersion.Query().Where(workflowversion.IDEQ(versionID), workflowversion.OrganizationEQ(s.Organization), workflowversion.DefinitionIDEQ(childID)).Only(ctx)
+				if lookupErr != nil {
+					return lookupErr
+				}
+				childSpec, err = decodeSpec(version.Spec)
+			} else {
+				child, lookupErr := t.client.WorkflowDefinition.Query().Where(workflowdefinition.IDEQ(childID), workflowdefinition.OrganizationEQ(s.Organization), workflowdefinition.StateEQ("published")).Only(ctx)
+				if lookupErr != nil {
+					return lookupErr
+				}
+				version, lookupErr := t.client.WorkflowVersion.Query().Where(workflowversion.DefinitionIDEQ(child.ID), workflowversion.VersionEQ(child.LatestVersion), workflowversion.OrganizationEQ(s.Organization)).Only(ctx)
+				if lookupErr != nil {
+					return lookupErr
+				}
+				childSpec, err = decodeSpec(version.Spec)
+			}
+			if err != nil {
+				return err
+			}
+			if err = visit(childID, childSpec, depth+1); err != nil {
+				return err
+			}
+		}
+		visiting[id] = false
+		visited[id] = true
+		return nil
+	}
+	return visit(rootID, *spec, 0)
+}
+
+func workflowContextValue(context map[string]any, path string) (any, bool) {
+	var value any = context
+	for _, part := range strings.Split(path, ".") {
+		object, ok := value.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		value, ok = object[part]
+		if !ok {
+			return nil, false
+		}
+	}
+	return value, true
+}
+
+func evaluateWorkflowCondition(config, context map[string]any) (bool, bool) {
+	path, expected, operator, ok := workflowPredicateFromConfig(config)
+	if !ok {
+		return false, false
+	}
+	actual, exists := workflowContextValue(context, path)
+	switch operator {
+	case "exists":
+		return exists == expected.(bool), true
+	case "equals":
+		return exists && reflect.DeepEqual(actual, expected), true
+	case "not_equals":
+		return !exists || !reflect.DeepEqual(actual, expected), true
+	default:
+		return false, false
+	}
+}
+
+func workflowRunContext(condition Condition, details map[string]any) map[string]any {
+	if details == nil {
+		details = map[string]any{}
+	}
+	return map[string]any{
+		"trigger": map[string]any{"condition": jsonObject(condition), "details": details},
+	}
 }
 
 func integrationInstanceIDFromConfig(config map[string]any) string {
@@ -449,6 +664,28 @@ func (s *Store) PublishWorkflow(ctx context.Context, id string) (PublishedWorkfl
 				return conflict("Workflow wait connection has no routing identity")
 			}
 		}
+		for _, step := range spec.Steps {
+			if step.Type != "subflow" {
+				continue
+			}
+			childID := subflowDefinitionID(step.Config)
+			if childID == definition.ID {
+				return conflict("A workflow cannot invoke itself")
+			}
+			child, lookupErr := t.client.WorkflowDefinition.Query().Where(workflowdefinition.IDEQ(childID), workflowdefinition.OrganizationEQ(s.Organization), workflowdefinition.StateEQ("published")).Only(ctx)
+			if ent.IsNotFound(lookupErr) {
+				return conflict("Subflow workflow is not published")
+			}
+			if lookupErr != nil {
+				return lookupErr
+			}
+			if child.LatestVersion == 0 {
+				return conflict("Subflow workflow has no published version")
+			}
+		}
+		if err = s.pinAndValidateSubflows(ctx, t, definition.ID, &spec); err != nil {
+			return err
+		}
 		body, _ := canonicalJSON(spec, true)
 		previousVersions, err := t.client.WorkflowVersion.Query().Where(workflowversion.DefinitionIDEQ(definition.ID), workflowversion.OrganizationEQ(s.Organization)).IDs(ctx)
 		if err != nil {
@@ -568,7 +805,7 @@ func (s *Store) startWorkflowFromReceipt(ctx context.Context, t *transaction, ve
 	} else if entryStep.Type == "complete" {
 		runState = "succeeded"
 	}
-	runCreate := t.client.Run.Create().SetID(runID).SetGoalID(goalID).SetPolicy(jsonObject(policy)).SetWorkflowDefinitionID(definition.ID).SetWorkflowVersionID(version.ID).SetState(runState).SetCurrentStepKey(entry).SetCreatedAt(t.now).SetUpdatedAt(t.now)
+	runCreate := t.client.Run.Create().SetID(runID).SetGoalID(goalID).SetPolicy(jsonObject(policy)).SetContext(workflowRunContext(condition, receipt.Details)).SetWorkflowDefinitionID(definition.ID).SetWorkflowVersionID(version.ID).SetState(runState).SetCurrentStepKey(entry).SetCreatedAt(t.now).SetUpdatedAt(t.now)
 	if entryStep.Type == "complete" {
 		runCreate.SetEndedAt(t.now)
 	}
@@ -578,7 +815,7 @@ func (s *Store) startWorkflowFromReceipt(ctx context.Context, t *transaction, ve
 	if err = t.client.Session.Create().SetRunID(runID).SetWorkerID(workerID).SetRuntime(runtime).Exec(ctx); err != nil {
 		return "", err
 	}
-	waitRow, err := t.client.Wait.Create().SetGoalID(goalID).SetCondition(jsonObject(waitCondition)).Save(ctx)
+	waitRow, err := t.client.Wait.Create().SetGoalID(goalID).SetRunID(runID).SetCondition(jsonObject(waitCondition)).Save(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -605,6 +842,14 @@ func (s *Store) startWorkflowFromReceipt(ctx context.Context, t *transaction, ve
 	}
 	if entryStep.Type == "agent" {
 		if err = enqueue(ctx, t, goalID, "agent_step_ready"); err != nil {
+			return "", err
+		}
+	} else if entryStep.Type == "condition" || entryStep.Type == "subflow" {
+		workflowRun, lookupErr := t.client.Run.Get(ctx, runID)
+		if lookupErr != nil {
+			return "", lookupErr
+		}
+		if err = s.advanceWorkflowDeterministic(ctx, t, goalID, workflowRun, spec, entryStep); err != nil {
 			return "", err
 		}
 	}
@@ -691,6 +936,9 @@ func (s *Store) advanceWorkflowAfterAgent(ctx context.Context, t *transaction, g
 			if err = t.client.Run.UpdateOneID(workflowRun.ID).SetState("failed").SetEndedAt(t.now).SetUpdatedAt(t.now).Exec(ctx); err != nil {
 				return err
 			}
+			if workflowRun.ParentRunID != nil {
+				return s.finishChildWorkflow(ctx, t, goalID, workflowRun, false)
+			}
 			return transition(ctx, t, goalID, "FAILED")
 		}
 		return conflict("Workflow step has no success relationship")
@@ -731,17 +979,22 @@ func (s *Store) advanceWorkflowDeterministic(ctx context.Context, t *transaction
 			if err := t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(workflowRun.ID), workflowsteprun.StepKeyEQ(current.Key)).SetState("succeeded").SetStartedAt(t.now).SetEndedAt(t.now).Exec(ctx); err != nil {
 				return err
 			}
-			if err := t.client.Run.UpdateOneID(workflowRun.ID).SetState("succeeded").SetEndedAt(t.now).SetUpdatedAt(t.now).Exec(ctx); err != nil {
-				return err
-			}
-			return transition(ctx, t, goalID, "COMPLETED")
+			return s.completeWorkflowRun(ctx, t, goalID, workflowRun)
 		case "condition":
 			if err := t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(workflowRun.ID), workflowsteprun.StepKeyEQ(current.Key)).SetState("succeeded").SetStartedAt(t.now).SetEndedAt(t.now).Exec(ctx); err != nil {
 				return err
 			}
-			next, ok := nextWorkflowStep(spec, current.Key, "success")
+			matched, valid := evaluateWorkflowCondition(current.Config, workflowRun.Context)
+			if !valid {
+				return conflict("Condition step has an invalid predicate")
+			}
+			outcome := "failure"
+			if matched {
+				outcome = "success"
+			}
+			next, ok := nextWorkflowStep(spec, current.Key, outcome)
 			if !ok {
-				return conflict("Condition step has no success relationship")
+				return conflict("Condition step has no relationship for its result")
 			}
 			current = next
 		case "agent":
@@ -757,7 +1010,7 @@ func (s *Store) advanceWorkflowDeterministic(ctx context.Context, t *transaction
 			if err := transition(ctx, t, goalID, "READY"); err != nil {
 				return err
 			}
-			return enqueue(ctx, t, goalID, "agent_step_ready")
+			return enqueueRun(ctx, t, goalID, workflowRun.ID, "agent_step_ready")
 		case "wait_event":
 			condition, ok := conditionFromConfig(current.Config)
 			if !ok {
@@ -769,7 +1022,7 @@ func (s *Store) advanceWorkflowDeterministic(ctx context.Context, t *transaction
 			}
 			generation := waitRow.Generation
 			if waitRow.ClosedAt != nil {
-				if err = t.client.WaitHistory.Create().SetID(waitRow.ID).SetGoalID(waitRow.GoalID).SetGeneration(waitRow.Generation).SetCondition(waitRow.Condition).SetNillableArmedAt(waitRow.ArmedAt).SetNillableSatisfiedAt(waitRow.SatisfiedAt).SetNillableEventID(waitRow.EventID).SetNillableClosedAt(waitRow.ClosedAt).SetNillablePreparedByAttempt(waitRow.PreparedByAttempt).Exec(ctx); err != nil {
+				if err = t.client.WaitHistory.Create().SetID(ID()).SetGoalID(waitRow.GoalID).SetNillableRunID(waitRow.RunID).SetGeneration(waitRow.Generation).SetCondition(waitRow.Condition).SetNillableArmedAt(waitRow.ArmedAt).SetNillableSatisfiedAt(waitRow.SatisfiedAt).SetNillableEventID(waitRow.EventID).SetNillableClosedAt(waitRow.ClosedAt).SetNillablePreparedByAttempt(waitRow.PreparedByAttempt).Exec(ctx); err != nil {
 					return err
 				}
 				if _, err = t.client.IntegrationBinding.Delete().Where(integrationbinding.GoalIDEQ(goalID), integrationbinding.GenerationEQ(waitRow.Generation)).Exec(ctx); err != nil {
@@ -777,7 +1030,7 @@ func (s *Store) advanceWorkflowDeterministic(ctx context.Context, t *transaction
 				}
 				generation++
 			}
-			if err = t.client.Wait.UpdateOneID(waitRow.ID).SetGeneration(generation).SetCondition(jsonObject(condition)).SetArmedAt(t.now).ClearSatisfiedAt().ClearEventID().ClearClosedAt().Exec(ctx); err != nil {
+			if err = t.client.Wait.UpdateOneID(waitRow.ID).SetRunID(workflowRun.ID).SetGeneration(generation).SetCondition(jsonObject(condition)).SetArmedAt(t.now).ClearSatisfiedAt().ClearEventID().ClearClosedAt().Exec(ctx); err != nil {
 				return err
 			}
 			if err = t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(workflowRun.ID), workflowsteprun.StepKeyEQ(current.Key)).SetState("waiting").SetStartedAt(t.now).Exec(ctx); err != nil {
@@ -794,20 +1047,254 @@ func (s *Store) advanceWorkflowDeterministic(ctx context.Context, t *transaction
 			}
 			return s.bindWorkflowWait(ctx, t, goalID, generation, current)
 		case "subflow":
-			if err := t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(workflowRun.ID), workflowsteprun.StepKeyEQ(current.Key)).SetState("waiting").SetStartedAt(t.now).Exec(ctx); err != nil {
-				return err
-			}
-			if err := t.client.Run.UpdateOneID(workflowRun.ID).SetState("waiting").Exec(ctx); err != nil {
-				return err
-			}
-			if err := t.client.Goal.UpdateOneID(goalID).SetWaitingReason("child_workflow").Exec(ctx); err != nil {
-				return err
-			}
-			return transition(ctx, t, goalID, "WAITING")
+			return s.startChildWorkflow(ctx, t, goalID, workflowRun, current)
 		default:
 			return conflict("Unsupported workflow step")
 		}
 	}
+}
+
+func (s *Store) completeWorkflowRun(ctx context.Context, t *transaction, goalID string, workflowRun *ent.Run) error {
+	if err := t.client.Run.UpdateOneID(workflowRun.ID).SetState("succeeded").SetEndedAt(t.now).SetUpdatedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	if workflowRun.ParentRunID == nil {
+		return transition(ctx, t, goalID, "COMPLETED")
+	}
+	return s.finishChildWorkflow(ctx, t, goalID, workflowRun, true)
+}
+
+func (s *Store) finishChildWorkflow(ctx context.Context, t *transaction, goalID string, child *ent.Run, succeeded bool) error {
+	if child.ParentRunID == nil {
+		if succeeded {
+			return transition(ctx, t, goalID, "COMPLETED")
+		}
+		return transition(ctx, t, goalID, "FAILED")
+	}
+	parent, err := t.client.Run.Get(ctx, *child.ParentRunID)
+	if err != nil {
+		return err
+	}
+	if parent.CurrentStepKey == nil || parent.WorkflowVersionID == nil {
+		return conflict("Child workflow parent is missing its invoking step")
+	}
+	stepState, outcome := "failed", "failure"
+	if succeeded {
+		stepState, outcome = "succeeded", "success"
+	}
+	if err = t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(parent.ID), workflowsteprun.StepKeyEQ(*parent.CurrentStepKey), workflowsteprun.StepTypeEQ("subflow"), workflowsteprun.StateEQ("waiting")).SetState(stepState).SetEndedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	version, err := t.client.WorkflowVersion.Get(ctx, *parent.WorkflowVersionID)
+	if err != nil {
+		return err
+	}
+	spec, err := decodeSpec(version.Spec)
+	if err != nil {
+		return err
+	}
+	next, ok := nextWorkflowStep(spec, *parent.CurrentStepKey, outcome)
+	if !ok {
+		return s.failWorkflowRun(ctx, t, goalID, parent)
+	}
+	if err = t.client.Run.UpdateOneID(parent.ID).SetState("pending").SetUpdatedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	return s.advanceWorkflowDeterministic(ctx, t, goalID, parent, spec, next)
+}
+
+func (s *Store) failWorkflowRun(ctx context.Context, t *transaction, goalID string, workflowRun *ent.Run) error {
+	if err := t.client.Run.UpdateOneID(workflowRun.ID).SetState("failed").SetEndedAt(t.now).SetUpdatedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	if workflowRun.ParentRunID == nil {
+		return transition(ctx, t, goalID, "FAILED")
+	}
+	return s.finishChildWorkflow(ctx, t, goalID, workflowRun, false)
+}
+
+func firstWorkflowAgent(spec WorkflowSpec) WorkflowStep {
+	for _, step := range spec.Steps {
+		if step.Type == "agent" {
+			return step
+		}
+	}
+	return WorkflowStep{}
+}
+
+func (s *Store) startChildWorkflow(ctx context.Context, t *transaction, goalID string, parent *ent.Run, invoking WorkflowStep) error {
+	childDefinitionID := subflowDefinitionID(invoking.Config)
+	if !ValidID(childDefinitionID) {
+		return conflict("Subflow step has an invalid workflow definition")
+	}
+	var err error
+	depth := 1
+	for ancestor := parent; ancestor.ParentRunID != nil; {
+		depth++
+		if depth > maxWorkflowSubflowDepth {
+			return conflict("Workflow subflow nesting exceeds the safety limit")
+		}
+		ancestor, err = t.client.Run.Get(ctx, *ancestor.ParentRunID)
+		if err != nil {
+			return err
+		}
+	}
+	definition, err := t.client.WorkflowDefinition.Query().Where(workflowdefinition.IDEQ(childDefinitionID), workflowdefinition.OrganizationEQ(s.Organization), workflowdefinition.StateEQ("published")).Only(ctx)
+	if ent.IsNotFound(err) {
+		return conflict("Subflow workflow is not published")
+	}
+	if err != nil {
+		return err
+	}
+	versionID, _ := invoking.Config["workflow_version_id"].(string)
+	versionQuery := t.client.WorkflowVersion.Query().Where(workflowversion.DefinitionIDEQ(definition.ID), workflowversion.OrganizationEQ(s.Organization))
+	if ValidID(versionID) {
+		versionQuery = versionQuery.Where(workflowversion.IDEQ(versionID))
+	} else {
+		versionQuery = versionQuery.Where(workflowversion.VersionEQ(definition.LatestVersion))
+	}
+	version, err := versionQuery.Only(ctx)
+	if err != nil {
+		return err
+	}
+	spec, err := decodeSpec(version.Spec)
+	if err != nil {
+		return err
+	}
+	entry := workflowEntry(spec)
+	var entryStep WorkflowStep
+	for _, step := range spec.Steps {
+		if step.Key == entry {
+			entryStep = step
+			break
+		}
+	}
+	agent := firstWorkflowAgent(spec)
+	runtime, _ := agent.Config["runtime"].(string)
+	if runtime == "" {
+		runtime = "demo"
+	}
+	workerID, _ := agent.Config["worker_id"].(string)
+	if workerID == "" {
+		workerID = "demo-local"
+	}
+	if runtime == "codex-container" && !s.EnableCodex {
+		return conflict("Contained runtime is disabled")
+	}
+	if runtime != "demo" {
+		w, lookupErr := t.client.Worker.Query().Where(worker.IDEQ(workerID), worker.RuntimeEQ(runtime), worker.OrganizationEQ(s.Organization), worker.RevokedAtIsNil()).Only(ctx)
+		if ent.IsNotFound(lookupErr) {
+			return conflict("Subflow agent is unavailable")
+		}
+		if lookupErr != nil {
+			return lookupErr
+		}
+		workerID = w.ID
+	}
+	if err = t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(parent.ID), workflowsteprun.StepKeyEQ(invoking.Key), workflowsteprun.StateIn("pending", "running")).SetState("waiting").SetStartedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	if err = t.client.Run.UpdateOneID(parent.ID).SetState("waiting").SetUpdatedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	childID := ID()
+	childState := "pending"
+	if entryStep.Type == "wait_event" {
+		childState = "waiting"
+	} else if entryStep.Type == "complete" {
+		childState = "succeeded"
+	}
+	create := t.client.Run.Create().SetID(childID).SetGoalID(goalID).SetPolicy(jsonObject(Policy{Runtime: runtime, MaxAttempts: 100, Lifecycle: "workflow-v1"})).SetContext(parent.Context).SetWorkflowDefinitionID(definition.ID).SetWorkflowVersionID(version.ID).SetParentRunID(parent.ID).SetInvokingStepKey(invoking.Key).SetState(childState).SetCurrentStepKey(entry).SetCreatedAt(t.now).SetUpdatedAt(t.now)
+	if childState == "succeeded" {
+		create.SetEndedAt(t.now)
+	}
+	if err = create.Exec(ctx); err != nil {
+		return err
+	}
+	if err = t.client.Session.Create().SetRunID(childID).SetWorkerID(workerID).SetRuntime(runtime).Exec(ctx); err != nil {
+		return err
+	}
+	for position, step := range spec.Steps {
+		state := "pending"
+		if step.Key == entry {
+			if step.Type == "wait_event" {
+				state = "waiting"
+			} else if step.Type == "complete" {
+				state = "succeeded"
+			}
+		}
+		if err = t.client.WorkflowStepRun.Create().SetRunID(childID).SetStepKey(step.Key).SetStepType(step.Type).SetPosition(position).SetState(state).SetInput(map[string]any{}).SetOutput(map[string]any{}).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	if entryStep.Type == "wait_event" {
+		waitRow, waitErr := t.client.Wait.Query().Where(wait.GoalIDEQ(goalID)).Only(ctx)
+		if waitErr != nil {
+			return waitErr
+		}
+		condition, ok := conditionFromConfig(entryStep.Config)
+		if !ok {
+			return conflict("Child wait step has no valid event condition")
+		}
+		generation := waitRow.Generation
+		if waitRow.ClosedAt != nil {
+			if err = t.client.WaitHistory.Create().SetID(ID()).SetGoalID(waitRow.GoalID).SetNillableRunID(waitRow.RunID).SetGeneration(waitRow.Generation).SetCondition(waitRow.Condition).SetNillableArmedAt(waitRow.ArmedAt).SetNillableSatisfiedAt(waitRow.SatisfiedAt).SetNillableEventID(waitRow.EventID).SetNillableClosedAt(waitRow.ClosedAt).SetNillablePreparedByAttempt(waitRow.PreparedByAttempt).Exec(ctx); err != nil {
+				return err
+			}
+			if _, err = t.client.IntegrationBinding.Delete().Where(integrationbinding.GoalIDEQ(goalID), integrationbinding.GenerationEQ(waitRow.Generation)).Exec(ctx); err != nil {
+				return err
+			}
+			generation++
+		}
+		if err = t.client.Wait.UpdateOneID(waitRow.ID).SetRunID(childID).SetGeneration(generation).SetCondition(jsonObject(condition)).SetArmedAt(t.now).ClearSatisfiedAt().ClearEventID().ClearClosedAt().Exec(ctx); err != nil {
+			return err
+		}
+		if err = s.bindWorkflowWait(ctx, t, goalID, generation, entryStep); err != nil {
+			return err
+		}
+		currentWait, waitErr := t.client.Wait.Get(ctx, waitRow.ID)
+		if waitErr != nil {
+			return waitErr
+		}
+		if currentWait.SatisfiedAt != nil {
+			return nil
+		}
+		if err = t.client.Goal.UpdateOneID(goalID).SetWaitingReason("workflow_event").Exec(ctx); err != nil {
+			return err
+		}
+		return transition(ctx, t, goalID, "WAITING")
+	}
+	if entryStep.Type == "complete" {
+		child, getErr := t.client.Run.Get(ctx, childID)
+		if getErr != nil {
+			return getErr
+		}
+		return s.completeWorkflowRun(ctx, t, goalID, child)
+	}
+	if entryStep.Type == "condition" {
+		child, getErr := t.client.Run.Get(ctx, childID)
+		if getErr != nil {
+			return getErr
+		}
+		return s.advanceWorkflowDeterministic(ctx, t, goalID, child, spec, entryStep)
+	}
+	if entryStep.Type == "subflow" {
+		child, getErr := t.client.Run.Get(ctx, childID)
+		if getErr != nil {
+			return getErr
+		}
+		return s.startChildWorkflow(ctx, t, goalID, child, entryStep)
+	}
+	if entryStep.Type != "agent" {
+		return conflict("Child workflow entry step is unsupported")
+	}
+	if err = t.client.Goal.UpdateOneID(goalID).SetWaitingReason("child_workflow").Exec(ctx); err != nil {
+		return err
+	}
+	if err = transition(ctx, t, goalID, "READY"); err != nil {
+		return err
+	}
+	return enqueueRun(ctx, t, goalID, childID, "agent_step_ready")
 }
 
 // bindWorkflowWait connects an exact wait to one operator-configured plugin
@@ -874,6 +1361,79 @@ func receiptCondition(receipt *ent.IntegrationDelivery) (Condition, bool) {
 }
 
 func WorkflowJSONSchema() map[string]any {
+	conditionSchema := map[string]any{
+		"type":     "object",
+		"required": []string{"source", "type", "resource", "version"},
+		"properties": map[string]any{
+			"source":   map[string]any{"type": "string", "minLength": 1, "maxLength": 80},
+			"type":     map[string]any{"type": "string", "minLength": 1, "maxLength": 120},
+			"resource": map[string]any{"type": "string", "minLength": 1, "maxLength": 256},
+			"version":  map[string]any{"type": "string", "minLength": 1, "maxLength": 128},
+		},
+		"additionalProperties": false,
+	}
+	stepIdentity := map[string]any{
+		"key":  map[string]any{"type": "string", "pattern": workflowKeyPattern.String()},
+		"name": map[string]any{"type": "string", "minLength": 1, "maxLength": 120},
+	}
+	typedStep := func(stepType string, config map[string]any) map[string]any {
+		properties := map[string]any{}
+		for key, value := range stepIdentity {
+			properties[key] = value
+		}
+		properties["type"] = map[string]any{"const": stepType}
+		properties["config"] = config
+		return map[string]any{
+			"type":                 "object",
+			"required":             []string{"key", "name", "type", "config"},
+			"properties":           properties,
+			"additionalProperties": false,
+		}
+	}
+	agentConfig := map[string]any{
+		"type":     "object",
+		"required": []string{"runtime"},
+		"properties": map[string]any{
+			"runtime":   map[string]any{"enum": []string{"demo", "remote-demo", "codex-container"}},
+			"worker_id": map[string]any{"type": "string", "format": "uuid"},
+		},
+		"additionalProperties": false,
+	}
+	waitConfig := map[string]any{
+		"type":     "object",
+		"required": []string{"condition"},
+		"properties": map[string]any{
+			"integration_instance_id": map[string]any{"type": "string", "format": "uuid"},
+			"condition":               conditionSchema,
+		},
+		"additionalProperties": false,
+	}
+	conditionConfig := map[string]any{
+		"type":     "object",
+		"required": []string{"path"},
+		"properties": map[string]any{
+			"path":       map[string]any{"type": "string", "minLength": 1, "maxLength": 256},
+			"equals":     map[string]any{},
+			"not_equals": map[string]any{},
+			"exists":     map[string]any{"type": "boolean"},
+		},
+		"oneOf": []any{
+			map[string]any{"required": []string{"equals"}},
+			map[string]any{"required": []string{"not_equals"}},
+			map[string]any{"required": []string{"exists"}},
+		},
+		"additionalProperties": false,
+	}
+	subflowConfig := map[string]any{
+		"type":     "object",
+		"required": []string{"workflow_definition_id"},
+		"properties": map[string]any{
+			"workflow_definition_id": map[string]any{"type": "string", "format": "uuid"},
+			"workflow_version_id":    map[string]any{"type": "string", "format": "uuid"},
+		},
+		"additionalProperties": false,
+	}
+	completeConfig := map[string]any{"type": "object", "maxProperties": 0, "additionalProperties": false}
 	return map[string]any{
 		"$schema":  "https://json-schema.org/draft/2020-12/schema",
 		"title":    "Loom Workflow Specification",
@@ -886,11 +1446,18 @@ func WorkflowJSONSchema() map[string]any {
 					"type": map[string]any{"enum": []string{"manual", "integration_event"}}, "integration_instance_id": map[string]any{"type": "string", "format": "uuid"}, "source": map[string]any{"type": "string"}, "event_type": map[string]any{"type": "string"}, "resource": map[string]any{"type": "string"}, "version": map[string]any{"type": "string"},
 				}, "additionalProperties": false,
 			}},
-			"steps": map[string]any{"type": "array", "minItems": 2, "maxItems": 50, "items": map[string]any{
-				"type": "object", "required": []string{"key", "name", "type", "config"}, "properties": map[string]any{
-					"key": map[string]any{"type": "string", "pattern": workflowKeyPattern.String()}, "name": map[string]any{"type": "string", "minLength": 1, "maxLength": 120}, "type": map[string]any{"enum": []string{"agent", "wait_event", "complete"}}, "config": map[string]any{"type": "object"},
-				}, "additionalProperties": false,
-			}},
+			"steps": map[string]any{
+				"type":     "array",
+				"minItems": 2,
+				"maxItems": 50,
+				"items": map[string]any{"oneOf": []any{
+					typedStep("agent", agentConfig),
+					typedStep("wait_event", waitConfig),
+					typedStep("condition", conditionConfig),
+					typedStep("subflow", subflowConfig),
+					typedStep("complete", completeConfig),
+				}},
+			},
 			"edges": map[string]any{"type": "array", "items": map[string]any{
 				"type": "object", "required": []string{"from", "to", "outcome"}, "properties": map[string]any{"from": map[string]any{"type": "string"}, "to": map[string]any{"type": "string"}, "outcome": map[string]any{"enum": []string{"success", "failure"}}}, "additionalProperties": false,
 			}},

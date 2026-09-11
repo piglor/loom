@@ -13,6 +13,10 @@ const (
 	FieldID = "id"
 	// FieldGoalID holds the string denoting the goal_id field in the database.
 	FieldGoalID = "goal_id"
+	// FieldRunID holds the string denoting the run_id field in the database.
+	FieldRunID = "run_id"
+	// FieldStepKey holds the string denoting the step_key field in the database.
+	FieldStepKey = "step_key"
 	// FieldKind holds the string denoting the kind field in the database.
 	FieldKind = "kind"
 	// FieldAvailableAt holds the string denoting the available_at field in the database.
@@ -29,6 +33,8 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldGoalID,
+	FieldRunID,
+	FieldStepKey,
 	FieldKind,
 	FieldAvailableAt,
 	FieldDeliveredAt,
@@ -46,6 +52,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultStepKey holds the default value on creation for the "step_key" field.
+	DefaultStepKey string
 	// DefaultFailures holds the default value on creation for the "failures" field.
 	DefaultFailures int
 	// DefaultID holds the default value on creation for the "id" field.
@@ -63,6 +71,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByGoalID orders the results by the goal_id field.
 func ByGoalID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGoalID, opts...).ToFunc()
+}
+
+// ByRunID orders the results by the run_id field.
+func ByRunID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunID, opts...).ToFunc()
+}
+
+// ByStepKey orders the results by the step_key field.
+func ByStepKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStepKey, opts...).ToFunc()
 }
 
 // ByKind orders the results by the kind field.

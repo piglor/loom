@@ -42,6 +42,20 @@ func (_u *AttemptUpdate) SetNillableGoalID(v *string) *AttemptUpdate {
 	return _u
 }
 
+// SetRunID sets the "run_id" field.
+func (_u *AttemptUpdate) SetRunID(v string) *AttemptUpdate {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *AttemptUpdate) SetNillableRunID(v *string) *AttemptUpdate {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
 // SetSessionID sets the "session_id" field.
 func (_u *AttemptUpdate) SetSessionID(v string) *AttemptUpdate {
 	_u.mutation.SetSessionID(v)
@@ -236,6 +250,9 @@ func (_u *AttemptUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(attempt.FieldGoalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(attempt.FieldRunID, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.SessionID(); ok {
 		_spec.SetField(attempt.FieldSessionID, field.TypeString, value)
 	}
@@ -308,6 +325,20 @@ func (_u *AttemptUpdateOne) SetGoalID(v string) *AttemptUpdateOne {
 func (_u *AttemptUpdateOne) SetNillableGoalID(v *string) *AttemptUpdateOne {
 	if v != nil {
 		_u.SetGoalID(*v)
+	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *AttemptUpdateOne) SetRunID(v string) *AttemptUpdateOne {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *AttemptUpdateOne) SetNillableRunID(v *string) *AttemptUpdateOne {
+	if v != nil {
+		_u.SetRunID(*v)
 	}
 	return _u
 }
@@ -535,6 +566,9 @@ func (_u *AttemptUpdateOne) sqlSave(ctx context.Context) (_node *Attempt, err er
 	}
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(attempt.FieldGoalID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(attempt.FieldRunID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SessionID(); ok {
 		_spec.SetField(attempt.FieldSessionID, field.TypeString, value)

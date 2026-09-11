@@ -29,6 +29,12 @@ func (_c *AttemptCreate) SetGoalID(v string) *AttemptCreate {
 	return _c
 }
 
+// SetRunID sets the "run_id" field.
+func (_c *AttemptCreate) SetRunID(v string) *AttemptCreate {
+	_c.mutation.SetRunID(v)
+	return _c
+}
+
 // SetSessionID sets the "session_id" field.
 func (_c *AttemptCreate) SetSessionID(v string) *AttemptCreate {
 	_c.mutation.SetSessionID(v)
@@ -169,6 +175,9 @@ func (_c *AttemptCreate) check() error {
 	if _, ok := _c.mutation.GoalID(); !ok {
 		return &ValidationError{Name: "goal_id", err: errors.New(`ent: missing required field "Attempt.goal_id"`)}
 	}
+	if _, ok := _c.mutation.RunID(); !ok {
+		return &ValidationError{Name: "run_id", err: errors.New(`ent: missing required field "Attempt.run_id"`)}
+	}
 	if _, ok := _c.mutation.SessionID(); !ok {
 		return &ValidationError{Name: "session_id", err: errors.New(`ent: missing required field "Attempt.session_id"`)}
 	}
@@ -220,6 +229,10 @@ func (_c *AttemptCreate) createSpec() (*Attempt, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.GoalID(); ok {
 		_spec.SetField(attempt.FieldGoalID, field.TypeString, value)
 		_node.GoalID = value
+	}
+	if value, ok := _c.mutation.RunID(); ok {
+		_spec.SetField(attempt.FieldRunID, field.TypeString, value)
+		_node.RunID = value
 	}
 	if value, ok := _c.mutation.SessionID(); ok {
 		_spec.SetField(attempt.FieldSessionID, field.TypeString, value)
@@ -314,6 +327,18 @@ func (u *AttemptUpsert) SetGoalID(v string) *AttemptUpsert {
 // UpdateGoalID sets the "goal_id" field to the value that was provided on create.
 func (u *AttemptUpsert) UpdateGoalID() *AttemptUpsert {
 	u.SetExcluded(attempt.FieldGoalID)
+	return u
+}
+
+// SetRunID sets the "run_id" field.
+func (u *AttemptUpsert) SetRunID(v string) *AttemptUpsert {
+	u.Set(attempt.FieldRunID, v)
+	return u
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *AttemptUpsert) UpdateRunID() *AttemptUpsert {
+	u.SetExcluded(attempt.FieldRunID)
 	return u
 }
 
@@ -508,6 +533,20 @@ func (u *AttemptUpsertOne) SetGoalID(v string) *AttemptUpsertOne {
 func (u *AttemptUpsertOne) UpdateGoalID() *AttemptUpsertOne {
 	return u.Update(func(s *AttemptUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *AttemptUpsertOne) SetRunID(v string) *AttemptUpsertOne {
+	return u.Update(func(s *AttemptUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *AttemptUpsertOne) UpdateRunID() *AttemptUpsertOne {
+	return u.Update(func(s *AttemptUpsert) {
+		s.UpdateRunID()
 	})
 }
 
@@ -891,6 +930,20 @@ func (u *AttemptUpsertBulk) SetGoalID(v string) *AttemptUpsertBulk {
 func (u *AttemptUpsertBulk) UpdateGoalID() *AttemptUpsertBulk {
 	return u.Update(func(s *AttemptUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *AttemptUpsertBulk) SetRunID(v string) *AttemptUpsertBulk {
+	return u.Update(func(s *AttemptUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *AttemptUpsertBulk) UpdateRunID() *AttemptUpsertBulk {
+	return u.Update(func(s *AttemptUpsert) {
+		s.UpdateRunID()
 	})
 }
 

@@ -39,6 +39,7 @@ func (Run) Fields() []ent.Field {
 		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
 		field.JSON("policy", map[string]any{}),
+		field.JSON("context", map[string]any{}).Optional(),
 		field.String("workflow_id").Optional().Nillable(),
 		field.String("workflow_definition_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
 		field.String("workflow_version_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
@@ -187,6 +188,7 @@ func (Wait) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
 		field.Int("generation").Default(1),
 		field.JSON("condition", map[string]any{}),
 		field.Time("armed_at").Optional().Nillable(),
@@ -206,6 +208,7 @@ func (WaitHistory) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
 		field.Int("generation"),
 		field.JSON("condition", map[string]any{}),
 		field.Time("armed_at").Optional().Nillable(),
@@ -225,6 +228,7 @@ func (Attempt) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
 		field.String("session_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
 		field.String("worker_id"),
 		field.Int("phase"),
@@ -298,6 +302,8 @@ func (Outbox) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("step_key").Default(""),
 		field.String("kind"),
 		field.Time("available_at").Optional(),
 		field.Time("delivered_at").Optional().Nillable(),

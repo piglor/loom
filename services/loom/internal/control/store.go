@@ -96,9 +96,25 @@ func transition(ctx context.Context, t *transaction, id, state string) error {
 	return audit(ctx, t, id, "state_changed", map[string]any{"state": state})
 }
 
+func enqueueRun(ctx context.Context, t *transaction, goalID, runID, kind string) error {
+	r, err := t.client.Run.Get(ctx, runID)
+	if err != nil {
+		return err
+	}
+	stepKey := ""
+	if r.CurrentStepKey != nil {
+		stepKey = *r.CurrentStepKey
+	}
+	return t.client.Outbox.Create().SetGoalID(goalID).SetRunID(runID).SetStepKey(stepKey).SetKind(kind).SetAvailableAt(t.now).
+		OnConflictColumns("goal_id", "run_id", "step_key", "kind").Update(func(u *ent.OutboxUpsert) { u.ClearDeliveredAt().SetAvailableAt(t.now) }).Exec(ctx)
+}
+
 func enqueue(ctx context.Context, t *transaction, id, kind string) error {
-	return t.client.Outbox.Create().SetGoalID(id).SetKind(kind).SetAvailableAt(t.now).
-		OnConflictColumns("goal_id", "kind").Update(func(u *ent.OutboxUpsert) { u.ClearDeliveredAt().SetAvailableAt(t.now) }).Exec(ctx)
+	r, err := runRow(ctx, t, id)
+	if err != nil {
+		return err
+	}
+	return enqueueRun(ctx, t, id, r.ID, kind)
 }
 
 func (s *Store) Create(ctx context.Context, r CreateGoal) (string, error) {
@@ -309,8 +325,16 @@ func (s *Store) receive(ctx context.Context, t *transaction, e Event) (EventResu
 		if err = t.client.Wait.UpdateOneID(w.ID).SetSatisfiedAt(t.now).SetEventID(result.ID).Exec(ctx); err != nil {
 			return result, err
 		}
-		workflowRun, runErr := runRow(ctx, t, g.ID)
+		workflowRun, runErr := runForWait(ctx, t, w)
 		if runErr == nil && policy(workflowRun).Lifecycle == "workflow-v1" {
+			context := workflowRun.Context
+			if context == nil {
+				context = map[string]any{}
+			}
+			context["last_event"] = map[string]any{"condition": jsonObject(e.Condition), "details": e.Details}
+			if err = t.client.Run.UpdateOneID(workflowRun.ID).SetContext(context).SetUpdatedAt(t.now).Exec(ctx); err != nil {
+				return result, err
+			}
 			if err = t.client.Wait.UpdateOneID(w.ID).SetClosedAt(t.now).Exec(ctx); err != nil {
 				return result, err
 			}

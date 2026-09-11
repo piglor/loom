@@ -42,6 +42,34 @@ func (_u *OutboxUpdate) SetNillableGoalID(v *string) *OutboxUpdate {
 	return _u
 }
 
+// SetRunID sets the "run_id" field.
+func (_u *OutboxUpdate) SetRunID(v string) *OutboxUpdate {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *OutboxUpdate) SetNillableRunID(v *string) *OutboxUpdate {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// SetStepKey sets the "step_key" field.
+func (_u *OutboxUpdate) SetStepKey(v string) *OutboxUpdate {
+	_u.mutation.SetStepKey(v)
+	return _u
+}
+
+// SetNillableStepKey sets the "step_key" field if the given value is not nil.
+func (_u *OutboxUpdate) SetNillableStepKey(v *string) *OutboxUpdate {
+	if v != nil {
+		_u.SetStepKey(*v)
+	}
+	return _u
+}
+
 // SetKind sets the "kind" field.
 func (_u *OutboxUpdate) SetKind(v string) *OutboxUpdate {
 	_u.mutation.SetKind(v)
@@ -161,6 +189,12 @@ func (_u *OutboxUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(outbox.FieldGoalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(outbox.FieldRunID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StepKey(); ok {
+		_spec.SetField(outbox.FieldStepKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Kind(); ok {
 		_spec.SetField(outbox.FieldKind, field.TypeString, value)
 	}
@@ -212,6 +246,34 @@ func (_u *OutboxUpdateOne) SetGoalID(v string) *OutboxUpdateOne {
 func (_u *OutboxUpdateOne) SetNillableGoalID(v *string) *OutboxUpdateOne {
 	if v != nil {
 		_u.SetGoalID(*v)
+	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *OutboxUpdateOne) SetRunID(v string) *OutboxUpdateOne {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *OutboxUpdateOne) SetNillableRunID(v *string) *OutboxUpdateOne {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// SetStepKey sets the "step_key" field.
+func (_u *OutboxUpdateOne) SetStepKey(v string) *OutboxUpdateOne {
+	_u.mutation.SetStepKey(v)
+	return _u
+}
+
+// SetNillableStepKey sets the "step_key" field if the given value is not nil.
+func (_u *OutboxUpdateOne) SetNillableStepKey(v *string) *OutboxUpdateOne {
+	if v != nil {
+		_u.SetStepKey(*v)
 	}
 	return _u
 }
@@ -364,6 +426,12 @@ func (_u *OutboxUpdateOne) sqlSave(ctx context.Context) (_node *Outbox, err erro
 	}
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(outbox.FieldGoalID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(outbox.FieldRunID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StepKey(); ok {
+		_spec.SetField(outbox.FieldStepKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Kind(); ok {
 		_spec.SetField(outbox.FieldKind, field.TypeString, value)

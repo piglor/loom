@@ -69,6 +69,11 @@ func GoalID(v string) predicate.Wait {
 	return predicate.Wait(sql.FieldEQ(FieldGoalID, v))
 }
 
+// RunID applies equality check predicate on the "run_id" field. It's identical to RunIDEQ.
+func RunID(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldEQ(FieldRunID, v))
+}
+
 // Generation applies equality check predicate on the "generation" field. It's identical to GenerationEQ.
 func Generation(v int) predicate.Wait {
 	return predicate.Wait(sql.FieldEQ(FieldGeneration, v))
@@ -162,6 +167,81 @@ func GoalIDEqualFold(v string) predicate.Wait {
 // GoalIDContainsFold applies the ContainsFold predicate on the "goal_id" field.
 func GoalIDContainsFold(v string) predicate.Wait {
 	return predicate.Wait(sql.FieldContainsFold(FieldGoalID, v))
+}
+
+// RunIDEQ applies the EQ predicate on the "run_id" field.
+func RunIDEQ(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldEQ(FieldRunID, v))
+}
+
+// RunIDNEQ applies the NEQ predicate on the "run_id" field.
+func RunIDNEQ(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldNEQ(FieldRunID, v))
+}
+
+// RunIDIn applies the In predicate on the "run_id" field.
+func RunIDIn(vs ...string) predicate.Wait {
+	return predicate.Wait(sql.FieldIn(FieldRunID, vs...))
+}
+
+// RunIDNotIn applies the NotIn predicate on the "run_id" field.
+func RunIDNotIn(vs ...string) predicate.Wait {
+	return predicate.Wait(sql.FieldNotIn(FieldRunID, vs...))
+}
+
+// RunIDGT applies the GT predicate on the "run_id" field.
+func RunIDGT(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldGT(FieldRunID, v))
+}
+
+// RunIDGTE applies the GTE predicate on the "run_id" field.
+func RunIDGTE(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldGTE(FieldRunID, v))
+}
+
+// RunIDLT applies the LT predicate on the "run_id" field.
+func RunIDLT(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldLT(FieldRunID, v))
+}
+
+// RunIDLTE applies the LTE predicate on the "run_id" field.
+func RunIDLTE(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldLTE(FieldRunID, v))
+}
+
+// RunIDContains applies the Contains predicate on the "run_id" field.
+func RunIDContains(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldContains(FieldRunID, v))
+}
+
+// RunIDHasPrefix applies the HasPrefix predicate on the "run_id" field.
+func RunIDHasPrefix(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldHasPrefix(FieldRunID, v))
+}
+
+// RunIDHasSuffix applies the HasSuffix predicate on the "run_id" field.
+func RunIDHasSuffix(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldHasSuffix(FieldRunID, v))
+}
+
+// RunIDIsNil applies the IsNil predicate on the "run_id" field.
+func RunIDIsNil() predicate.Wait {
+	return predicate.Wait(sql.FieldIsNull(FieldRunID))
+}
+
+// RunIDNotNil applies the NotNil predicate on the "run_id" field.
+func RunIDNotNil() predicate.Wait {
+	return predicate.Wait(sql.FieldNotNull(FieldRunID))
+}
+
+// RunIDEqualFold applies the EqualFold predicate on the "run_id" field.
+func RunIDEqualFold(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldEqualFold(FieldRunID, v))
+}
+
+// RunIDContainsFold applies the ContainsFold predicate on the "run_id" field.
+func RunIDContainsFold(v string) predicate.Wait {
+	return predicate.Wait(sql.FieldContainsFold(FieldRunID, v))
 }
 
 // GenerationEQ applies the EQ predicate on the "generation" field.

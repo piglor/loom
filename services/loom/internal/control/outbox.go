@@ -8,7 +8,6 @@ import (
 	"github.com/piglor/loom/services/loom/ent"
 	"github.com/piglor/loom/services/loom/ent/goal"
 	"github.com/piglor/loom/services/loom/ent/outbox"
-	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/workflowversion"
 )
 
@@ -60,11 +59,11 @@ func (s *Store) OutboxBatch(ctx context.Context) ([]OutboxItem, error) {
 			return err
 		}
 		for _, row := range rows {
-			runRow, runErr := t.client.Run.Query().Where(run.GoalIDEQ(row.GoalID), run.ParentRunIDIsNil()).Only(ctx)
+			runRow, runErr := t.client.Run.Get(ctx, row.RunID)
 			if runErr != nil {
 				return runErr
 			}
-			item := OutboxItem{ID: row.ID, GoalID: row.GoalID, RunID: runRow.ID, Kind: row.Kind, AvailableAt: row.AvailableAt}
+			item := OutboxItem{ID: row.ID, GoalID: row.GoalID, RunID: runRow.ID, StepKey: row.StepKey, Kind: row.Kind, AvailableAt: row.AvailableAt}
 			if runRow.WorkflowVersionID != nil {
 				item.WorkflowVersionID = *runRow.WorkflowVersionID
 				versionRow, versionErr := t.client.WorkflowVersion.Query().Where(workflowversion.IDEQ(item.WorkflowVersionID), workflowversion.OrganizationEQ(s.Organization)).Only(ctx)
@@ -78,7 +77,7 @@ func (s *Store) OutboxBatch(ctx context.Context) ([]OutboxItem, error) {
 					return versionErr
 				}
 			}
-			if runRow.CurrentStepKey != nil {
+			if item.StepKey == "" && runRow.CurrentStepKey != nil {
 				item.StepKey = *runRow.CurrentStepKey
 			}
 			items = append(items, item)
@@ -100,7 +99,7 @@ func (s *Store) MarkOutboxDelivered(ctx context.Context, item OutboxItem, workfl
 		if err != nil || updated == 0 || workflowID == "" {
 			return err
 		}
-		return t.client.Run.Update().Where(run.GoalIDEQ(item.GoalID), run.ParentRunIDIsNil()).SetWorkflowID(workflowID).SetOrchestrationReference(workflowID).Exec(ctx)
+		return t.client.Run.UpdateOneID(item.RunID).SetWorkflowID(workflowID).SetOrchestrationReference(workflowID).Exec(ctx)
 	})
 }
 

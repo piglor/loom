@@ -43,7 +43,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=15").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=20").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
@@ -55,7 +55,7 @@ func (p postgresReader) inspect(ctx context.Context, id string) (json.RawMessage
 	var result json.RawMessage
 	err := p.pool.QueryRow(ctx, `SELECT to_jsonb(g) || jsonb_build_object(
 		'run',to_jsonb(r),'session',to_jsonb(s),'wait',to_jsonb(w),
-		'workflow_runs',COALESCE((SELECT jsonb_agg(to_jsonb(wr) ORDER BY wr.created_at,wr.id) FROM runs wr WHERE wr.goal_id=g.id),'[]'::jsonb),
+		'workflow_runs',COALESCE((SELECT jsonb_agg(to_jsonb(wr) || jsonb_build_object('spec',COALESCE(wv.spec,'{}'::jsonb)) ORDER BY wr.created_at,wr.id) FROM runs wr LEFT JOIN workflow_versions wv ON wv.id=wr.workflow_version_id WHERE wr.goal_id=g.id),'[]'::jsonb),
 		'workflow_steps',COALESCE((SELECT jsonb_agg(to_jsonb(ws) ORDER BY wr.created_at,ws.position) FROM workflow_step_runs ws JOIN runs wr ON wr.id=ws.run_id WHERE wr.goal_id=g.id),'[]'::jsonb),
 		'wait_history',COALESCE((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.generation) FROM wait_history h WHERE h.goal_id=g.id),'[]'::jsonb),
 		'attempts',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.phase) FROM attempts a WHERE a.goal_id=g.id),'[]'::jsonb),

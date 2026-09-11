@@ -13,6 +13,7 @@ var (
 	AttemptsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "run_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "session_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "worker_id", Type: field.TypeString},
 		{Name: "phase", Type: field.TypeInt},
@@ -218,6 +219,8 @@ var (
 	OutboxColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "run_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "step_key", Type: field.TypeString, Default: ""},
 		{Name: "kind", Type: field.TypeString},
 		{Name: "available_at", Type: field.TypeTime, Nullable: true},
 		{Name: "delivered_at", Type: field.TypeTime, Nullable: true},
@@ -234,6 +237,7 @@ var (
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "policy", Type: field.TypeJSON},
+		{Name: "context", Type: field.TypeJSON, Nullable: true},
 		{Name: "workflow_id", Type: field.TypeString, Nullable: true},
 		{Name: "workflow_definition_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "workflow_version_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -270,6 +274,7 @@ var (
 	WaitsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "run_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "generation", Type: field.TypeInt, Default: 1},
 		{Name: "condition", Type: field.TypeJSON},
 		{Name: "armed_at", Type: field.TypeTime, Nullable: true},
@@ -288,6 +293,7 @@ var (
 	WaitHistoryColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "run_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "generation", Type: field.TypeInt},
 		{Name: "condition", Type: field.TypeJSON},
 		{Name: "armed_at", Type: field.TypeTime, Nullable: true},

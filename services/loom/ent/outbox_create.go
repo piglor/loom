@@ -29,6 +29,26 @@ func (_c *OutboxCreate) SetGoalID(v string) *OutboxCreate {
 	return _c
 }
 
+// SetRunID sets the "run_id" field.
+func (_c *OutboxCreate) SetRunID(v string) *OutboxCreate {
+	_c.mutation.SetRunID(v)
+	return _c
+}
+
+// SetStepKey sets the "step_key" field.
+func (_c *OutboxCreate) SetStepKey(v string) *OutboxCreate {
+	_c.mutation.SetStepKey(v)
+	return _c
+}
+
+// SetNillableStepKey sets the "step_key" field if the given value is not nil.
+func (_c *OutboxCreate) SetNillableStepKey(v *string) *OutboxCreate {
+	if v != nil {
+		_c.SetStepKey(*v)
+	}
+	return _c
+}
+
 // SetKind sets the "kind" field.
 func (_c *OutboxCreate) SetKind(v string) *OutboxCreate {
 	_c.mutation.SetKind(v)
@@ -126,6 +146,10 @@ func (_c *OutboxCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *OutboxCreate) defaults() {
+	if _, ok := _c.mutation.StepKey(); !ok {
+		v := outbox.DefaultStepKey
+		_c.mutation.SetStepKey(v)
+	}
 	if _, ok := _c.mutation.Failures(); !ok {
 		v := outbox.DefaultFailures
 		_c.mutation.SetFailures(v)
@@ -140,6 +164,12 @@ func (_c *OutboxCreate) defaults() {
 func (_c *OutboxCreate) check() error {
 	if _, ok := _c.mutation.GoalID(); !ok {
 		return &ValidationError{Name: "goal_id", err: errors.New(`ent: missing required field "Outbox.goal_id"`)}
+	}
+	if _, ok := _c.mutation.RunID(); !ok {
+		return &ValidationError{Name: "run_id", err: errors.New(`ent: missing required field "Outbox.run_id"`)}
+	}
+	if _, ok := _c.mutation.StepKey(); !ok {
+		return &ValidationError{Name: "step_key", err: errors.New(`ent: missing required field "Outbox.step_key"`)}
 	}
 	if _, ok := _c.mutation.Kind(); !ok {
 		return &ValidationError{Name: "kind", err: errors.New(`ent: missing required field "Outbox.kind"`)}
@@ -186,6 +216,14 @@ func (_c *OutboxCreate) createSpec() (*Outbox, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.GoalID(); ok {
 		_spec.SetField(outbox.FieldGoalID, field.TypeString, value)
 		_node.GoalID = value
+	}
+	if value, ok := _c.mutation.RunID(); ok {
+		_spec.SetField(outbox.FieldRunID, field.TypeString, value)
+		_node.RunID = value
+	}
+	if value, ok := _c.mutation.StepKey(); ok {
+		_spec.SetField(outbox.FieldStepKey, field.TypeString, value)
+		_node.StepKey = value
 	}
 	if value, ok := _c.mutation.Kind(); ok {
 		_spec.SetField(outbox.FieldKind, field.TypeString, value)
@@ -264,6 +302,30 @@ func (u *OutboxUpsert) SetGoalID(v string) *OutboxUpsert {
 // UpdateGoalID sets the "goal_id" field to the value that was provided on create.
 func (u *OutboxUpsert) UpdateGoalID() *OutboxUpsert {
 	u.SetExcluded(outbox.FieldGoalID)
+	return u
+}
+
+// SetRunID sets the "run_id" field.
+func (u *OutboxUpsert) SetRunID(v string) *OutboxUpsert {
+	u.Set(outbox.FieldRunID, v)
+	return u
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *OutboxUpsert) UpdateRunID() *OutboxUpsert {
+	u.SetExcluded(outbox.FieldRunID)
+	return u
+}
+
+// SetStepKey sets the "step_key" field.
+func (u *OutboxUpsert) SetStepKey(v string) *OutboxUpsert {
+	u.Set(outbox.FieldStepKey, v)
+	return u
+}
+
+// UpdateStepKey sets the "step_key" field to the value that was provided on create.
+func (u *OutboxUpsert) UpdateStepKey() *OutboxUpsert {
+	u.SetExcluded(outbox.FieldStepKey)
 	return u
 }
 
@@ -392,6 +454,34 @@ func (u *OutboxUpsertOne) SetGoalID(v string) *OutboxUpsertOne {
 func (u *OutboxUpsertOne) UpdateGoalID() *OutboxUpsertOne {
 	return u.Update(func(s *OutboxUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *OutboxUpsertOne) SetRunID(v string) *OutboxUpsertOne {
+	return u.Update(func(s *OutboxUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *OutboxUpsertOne) UpdateRunID() *OutboxUpsertOne {
+	return u.Update(func(s *OutboxUpsert) {
+		s.UpdateRunID()
+	})
+}
+
+// SetStepKey sets the "step_key" field.
+func (u *OutboxUpsertOne) SetStepKey(v string) *OutboxUpsertOne {
+	return u.Update(func(s *OutboxUpsert) {
+		s.SetStepKey(v)
+	})
+}
+
+// UpdateStepKey sets the "step_key" field to the value that was provided on create.
+func (u *OutboxUpsertOne) UpdateStepKey() *OutboxUpsertOne {
+	return u.Update(func(s *OutboxUpsert) {
+		s.UpdateStepKey()
 	})
 }
 
@@ -698,6 +788,34 @@ func (u *OutboxUpsertBulk) SetGoalID(v string) *OutboxUpsertBulk {
 func (u *OutboxUpsertBulk) UpdateGoalID() *OutboxUpsertBulk {
 	return u.Update(func(s *OutboxUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *OutboxUpsertBulk) SetRunID(v string) *OutboxUpsertBulk {
+	return u.Update(func(s *OutboxUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *OutboxUpsertBulk) UpdateRunID() *OutboxUpsertBulk {
+	return u.Update(func(s *OutboxUpsert) {
+		s.UpdateRunID()
+	})
+}
+
+// SetStepKey sets the "step_key" field.
+func (u *OutboxUpsertBulk) SetStepKey(v string) *OutboxUpsertBulk {
+	return u.Update(func(s *OutboxUpsert) {
+		s.SetStepKey(v)
+	})
+}
+
+// UpdateStepKey sets the "step_key" field to the value that was provided on create.
+func (u *OutboxUpsertBulk) UpdateStepKey() *OutboxUpsertBulk {
+	return u.Update(func(s *OutboxUpsert) {
+		s.UpdateStepKey()
 	})
 }
 

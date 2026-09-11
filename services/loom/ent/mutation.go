@@ -72,6 +72,7 @@ type AttemptMutation struct {
 	typ            string
 	id             *string
 	goal_id        *string
+	run_id         *string
 	session_id     *string
 	worker_id      *string
 	phase          *int
@@ -226,6 +227,42 @@ func (m *AttemptMutation) OldGoalID(ctx context.Context) (v string, err error) {
 // ResetGoalID resets all changes to the "goal_id" field.
 func (m *AttemptMutation) ResetGoalID() {
 	m.goal_id = nil
+}
+
+// SetRunID sets the "run_id" field.
+func (m *AttemptMutation) SetRunID(s string) {
+	m.run_id = &s
+}
+
+// RunID returns the value of the "run_id" field in the mutation.
+func (m *AttemptMutation) RunID() (r string, exists bool) {
+	v := m.run_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRunID returns the old "run_id" field's value of the Attempt entity.
+// If the Attempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttemptMutation) OldRunID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRunID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRunID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRunID: %w", err)
+	}
+	return oldValue.RunID, nil
+}
+
+// ResetRunID resets all changes to the "run_id" field.
+func (m *AttemptMutation) ResetRunID() {
+	m.run_id = nil
 }
 
 // SetSessionID sets the "session_id" field.
@@ -643,9 +680,12 @@ func (m *AttemptMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AttemptMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.goal_id != nil {
 		fields = append(fields, attempt.FieldGoalID)
+	}
+	if m.run_id != nil {
+		fields = append(fields, attempt.FieldRunID)
 	}
 	if m.session_id != nil {
 		fields = append(fields, attempt.FieldSessionID)
@@ -681,6 +721,8 @@ func (m *AttemptMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case attempt.FieldGoalID:
 		return m.GoalID()
+	case attempt.FieldRunID:
+		return m.RunID()
 	case attempt.FieldSessionID:
 		return m.SessionID()
 	case attempt.FieldWorkerID:
@@ -708,6 +750,8 @@ func (m *AttemptMutation) OldField(ctx context.Context, name string) (ent.Value,
 	switch name {
 	case attempt.FieldGoalID:
 		return m.OldGoalID(ctx)
+	case attempt.FieldRunID:
+		return m.OldRunID(ctx)
 	case attempt.FieldSessionID:
 		return m.OldSessionID(ctx)
 	case attempt.FieldWorkerID:
@@ -739,6 +783,13 @@ func (m *AttemptMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGoalID(v)
+		return nil
+	case attempt.FieldRunID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRunID(v)
 		return nil
 	case attempt.FieldSessionID:
 		v, ok := value.(string)
@@ -901,6 +952,9 @@ func (m *AttemptMutation) ResetField(name string) error {
 	switch name {
 	case attempt.FieldGoalID:
 		m.ResetGoalID()
+		return nil
+	case attempt.FieldRunID:
+		m.ResetRunID()
 		return nil
 	case attempt.FieldSessionID:
 		m.ResetSessionID()
@@ -8563,6 +8617,8 @@ type OutboxMutation struct {
 	typ           string
 	id            *string
 	goal_id       *string
+	run_id        *string
+	step_key      *string
 	kind          *string
 	available_at  *time.Time
 	delivered_at  *time.Time
@@ -8712,6 +8768,78 @@ func (m *OutboxMutation) OldGoalID(ctx context.Context) (v string, err error) {
 // ResetGoalID resets all changes to the "goal_id" field.
 func (m *OutboxMutation) ResetGoalID() {
 	m.goal_id = nil
+}
+
+// SetRunID sets the "run_id" field.
+func (m *OutboxMutation) SetRunID(s string) {
+	m.run_id = &s
+}
+
+// RunID returns the value of the "run_id" field in the mutation.
+func (m *OutboxMutation) RunID() (r string, exists bool) {
+	v := m.run_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRunID returns the old "run_id" field's value of the Outbox entity.
+// If the Outbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxMutation) OldRunID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRunID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRunID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRunID: %w", err)
+	}
+	return oldValue.RunID, nil
+}
+
+// ResetRunID resets all changes to the "run_id" field.
+func (m *OutboxMutation) ResetRunID() {
+	m.run_id = nil
+}
+
+// SetStepKey sets the "step_key" field.
+func (m *OutboxMutation) SetStepKey(s string) {
+	m.step_key = &s
+}
+
+// StepKey returns the value of the "step_key" field in the mutation.
+func (m *OutboxMutation) StepKey() (r string, exists bool) {
+	v := m.step_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStepKey returns the old "step_key" field's value of the Outbox entity.
+// If the Outbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxMutation) OldStepKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStepKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStepKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStepKey: %w", err)
+	}
+	return oldValue.StepKey, nil
+}
+
+// ResetStepKey resets all changes to the "step_key" field.
+func (m *OutboxMutation) ResetStepKey() {
+	m.step_key = nil
 }
 
 // SetKind sets the "kind" field.
@@ -8938,9 +9066,15 @@ func (m *OutboxMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OutboxMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 7)
 	if m.goal_id != nil {
 		fields = append(fields, outbox.FieldGoalID)
+	}
+	if m.run_id != nil {
+		fields = append(fields, outbox.FieldRunID)
+	}
+	if m.step_key != nil {
+		fields = append(fields, outbox.FieldStepKey)
 	}
 	if m.kind != nil {
 		fields = append(fields, outbox.FieldKind)
@@ -8964,6 +9098,10 @@ func (m *OutboxMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case outbox.FieldGoalID:
 		return m.GoalID()
+	case outbox.FieldRunID:
+		return m.RunID()
+	case outbox.FieldStepKey:
+		return m.StepKey()
 	case outbox.FieldKind:
 		return m.Kind()
 	case outbox.FieldAvailableAt:
@@ -8983,6 +9121,10 @@ func (m *OutboxMutation) OldField(ctx context.Context, name string) (ent.Value, 
 	switch name {
 	case outbox.FieldGoalID:
 		return m.OldGoalID(ctx)
+	case outbox.FieldRunID:
+		return m.OldRunID(ctx)
+	case outbox.FieldStepKey:
+		return m.OldStepKey(ctx)
 	case outbox.FieldKind:
 		return m.OldKind(ctx)
 	case outbox.FieldAvailableAt:
@@ -9006,6 +9148,20 @@ func (m *OutboxMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGoalID(v)
+		return nil
+	case outbox.FieldRunID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRunID(v)
+		return nil
+	case outbox.FieldStepKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStepKey(v)
 		return nil
 	case outbox.FieldKind:
 		v, ok := value.(string)
@@ -9117,6 +9273,12 @@ func (m *OutboxMutation) ResetField(name string) error {
 	case outbox.FieldGoalID:
 		m.ResetGoalID()
 		return nil
+	case outbox.FieldRunID:
+		m.ResetRunID()
+		return nil
+	case outbox.FieldStepKey:
+		m.ResetStepKey()
+		return nil
 	case outbox.FieldKind:
 		m.ResetKind()
 		return nil
@@ -9189,6 +9351,7 @@ type RunMutation struct {
 	id                      *string
 	goal_id                 *string
 	policy                  *map[string]interface{}
+	context                 *map[string]interface{}
 	workflow_id             *string
 	workflow_definition_id  *string
 	workflow_version_id     *string
@@ -9380,6 +9543,55 @@ func (m *RunMutation) OldPolicy(ctx context.Context) (v map[string]interface{}, 
 // ResetPolicy resets all changes to the "policy" field.
 func (m *RunMutation) ResetPolicy() {
 	m.policy = nil
+}
+
+// SetContext sets the "context" field.
+func (m *RunMutation) SetContext(value map[string]interface{}) {
+	m.context = &value
+}
+
+// Context returns the value of the "context" field in the mutation.
+func (m *RunMutation) Context() (r map[string]interface{}, exists bool) {
+	v := m.context
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContext returns the old "context" field's value of the Run entity.
+// If the Run object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RunMutation) OldContext(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContext: %w", err)
+	}
+	return oldValue.Context, nil
+}
+
+// ClearContext clears the value of the "context" field.
+func (m *RunMutation) ClearContext() {
+	m.context = nil
+	m.clearedFields[run.FieldContext] = struct{}{}
+}
+
+// ContextCleared returns if the "context" field was cleared in this mutation.
+func (m *RunMutation) ContextCleared() bool {
+	_, ok := m.clearedFields[run.FieldContext]
+	return ok
+}
+
+// ResetContext resets all changes to the "context" field.
+func (m *RunMutation) ResetContext() {
+	m.context = nil
+	delete(m.clearedFields, run.FieldContext)
 }
 
 // SetWorkflowID sets the "workflow_id" field.
@@ -9942,12 +10154,15 @@ func (m *RunMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RunMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.goal_id != nil {
 		fields = append(fields, run.FieldGoalID)
 	}
 	if m.policy != nil {
 		fields = append(fields, run.FieldPolicy)
+	}
+	if m.context != nil {
+		fields = append(fields, run.FieldContext)
 	}
 	if m.workflow_id != nil {
 		fields = append(fields, run.FieldWorkflowID)
@@ -9994,6 +10209,8 @@ func (m *RunMutation) Field(name string) (ent.Value, bool) {
 		return m.GoalID()
 	case run.FieldPolicy:
 		return m.Policy()
+	case run.FieldContext:
+		return m.Context()
 	case run.FieldWorkflowID:
 		return m.WorkflowID()
 	case run.FieldWorkflowDefinitionID:
@@ -10029,6 +10246,8 @@ func (m *RunMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldGoalID(ctx)
 	case run.FieldPolicy:
 		return m.OldPolicy(ctx)
+	case run.FieldContext:
+		return m.OldContext(ctx)
 	case run.FieldWorkflowID:
 		return m.OldWorkflowID(ctx)
 	case run.FieldWorkflowDefinitionID:
@@ -10073,6 +10292,13 @@ func (m *RunMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPolicy(v)
+		return nil
+	case run.FieldContext:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContext(v)
 		return nil
 	case run.FieldWorkflowID:
 		v, ok := value.(string)
@@ -10181,6 +10407,9 @@ func (m *RunMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *RunMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(run.FieldContext) {
+		fields = append(fields, run.FieldContext)
+	}
 	if m.FieldCleared(run.FieldWorkflowID) {
 		fields = append(fields, run.FieldWorkflowID)
 	}
@@ -10225,6 +10454,9 @@ func (m *RunMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RunMutation) ClearField(name string) error {
 	switch name {
+	case run.FieldContext:
+		m.ClearContext()
+		return nil
 	case run.FieldWorkflowID:
 		m.ClearWorkflowID()
 		return nil
@@ -10268,6 +10500,9 @@ func (m *RunMutation) ResetField(name string) error {
 		return nil
 	case run.FieldPolicy:
 		m.ResetPolicy()
+		return nil
+	case run.FieldContext:
+		m.ResetContext()
 		return nil
 	case run.FieldWorkflowID:
 		m.ResetWorkflowID()
@@ -10877,6 +11112,7 @@ type WaitMutation struct {
 	typ                 string
 	id                  *string
 	goal_id             *string
+	run_id              *string
 	generation          *int
 	addgeneration       *int
 	condition           *map[string]interface{}
@@ -11029,6 +11265,55 @@ func (m *WaitMutation) OldGoalID(ctx context.Context) (v string, err error) {
 // ResetGoalID resets all changes to the "goal_id" field.
 func (m *WaitMutation) ResetGoalID() {
 	m.goal_id = nil
+}
+
+// SetRunID sets the "run_id" field.
+func (m *WaitMutation) SetRunID(s string) {
+	m.run_id = &s
+}
+
+// RunID returns the value of the "run_id" field in the mutation.
+func (m *WaitMutation) RunID() (r string, exists bool) {
+	v := m.run_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRunID returns the old "run_id" field's value of the Wait entity.
+// If the Wait object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WaitMutation) OldRunID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRunID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRunID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRunID: %w", err)
+	}
+	return oldValue.RunID, nil
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (m *WaitMutation) ClearRunID() {
+	m.run_id = nil
+	m.clearedFields[wait.FieldRunID] = struct{}{}
+}
+
+// RunIDCleared returns if the "run_id" field was cleared in this mutation.
+func (m *WaitMutation) RunIDCleared() bool {
+	_, ok := m.clearedFields[wait.FieldRunID]
+	return ok
+}
+
+// ResetRunID resets all changes to the "run_id" field.
+func (m *WaitMutation) ResetRunID() {
+	m.run_id = nil
+	delete(m.clearedFields, wait.FieldRunID)
 }
 
 // SetGeneration sets the "generation" field.
@@ -11402,9 +11687,12 @@ func (m *WaitMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *WaitMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.goal_id != nil {
 		fields = append(fields, wait.FieldGoalID)
+	}
+	if m.run_id != nil {
+		fields = append(fields, wait.FieldRunID)
 	}
 	if m.generation != nil {
 		fields = append(fields, wait.FieldGeneration)
@@ -11437,6 +11725,8 @@ func (m *WaitMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case wait.FieldGoalID:
 		return m.GoalID()
+	case wait.FieldRunID:
+		return m.RunID()
 	case wait.FieldGeneration:
 		return m.Generation()
 	case wait.FieldCondition:
@@ -11462,6 +11752,8 @@ func (m *WaitMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case wait.FieldGoalID:
 		return m.OldGoalID(ctx)
+	case wait.FieldRunID:
+		return m.OldRunID(ctx)
 	case wait.FieldGeneration:
 		return m.OldGeneration(ctx)
 	case wait.FieldCondition:
@@ -11491,6 +11783,13 @@ func (m *WaitMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGoalID(v)
+		return nil
+	case wait.FieldRunID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRunID(v)
 		return nil
 	case wait.FieldGeneration:
 		v, ok := value.(int)
@@ -11586,6 +11885,9 @@ func (m *WaitMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *WaitMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(wait.FieldRunID) {
+		fields = append(fields, wait.FieldRunID)
+	}
 	if m.FieldCleared(wait.FieldArmedAt) {
 		fields = append(fields, wait.FieldArmedAt)
 	}
@@ -11615,6 +11917,9 @@ func (m *WaitMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *WaitMutation) ClearField(name string) error {
 	switch name {
+	case wait.FieldRunID:
+		m.ClearRunID()
+		return nil
 	case wait.FieldArmedAt:
 		m.ClearArmedAt()
 		return nil
@@ -11640,6 +11945,9 @@ func (m *WaitMutation) ResetField(name string) error {
 	switch name {
 	case wait.FieldGoalID:
 		m.ResetGoalID()
+		return nil
+	case wait.FieldRunID:
+		m.ResetRunID()
 		return nil
 	case wait.FieldGeneration:
 		m.ResetGeneration()
@@ -11721,6 +12029,7 @@ type WaitHistoryMutation struct {
 	typ                 string
 	id                  *string
 	goal_id             *string
+	run_id              *string
 	generation          *int
 	addgeneration       *int
 	condition           *map[string]interface{}
@@ -11873,6 +12182,55 @@ func (m *WaitHistoryMutation) OldGoalID(ctx context.Context) (v string, err erro
 // ResetGoalID resets all changes to the "goal_id" field.
 func (m *WaitHistoryMutation) ResetGoalID() {
 	m.goal_id = nil
+}
+
+// SetRunID sets the "run_id" field.
+func (m *WaitHistoryMutation) SetRunID(s string) {
+	m.run_id = &s
+}
+
+// RunID returns the value of the "run_id" field in the mutation.
+func (m *WaitHistoryMutation) RunID() (r string, exists bool) {
+	v := m.run_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRunID returns the old "run_id" field's value of the WaitHistory entity.
+// If the WaitHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WaitHistoryMutation) OldRunID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRunID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRunID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRunID: %w", err)
+	}
+	return oldValue.RunID, nil
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (m *WaitHistoryMutation) ClearRunID() {
+	m.run_id = nil
+	m.clearedFields[waithistory.FieldRunID] = struct{}{}
+}
+
+// RunIDCleared returns if the "run_id" field was cleared in this mutation.
+func (m *WaitHistoryMutation) RunIDCleared() bool {
+	_, ok := m.clearedFields[waithistory.FieldRunID]
+	return ok
+}
+
+// ResetRunID resets all changes to the "run_id" field.
+func (m *WaitHistoryMutation) ResetRunID() {
+	m.run_id = nil
+	delete(m.clearedFields, waithistory.FieldRunID)
 }
 
 // SetGeneration sets the "generation" field.
@@ -12246,9 +12604,12 @@ func (m *WaitHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *WaitHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.goal_id != nil {
 		fields = append(fields, waithistory.FieldGoalID)
+	}
+	if m.run_id != nil {
+		fields = append(fields, waithistory.FieldRunID)
 	}
 	if m.generation != nil {
 		fields = append(fields, waithistory.FieldGeneration)
@@ -12281,6 +12642,8 @@ func (m *WaitHistoryMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case waithistory.FieldGoalID:
 		return m.GoalID()
+	case waithistory.FieldRunID:
+		return m.RunID()
 	case waithistory.FieldGeneration:
 		return m.Generation()
 	case waithistory.FieldCondition:
@@ -12306,6 +12669,8 @@ func (m *WaitHistoryMutation) OldField(ctx context.Context, name string) (ent.Va
 	switch name {
 	case waithistory.FieldGoalID:
 		return m.OldGoalID(ctx)
+	case waithistory.FieldRunID:
+		return m.OldRunID(ctx)
 	case waithistory.FieldGeneration:
 		return m.OldGeneration(ctx)
 	case waithistory.FieldCondition:
@@ -12335,6 +12700,13 @@ func (m *WaitHistoryMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGoalID(v)
+		return nil
+	case waithistory.FieldRunID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRunID(v)
 		return nil
 	case waithistory.FieldGeneration:
 		v, ok := value.(int)
@@ -12430,6 +12802,9 @@ func (m *WaitHistoryMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *WaitHistoryMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(waithistory.FieldRunID) {
+		fields = append(fields, waithistory.FieldRunID)
+	}
 	if m.FieldCleared(waithistory.FieldArmedAt) {
 		fields = append(fields, waithistory.FieldArmedAt)
 	}
@@ -12459,6 +12834,9 @@ func (m *WaitHistoryMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *WaitHistoryMutation) ClearField(name string) error {
 	switch name {
+	case waithistory.FieldRunID:
+		m.ClearRunID()
+		return nil
 	case waithistory.FieldArmedAt:
 		m.ClearArmedAt()
 		return nil
@@ -12484,6 +12862,9 @@ func (m *WaitHistoryMutation) ResetField(name string) error {
 	switch name {
 	case waithistory.FieldGoalID:
 		m.ResetGoalID()
+		return nil
+	case waithistory.FieldRunID:
+		m.ResetRunID()
 		return nil
 	case waithistory.FieldGeneration:
 		m.ResetGeneration()

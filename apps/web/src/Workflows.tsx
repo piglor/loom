@@ -8,6 +8,7 @@ import {
   type WorkflowDefinition,
   type WorkflowSpec,
   type WorkflowStep,
+  type WorkflowStepConfig,
   type WorkflowStepType,
 } from "@piglor/loom-client";
 
@@ -157,20 +158,95 @@ function nextKey(type: WorkflowStepType, steps: WorkflowStep[]) {
   return `${type}_${number}`;
 }
 
-function linearSpec(spec: WorkflowSpec, steps: WorkflowStep[]): WorkflowSpec {
+function preserveRelationships(
+  spec: WorkflowSpec,
+  steps: WorkflowStep[],
+): WorkflowSpec {
+  const keys = new Set(steps.map((step) => step.key));
   return {
     ...spec,
     steps,
-    edges: steps.slice(0, -1).map((step, index) => ({
-      from: step.key,
-      to: steps[index + 1].key,
-      outcome: "success" as const,
-    })),
+    edges: spec.edges.filter(
+      (edge) => keys.has(edge.from) && keys.has(edge.to),
+    ),
   };
+}
+
+function addStep(spec: WorkflowSpec, step: WorkflowStep): WorkflowSpec {
+  const completeIndex = spec.steps.findIndex(
+    (candidate) => candidate.type === "complete",
+  );
+  const steps = [...spec.steps];
+  steps.splice(completeIndex < 0 ? steps.length : completeIndex, 0, step);
+  return preserveRelationships(spec, steps);
+}
+
+function removeStep(spec: WorkflowSpec, key: string): WorkflowSpec {
+  return preserveRelationships(
+    spec,
+    spec.steps.filter((step) => step.key !== key),
+  );
+}
+
+function edgeTarget(
+  spec: WorkflowSpec,
+  from: string,
+  outcome: "success" | "failure",
+) {
+  return (
+    spec.edges.find((edge) => edge.from === from && edge.outcome === outcome)
+      ?.to ?? ""
+  );
+}
+
+function setEdge(
+  spec: WorkflowSpec,
+  from: string,
+  outcome: "success" | "failure",
+  to: string,
+) {
+  const edges = spec.edges.filter(
+    (edge) => !(edge.from === from && edge.outcome === outcome),
+  );
+  if (to) edges.push({ from, to, outcome });
+  return { ...spec, edges };
 }
 
 function waitCondition(step: WorkflowStep): Partial<Condition> {
   return (step.config.condition ?? {}) as Partial<Condition>;
+}
+
+function conditionOperator(
+  step: WorkflowStep,
+): "equals" | "not_equals" | "exists" {
+  if (typeof step.config.exists === "boolean") return "exists";
+  if (Object.prototype.hasOwnProperty.call(step.config, "not_equals"))
+    return "not_equals";
+  return "equals";
+}
+
+function conditionValue(step: WorkflowStep) {
+  const operator = conditionOperator(step);
+  if (operator === "exists") return String(step.config.exists);
+  const value = step.config[operator];
+  return typeof value === "string" ? value : JSON.stringify(value ?? "");
+}
+
+function parseConditionValue(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (
+    /^(true|false|null|-?\d+(\.\d+)?)$/.test(trimmed) ||
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[")
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
+    }
+  }
+  return value;
 }
 
 function configureWait(
@@ -190,15 +266,22 @@ function configureWait(
       ...(change.integration_instance_id !== undefined
         ? { integration_instance_id: change.integration_instance_id }
         : {}),
-      condition: { ...waitCondition(step), ...change.condition },
+      condition: {
+        source: "external",
+        type: "workflow.completed",
+        resource: "resource-id",
+        version: "1",
+        ...waitCondition(step),
+        ...change.condition,
+      },
     },
   };
-  return linearSpec(spec, steps);
+  return preserveRelationships(spec, steps);
 }
 
 function configureAgent(
   spec: WorkflowSpec,
-  change: { runtime?: string; worker_id?: string },
+  change: Pick<WorkflowStepConfig, "runtime" | "worker_id">,
 ) {
   return {
     ...spec,
@@ -210,7 +293,14 @@ function configureAgent(
   };
 }
 
-function RelationshipMap({ steps }: { steps: WorkflowStep[] }) {
+function RelationshipMap({
+  steps,
+  edges,
+}: {
+  steps: WorkflowStep[];
+  edges: WorkflowSpec["edges"];
+}) {
+  const names = new Map(steps.map((step) => [step.key, step.name]));
   return (
     <div className="relationship-map" aria-label="Workflow relationships">
       {steps.map((step, index) => (
@@ -222,7 +312,17 @@ function RelationshipMap({ steps }: { steps: WorkflowStep[] }) {
               <strong>{step.name}</strong>
             </div>
           </div>
-          {index < steps.length - 1 && <i aria-hidden="true">→</i>}
+          {edges.filter((edge) => edge.from === step.key).length > 0 && (
+            <div className="relationship-links">
+              {edges
+                .filter((edge) => edge.from === step.key)
+                .map((edge) => (
+                  <span key={`${edge.from}-${edge.outcome}`}>
+                    {edge.outcome} → {names.get(edge.to) ?? edge.to}
+                  </span>
+                ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -238,6 +338,7 @@ export function WorkflowEditor({
 }) {
   const { id = "" } = useParams();
   const [workflow, setWorkflow] = useState<WorkflowDefinition | null>(null);
+  const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [connections, setConnections] = useState<IntegrationInstance[]>([]);
   const [validation, setValidation] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -249,9 +350,11 @@ export function WorkflowEditor({
     Promise.all([
       client.workflow(id, abort.signal),
       client.integrationInstances("", abort.signal),
+      client.workflows(abort.signal),
     ])
-      .then(([definition, instances]) => {
+      .then(([definition, instances, definitions]) => {
         setWorkflow(definition);
+        setWorkflows(definitions);
         setConnections(
           instances.filter((instance) => instance.state === "active"),
         );
@@ -529,7 +632,9 @@ export function WorkflowEditor({
                         onChange={(event) => {
                           const steps = [...workflow.draft_spec.steps];
                           steps[index] = { ...step, name: event.target.value };
-                          updateSpec(linearSpec(workflow.draft_spec, steps));
+                          updateSpec(
+                            preserveRelationships(workflow.draft_spec, steps),
+                          );
                         }}
                       />
                     </label>
@@ -539,7 +644,7 @@ export function WorkflowEditor({
                         value={step.type}
                         onChange={(event) => {
                           const type = event.target.value as WorkflowStepType;
-                          const config =
+                          const config: WorkflowStepConfig =
                             type === "agent"
                               ? { runtime: "demo" }
                               : type === "wait_event"
@@ -558,14 +663,25 @@ export function WorkflowEditor({
                                       version: "1",
                                     },
                                   }
-                                : {};
+                                : type === "condition"
+                                  ? {
+                                      path: "last_event.condition.type",
+                                      equals: "",
+                                    }
+                                  : type === "subflow"
+                                    ? { workflow_definition_id: "" }
+                                    : {};
                           const steps = [...workflow.draft_spec.steps];
                           steps[index] = { ...step, type, config };
-                          updateSpec(linearSpec(workflow.draft_spec, steps));
+                          updateSpec(
+                            preserveRelationships(workflow.draft_spec, steps),
+                          );
                         }}
                       >
                         <option value="agent">Agent work</option>
                         <option value="wait_event">Wait for event</option>
+                        <option value="condition">Branch on context</option>
+                        <option value="subflow">Run another workflow</option>
                         <option value="complete">Complete Goal</option>
                       </select>
                     </label>
@@ -578,7 +694,8 @@ export function WorkflowEditor({
                             onChange={(event) =>
                               updateSpec(
                                 configureAgent(workflow.draft_spec, {
-                                  runtime: event.target.value,
+                                  runtime: event.target
+                                    .value as WorkflowStepConfig["runtime"],
                                   worker_id:
                                     event.target.value === "demo"
                                       ? ""
@@ -693,20 +810,135 @@ export function WorkflowEditor({
                         </p>
                       </div>
                     )}
+                    {step.type === "condition" && (
+                      <div className="trigger-fields">
+                        <label>
+                          Context path
+                          <input
+                            value={(step.config.path as string) ?? ""}
+                            onChange={(event) => {
+                              const steps = [...workflow.draft_spec.steps];
+                              steps[index] = {
+                                ...step,
+                                config: {
+                                  ...step.config,
+                                  path: event.target.value,
+                                },
+                              };
+                              updateSpec({ ...workflow.draft_spec, steps });
+                            }}
+                            placeholder="last_event.details.approved"
+                          />
+                        </label>
+                        <label>
+                          Equals
+                          <input
+                            value={conditionValue(step)}
+                            disabled={conditionOperator(step) === "exists"}
+                            onChange={(event) => {
+                              const steps = [...workflow.draft_spec.steps];
+                              const operator = conditionOperator(step);
+                              steps[index] = {
+                                ...step,
+                                config: {
+                                  path: step.config.path,
+                                  [operator]: parseConditionValue(
+                                    event.target.value,
+                                  ),
+                                },
+                              };
+                              updateSpec({ ...workflow.draft_spec, steps });
+                            }}
+                            placeholder="true, false, or a JSON value"
+                          />
+                        </label>
+                        <label>
+                          Match mode
+                          <select
+                            value={conditionOperator(step)}
+                            onChange={(event) => {
+                              const operator = event.target.value as
+                                "equals" | "not_equals" | "exists";
+                              const steps = [...workflow.draft_spec.steps];
+                              const value =
+                                operator === "exists"
+                                  ? true
+                                  : parseConditionValue(conditionValue(step));
+                              steps[index] = {
+                                ...step,
+                                config: {
+                                  path: step.config.path,
+                                  [operator]: value,
+                                },
+                              };
+                              updateSpec({ ...workflow.draft_spec, steps });
+                            }}
+                          >
+                            <option value="equals">Equals</option>
+                            <option value="not_equals">Does not equal</option>
+                            <option value="exists">Exists</option>
+                          </select>
+                        </label>
+                        <p className="muted">
+                          The path reads verified trigger or wait-event context.
+                          A matching value follows success; otherwise failure.
+                        </p>
+                      </div>
+                    )}
+                    {step.type === "subflow" && (
+                      <div className="trigger-fields">
+                        <label>
+                          Child workflow
+                          <select
+                            value={
+                              (step.config.workflow_definition_id as string) ??
+                              ""
+                            }
+                            onChange={(event) => {
+                              const steps = [...workflow.draft_spec.steps];
+                              steps[index] = {
+                                ...step,
+                                config: {
+                                  ...step.config,
+                                  workflow_definition_id: event.target.value,
+                                },
+                              };
+                              updateSpec({ ...workflow.draft_spec, steps });
+                            }}
+                          >
+                            <option value="">
+                              Choose a published workflow
+                            </option>
+                            {workflows
+                              .filter(
+                                (candidate) =>
+                                  candidate.id !== workflow.id &&
+                                  candidate.latest_version > 0,
+                              )
+                              .map((candidate) => (
+                                <option value={candidate.id} key={candidate.id}>
+                                  {candidate.name}
+                                  {candidate.latest_version
+                                    ? ` · v${candidate.latest_version}`
+                                    : " · draft"}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <p className="muted">
+                          Loom pins the child’s published version, runs it as a
+                          child run, and resumes this step only after the child
+                          completes.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
                     className="secondary compact"
                     disabled={workflow.draft_spec.steps.length <= 2}
                     onClick={() =>
-                      updateSpec(
-                        linearSpec(
-                          workflow.draft_spec,
-                          workflow.draft_spec.steps.filter(
-                            (_, stepIndex) => stepIndex !== index,
-                          ),
-                        ),
-                      )
+                      updateSpec(removeStep(workflow.draft_spec, step.key))
                     }
                   >
                     Remove
@@ -714,52 +946,133 @@ export function WorkflowEditor({
                 </li>
               ))}
             </ol>
+            <div className="relationship-editor">
+              <div className="section-heading">
+                <div>
+                  <h3>Relationships</h3>
+                  <p className="muted">
+                    Choose the next step for each result. Condition steps need
+                    both paths before they can be published.
+                  </p>
+                </div>
+              </div>
+              {workflow.draft_spec.steps
+                .filter((step) => step.type !== "complete")
+                .map((step) => (
+                  <div className="relationship-row" key={step.key}>
+                    <strong>{step.name}</strong>
+                    <label>
+                      On success
+                      <select
+                        value={edgeTarget(
+                          workflow.draft_spec,
+                          step.key,
+                          "success",
+                        )}
+                        onChange={(event) =>
+                          updateSpec(
+                            setEdge(
+                              workflow.draft_spec,
+                              step.key,
+                              "success",
+                              event.target.value,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="">Choose next step</option>
+                        {workflow.draft_spec.steps
+                          .filter((candidate) => candidate.key !== step.key)
+                          .map((candidate) => (
+                            <option value={candidate.key} key={candidate.key}>
+                              {candidate.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label>
+                      On failure
+                      <select
+                        value={edgeTarget(
+                          workflow.draft_spec,
+                          step.key,
+                          "failure",
+                        )}
+                        onChange={(event) =>
+                          updateSpec(
+                            setEdge(
+                              workflow.draft_spec,
+                              step.key,
+                              "failure",
+                              event.target.value,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="">Choose next step</option>
+                        {workflow.draft_spec.steps
+                          .filter((candidate) => candidate.key !== step.key)
+                          .map((candidate) => (
+                            <option value={candidate.key} key={candidate.key}>
+                              {candidate.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
+            </div>
             <div className="add-step-row">
-              {(["agent", "wait_event", "complete"] as WorkflowStepType[]).map(
-                (type) => (
-                  <button
-                    type="button"
-                    className="secondary"
-                    key={type}
-                    onClick={() => {
-                      const key = nextKey(type, workflow.draft_spec.steps);
-                      const config =
-                        type === "agent"
-                          ? { runtime: "demo" }
-                          : type === "wait_event"
-                            ? {
-                                ...(connections[0]
-                                  ? {
-                                      integration_instance_id:
-                                        connections[0].id,
-                                    }
-                                  : {}),
-                                condition: {
-                                  source:
-                                    connections[0]?.plugin_id ?? "external",
-                                  type: "workflow.completed",
-                                  resource: "resource-id",
-                                  version: "1",
-                                },
-                              }
-                            : {};
-                      updateSpec(
-                        linearSpec(workflow.draft_spec, [
-                          ...workflow.draft_spec.steps,
-                          {
-                            key,
-                            name: type.replaceAll("_", " "),
-                            type,
-                            config,
-                          },
-                        ]),
-                      );
-                    }}
-                  >
-                    + {type.replaceAll("_", " ")}
-                  </button>
-                ),
-              )}
+              {(
+                [
+                  "agent",
+                  "wait_event",
+                  "condition",
+                  "subflow",
+                  "complete",
+                ] as WorkflowStepType[]
+              ).map((type) => (
+                <button
+                  type="button"
+                  className="secondary"
+                  key={type}
+                  onClick={() => {
+                    const key = nextKey(type, workflow.draft_spec.steps);
+                    const config: WorkflowStepConfig =
+                      type === "agent"
+                        ? { runtime: "demo" }
+                        : type === "wait_event"
+                          ? {
+                              ...(connections[0]
+                                ? {
+                                    integration_instance_id: connections[0].id,
+                                  }
+                                : {}),
+                              condition: {
+                                source: connections[0]?.plugin_id ?? "external",
+                                type: "workflow.completed",
+                                resource: "resource-id",
+                                version: "1",
+                              },
+                            }
+                          : type === "condition"
+                            ? { path: "last_event.condition.type", equals: "" }
+                            : type === "subflow"
+                              ? { workflow_definition_id: "" }
+                              : {};
+                    updateSpec(
+                      addStep(workflow.draft_spec, {
+                        key,
+                        name: type.replaceAll("_", " "),
+                        type,
+                        config,
+                      }),
+                    );
+                  }}
+                >
+                  + {type.replaceAll("_", " ")}
+                </button>
+              ))}
             </div>
           </section>
           {(error || notice || validation.length > 0) && (
@@ -807,7 +1120,10 @@ export function WorkflowEditor({
             This map comes from Loom’s portable specification—not Hatchet’s
             interface.
           </p>
-          <RelationshipMap steps={workflow.draft_spec.steps} />
+          <RelationshipMap
+            steps={workflow.draft_spec.steps}
+            edges={workflow.draft_spec.edges}
+          />
         </aside>
       </div>
     </>

@@ -35,11 +35,13 @@ selected scheduler's workflow model as its product API.
 ## Proposed decision
 
 Loom owns organization-scoped drafts and immutable workflow versions. Schema
-version 1 publishes typed `agent`, `wait_event`, and `complete` steps joined by
-explicit success/failure edges. `condition` and `subflow` are reserved for a
-future compiler version and fail validation until their runtime semantics are
-implemented. A published workflow is a finite DAG with exactly one entry step
-and at least one reachable completion step.
+version 1 publishes typed `agent`, `wait_event`, `condition`, `subflow`, and
+`complete` steps joined by explicit success/failure edges. A condition evaluates
+an allow-listed path in the run context (trigger and verified event details).
+A subflow pins the latest published child version, creates a persisted child
+run, and resumes its parent only after that child completes. A published
+workflow is a finite DAG with exactly one entry step and at least one reachable
+completion step.
 
 ```text
 Plugin adapter -> verified IntegrationReceipt -> Loom trigger/wait matcher
@@ -64,20 +66,25 @@ authorization decisions, and audit; Hatchet supplies execution telemetry.
 
 ## Consequences and risks
 
-- Dynamic publication requires the Hatchet worker registry to add a new immutable
-  workflow version while retaining versions referenced by nonterminal runs.
+- Publication compiles and pins an immutable topology. The Hatchet adapter
+  consumes that topology on each outbox dispatch while one stable worker task
+  remains registered; Loom, not Hatchet, evaluates relationships and advances
+  the next step.
 - Loom must validate cycles, reachability, typed configuration, and tenant-scoped
   integration bindings before publication.
 - PostgreSQL and Hatchet cannot commit atomically; a transactional outbox and
   idempotent run keys provide retryable transfer while Loom remains authoritative.
-- The initial compiler may support a deliberately smaller subset than Hatchet.
+- The initial compiler intentionally keeps the condition language small and
+  treats child runs as sequential, bounded subflows; parallel fan-out remains
+  out of scope.
 
 ## Migration and rollout
 
-Add workflow tables and nullable run metadata. Existing runs remain `legacy`
-and retain `loom-dispatch-v1` until drained. New plugin UI and APIs use workflow
-trigger bindings. Remove Goal-level integration bindings only after compatibility
-traffic reaches zero.
+Add workflow tables and nullable run metadata. Migration 020 backfills missing
+legacy root Run/Session rows before compatibility dispatch. Existing runs remain
+`legacy` and retain `loom-dispatch-v1` until drained. New plugin UI and APIs use
+workflow trigger bindings. Remove Goal-level integration bindings only after
+compatibility traffic reaches zero.
 
 ## Non-goals
 

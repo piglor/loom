@@ -69,6 +69,16 @@ func GoalID(v string) predicate.Outbox {
 	return predicate.Outbox(sql.FieldEQ(FieldGoalID, v))
 }
 
+// RunID applies equality check predicate on the "run_id" field. It's identical to RunIDEQ.
+func RunID(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEQ(FieldRunID, v))
+}
+
+// StepKey applies equality check predicate on the "step_key" field. It's identical to StepKeyEQ.
+func StepKey(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEQ(FieldStepKey, v))
+}
+
 // Kind applies equality check predicate on the "kind" field. It's identical to KindEQ.
 func Kind(v string) predicate.Outbox {
 	return predicate.Outbox(sql.FieldEQ(FieldKind, v))
@@ -152,6 +162,136 @@ func GoalIDEqualFold(v string) predicate.Outbox {
 // GoalIDContainsFold applies the ContainsFold predicate on the "goal_id" field.
 func GoalIDContainsFold(v string) predicate.Outbox {
 	return predicate.Outbox(sql.FieldContainsFold(FieldGoalID, v))
+}
+
+// RunIDEQ applies the EQ predicate on the "run_id" field.
+func RunIDEQ(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEQ(FieldRunID, v))
+}
+
+// RunIDNEQ applies the NEQ predicate on the "run_id" field.
+func RunIDNEQ(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldNEQ(FieldRunID, v))
+}
+
+// RunIDIn applies the In predicate on the "run_id" field.
+func RunIDIn(vs ...string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldIn(FieldRunID, vs...))
+}
+
+// RunIDNotIn applies the NotIn predicate on the "run_id" field.
+func RunIDNotIn(vs ...string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldNotIn(FieldRunID, vs...))
+}
+
+// RunIDGT applies the GT predicate on the "run_id" field.
+func RunIDGT(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldGT(FieldRunID, v))
+}
+
+// RunIDGTE applies the GTE predicate on the "run_id" field.
+func RunIDGTE(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldGTE(FieldRunID, v))
+}
+
+// RunIDLT applies the LT predicate on the "run_id" field.
+func RunIDLT(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldLT(FieldRunID, v))
+}
+
+// RunIDLTE applies the LTE predicate on the "run_id" field.
+func RunIDLTE(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldLTE(FieldRunID, v))
+}
+
+// RunIDContains applies the Contains predicate on the "run_id" field.
+func RunIDContains(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldContains(FieldRunID, v))
+}
+
+// RunIDHasPrefix applies the HasPrefix predicate on the "run_id" field.
+func RunIDHasPrefix(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldHasPrefix(FieldRunID, v))
+}
+
+// RunIDHasSuffix applies the HasSuffix predicate on the "run_id" field.
+func RunIDHasSuffix(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldHasSuffix(FieldRunID, v))
+}
+
+// RunIDEqualFold applies the EqualFold predicate on the "run_id" field.
+func RunIDEqualFold(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEqualFold(FieldRunID, v))
+}
+
+// RunIDContainsFold applies the ContainsFold predicate on the "run_id" field.
+func RunIDContainsFold(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldContainsFold(FieldRunID, v))
+}
+
+// StepKeyEQ applies the EQ predicate on the "step_key" field.
+func StepKeyEQ(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEQ(FieldStepKey, v))
+}
+
+// StepKeyNEQ applies the NEQ predicate on the "step_key" field.
+func StepKeyNEQ(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldNEQ(FieldStepKey, v))
+}
+
+// StepKeyIn applies the In predicate on the "step_key" field.
+func StepKeyIn(vs ...string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldIn(FieldStepKey, vs...))
+}
+
+// StepKeyNotIn applies the NotIn predicate on the "step_key" field.
+func StepKeyNotIn(vs ...string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldNotIn(FieldStepKey, vs...))
+}
+
+// StepKeyGT applies the GT predicate on the "step_key" field.
+func StepKeyGT(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldGT(FieldStepKey, v))
+}
+
+// StepKeyGTE applies the GTE predicate on the "step_key" field.
+func StepKeyGTE(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldGTE(FieldStepKey, v))
+}
+
+// StepKeyLT applies the LT predicate on the "step_key" field.
+func StepKeyLT(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldLT(FieldStepKey, v))
+}
+
+// StepKeyLTE applies the LTE predicate on the "step_key" field.
+func StepKeyLTE(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldLTE(FieldStepKey, v))
+}
+
+// StepKeyContains applies the Contains predicate on the "step_key" field.
+func StepKeyContains(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldContains(FieldStepKey, v))
+}
+
+// StepKeyHasPrefix applies the HasPrefix predicate on the "step_key" field.
+func StepKeyHasPrefix(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldHasPrefix(FieldStepKey, v))
+}
+
+// StepKeyHasSuffix applies the HasSuffix predicate on the "step_key" field.
+func StepKeyHasSuffix(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldHasSuffix(FieldStepKey, v))
+}
+
+// StepKeyEqualFold applies the EqualFold predicate on the "step_key" field.
+func StepKeyEqualFold(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldEqualFold(FieldStepKey, v))
+}
+
+// StepKeyContainsFold applies the ContainsFold predicate on the "step_key" field.
+func StepKeyContainsFold(v string) predicate.Outbox {
+	return predicate.Outbox(sql.FieldContainsFold(FieldStepKey, v))
 }
 
 // KindEQ applies the EQ predicate on the "kind" field.

@@ -22,6 +22,8 @@ type Run struct {
 	GoalID string `json:"goal_id,omitempty"`
 	// Policy holds the value of the "policy" field.
 	Policy map[string]interface{} `json:"policy,omitempty"`
+	// Context holds the value of the "context" field.
+	Context map[string]interface{} `json:"context,omitempty"`
 	// WorkflowID holds the value of the "workflow_id" field.
 	WorkflowID *string `json:"workflow_id,omitempty"`
 	// WorkflowDefinitionID holds the value of the "workflow_definition_id" field.
@@ -52,7 +54,7 @@ func (*Run) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case run.FieldPolicy:
+		case run.FieldPolicy, run.FieldContext:
 			values[i] = new([]byte)
 		case run.FieldID, run.FieldGoalID, run.FieldWorkflowID, run.FieldWorkflowDefinitionID, run.FieldWorkflowVersionID, run.FieldParentRunID, run.FieldInvokingStepKey, run.FieldState, run.FieldCurrentStepKey, run.FieldOrchestrationReference:
 			values[i] = new(sql.NullString)
@@ -91,6 +93,14 @@ func (_m *Run) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Policy); err != nil {
 					return fmt.Errorf("unmarshal field policy: %w", err)
+				}
+			}
+		case run.FieldContext:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field context", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Context); err != nil {
+					return fmt.Errorf("unmarshal field context: %w", err)
 				}
 			}
 		case run.FieldWorkflowID:
@@ -208,6 +218,9 @@ func (_m *Run) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("policy=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Policy))
+	builder.WriteString(", ")
+	builder.WriteString("context=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Context))
 	builder.WriteString(", ")
 	if v := _m.WorkflowID; v != nil {
 		builder.WriteString("workflow_id=")

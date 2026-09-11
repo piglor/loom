@@ -189,6 +189,16 @@ func GoalIDContainsFold(v string) predicate.Run {
 	return predicate.Run(sql.FieldContainsFold(FieldGoalID, v))
 }
 
+// ContextIsNil applies the IsNil predicate on the "context" field.
+func ContextIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldContext))
+}
+
+// ContextNotNil applies the NotNil predicate on the "context" field.
+func ContextNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldContext))
+}
+
 // WorkflowIDEQ applies the EQ predicate on the "workflow_id" field.
 func WorkflowIDEQ(v string) predicate.Run {
 	return predicate.Run(sql.FieldEQ(FieldWorkflowID, v))

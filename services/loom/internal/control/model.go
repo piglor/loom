@@ -105,9 +105,10 @@ func (r *CreateGoal) Validate() error {
 
 type Event struct {
 	Condition
-	DeliveryID string `json:"delivery_id"`
-	GoalID     string `json:"goal_id"`
-	Generation int    `json:"generation"`
+	DeliveryID string         `json:"delivery_id"`
+	GoalID     string         `json:"goal_id"`
+	Generation int            `json:"generation"`
+	Details    map[string]any `json:"-"`
 }
 
 func (e *Event) Validate() error {

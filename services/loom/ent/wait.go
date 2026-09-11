@@ -20,6 +20,8 @@ type Wait struct {
 	ID string `json:"id,omitempty"`
 	// GoalID holds the value of the "goal_id" field.
 	GoalID string `json:"goal_id,omitempty"`
+	// RunID holds the value of the "run_id" field.
+	RunID *string `json:"run_id,omitempty"`
 	// Generation holds the value of the "generation" field.
 	Generation int `json:"generation,omitempty"`
 	// Condition holds the value of the "condition" field.
@@ -46,7 +48,7 @@ func (*Wait) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case wait.FieldGeneration:
 			values[i] = new(sql.NullInt64)
-		case wait.FieldID, wait.FieldGoalID, wait.FieldEventID, wait.FieldPreparedByAttempt:
+		case wait.FieldID, wait.FieldGoalID, wait.FieldRunID, wait.FieldEventID, wait.FieldPreparedByAttempt:
 			values[i] = new(sql.NullString)
 		case wait.FieldArmedAt, wait.FieldSatisfiedAt, wait.FieldClosedAt:
 			values[i] = new(sql.NullTime)
@@ -76,6 +78,13 @@ func (_m *Wait) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field goal_id", values[i])
 			} else if value.Valid {
 				_m.GoalID = value.String
+			}
+		case wait.FieldRunID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field run_id", values[i])
+			} else if value.Valid {
+				_m.RunID = new(string)
+				*_m.RunID = value.String
 			}
 		case wait.FieldGeneration:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -164,6 +173,11 @@ func (_m *Wait) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("goal_id=")
 	builder.WriteString(_m.GoalID)
+	builder.WriteString(", ")
+	if v := _m.RunID; v != nil {
+		builder.WriteString("run_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("generation=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Generation))

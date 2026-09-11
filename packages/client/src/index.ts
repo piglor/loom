@@ -62,6 +62,18 @@ export interface IntegrationInstance {
 }
 export type WorkflowStepType =
   "agent" | "wait_event" | "condition" | "subflow" | "complete";
+export interface WorkflowStepConfig {
+  runtime?: "demo" | "remote-demo" | "codex-container";
+  worker_id?: string;
+  integration_instance_id?: string;
+  condition?: Condition;
+  path?: string;
+  equals?: unknown;
+  not_equals?: unknown;
+  exists?: boolean;
+  workflow_definition_id?: string;
+  workflow_version_id?: string;
+}
 export interface WorkflowTrigger {
   type: "manual" | "integration_event";
   integration_instance_id?: string;
@@ -74,7 +86,7 @@ export interface WorkflowStep {
   key: string;
   name: string;
   type: WorkflowStepType;
-  config: Record<string, unknown>;
+  config: WorkflowStepConfig;
 }
 export interface WorkflowEdge {
   from: string;
@@ -156,6 +168,7 @@ export interface Goal extends GoalSummary {
     invoking_step_key: string | null;
     state: string;
     current_step_key: string | null;
+    spec?: WorkflowSpec;
   }[];
   workflow_steps?: {
     id: string;

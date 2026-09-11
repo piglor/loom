@@ -15,6 +15,8 @@ const (
 	FieldGoalID = "goal_id"
 	// FieldPolicy holds the string denoting the policy field in the database.
 	FieldPolicy = "policy"
+	// FieldContext holds the string denoting the context field in the database.
+	FieldContext = "context"
 	// FieldWorkflowID holds the string denoting the workflow_id field in the database.
 	FieldWorkflowID = "workflow_id"
 	// FieldWorkflowDefinitionID holds the string denoting the workflow_definition_id field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldID,
 	FieldGoalID,
 	FieldPolicy,
+	FieldContext,
 	FieldWorkflowID,
 	FieldWorkflowDefinitionID,
 	FieldWorkflowVersionID,

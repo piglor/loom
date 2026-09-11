@@ -13,6 +13,8 @@ const (
 	FieldID = "id"
 	// FieldGoalID holds the string denoting the goal_id field in the database.
 	FieldGoalID = "goal_id"
+	// FieldRunID holds the string denoting the run_id field in the database.
+	FieldRunID = "run_id"
 	// FieldGeneration holds the string denoting the generation field in the database.
 	FieldGeneration = "generation"
 	// FieldCondition holds the string denoting the condition field in the database.
@@ -35,6 +37,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldGoalID,
+	FieldRunID,
 	FieldGeneration,
 	FieldCondition,
 	FieldArmedAt,
@@ -72,6 +75,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByGoalID orders the results by the goal_id field.
 func ByGoalID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGoalID, opts...).ToFunc()
+}
+
+// ByRunID orders the results by the run_id field.
+func ByRunID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRunID, opts...).ToFunc()
 }
 
 // ByGeneration orders the results by the generation field.

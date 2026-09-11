@@ -29,6 +29,20 @@ func (_c *WaitCreate) SetGoalID(v string) *WaitCreate {
 	return _c
 }
 
+// SetRunID sets the "run_id" field.
+func (_c *WaitCreate) SetRunID(v string) *WaitCreate {
+	_c.mutation.SetRunID(v)
+	return _c
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_c *WaitCreate) SetNillableRunID(v *string) *WaitCreate {
+	if v != nil {
+		_c.SetRunID(*v)
+	}
+	return _c
+}
+
 // SetGeneration sets the "generation" field.
 func (_c *WaitCreate) SetGeneration(v int) *WaitCreate {
 	_c.mutation.SetGeneration(v)
@@ -229,6 +243,10 @@ func (_c *WaitCreate) createSpec() (*Wait, *sqlgraph.CreateSpec) {
 		_spec.SetField(wait.FieldGoalID, field.TypeString, value)
 		_node.GoalID = value
 	}
+	if value, ok := _c.mutation.RunID(); ok {
+		_spec.SetField(wait.FieldRunID, field.TypeString, value)
+		_node.RunID = &value
+	}
 	if value, ok := _c.mutation.Generation(); ok {
 		_spec.SetField(wait.FieldGeneration, field.TypeInt, value)
 		_node.Generation = value
@@ -318,6 +336,24 @@ func (u *WaitUpsert) SetGoalID(v string) *WaitUpsert {
 // UpdateGoalID sets the "goal_id" field to the value that was provided on create.
 func (u *WaitUpsert) UpdateGoalID() *WaitUpsert {
 	u.SetExcluded(wait.FieldGoalID)
+	return u
+}
+
+// SetRunID sets the "run_id" field.
+func (u *WaitUpsert) SetRunID(v string) *WaitUpsert {
+	u.Set(wait.FieldRunID, v)
+	return u
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *WaitUpsert) UpdateRunID() *WaitUpsert {
+	u.SetExcluded(wait.FieldRunID)
+	return u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (u *WaitUpsert) ClearRunID() *WaitUpsert {
+	u.SetNull(wait.FieldRunID)
 	return u
 }
 
@@ -500,6 +536,27 @@ func (u *WaitUpsertOne) SetGoalID(v string) *WaitUpsertOne {
 func (u *WaitUpsertOne) UpdateGoalID() *WaitUpsertOne {
 	return u.Update(func(s *WaitUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *WaitUpsertOne) SetRunID(v string) *WaitUpsertOne {
+	return u.Update(func(s *WaitUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *WaitUpsertOne) UpdateRunID() *WaitUpsertOne {
+	return u.Update(func(s *WaitUpsert) {
+		s.UpdateRunID()
+	})
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (u *WaitUpsertOne) ClearRunID() *WaitUpsertOne {
+	return u.Update(func(s *WaitUpsert) {
+		s.ClearRunID()
 	})
 }
 
@@ -869,6 +926,27 @@ func (u *WaitUpsertBulk) SetGoalID(v string) *WaitUpsertBulk {
 func (u *WaitUpsertBulk) UpdateGoalID() *WaitUpsertBulk {
 	return u.Update(func(s *WaitUpsert) {
 		s.UpdateGoalID()
+	})
+}
+
+// SetRunID sets the "run_id" field.
+func (u *WaitUpsertBulk) SetRunID(v string) *WaitUpsertBulk {
+	return u.Update(func(s *WaitUpsert) {
+		s.SetRunID(v)
+	})
+}
+
+// UpdateRunID sets the "run_id" field to the value that was provided on create.
+func (u *WaitUpsertBulk) UpdateRunID() *WaitUpsertBulk {
+	return u.Update(func(s *WaitUpsert) {
+		s.UpdateRunID()
+	})
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (u *WaitUpsertBulk) ClearRunID() *WaitUpsertBulk {
+	return u.Update(func(s *WaitUpsert) {
+		s.ClearRunID()
 	})
 }
 

@@ -42,6 +42,26 @@ func (_u *WaitHistoryUpdate) SetNillableGoalID(v *string) *WaitHistoryUpdate {
 	return _u
 }
 
+// SetRunID sets the "run_id" field.
+func (_u *WaitHistoryUpdate) SetRunID(v string) *WaitHistoryUpdate {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *WaitHistoryUpdate) SetNillableRunID(v *string) *WaitHistoryUpdate {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *WaitHistoryUpdate) ClearRunID() *WaitHistoryUpdate {
+	_u.mutation.ClearRunID()
+	return _u
+}
+
 // SetGeneration sets the "generation" field.
 func (_u *WaitHistoryUpdate) SetGeneration(v int) *WaitHistoryUpdate {
 	_u.mutation.ResetGeneration()
@@ -213,6 +233,12 @@ func (_u *WaitHistoryUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(waithistory.FieldGoalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(waithistory.FieldRunID, field.TypeString, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(waithistory.FieldRunID, field.TypeString)
+	}
 	if value, ok := _u.mutation.Generation(); ok {
 		_spec.SetField(waithistory.FieldGeneration, field.TypeInt, value)
 	}
@@ -283,6 +309,26 @@ func (_u *WaitHistoryUpdateOne) SetNillableGoalID(v *string) *WaitHistoryUpdateO
 	if v != nil {
 		_u.SetGoalID(*v)
 	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *WaitHistoryUpdateOne) SetRunID(v string) *WaitHistoryUpdateOne {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *WaitHistoryUpdateOne) SetNillableRunID(v *string) *WaitHistoryUpdateOne {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *WaitHistoryUpdateOne) ClearRunID() *WaitHistoryUpdateOne {
+	_u.mutation.ClearRunID()
 	return _u
 }
 
@@ -486,6 +532,12 @@ func (_u *WaitHistoryUpdateOne) sqlSave(ctx context.Context) (_node *WaitHistory
 	}
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(waithistory.FieldGoalID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(waithistory.FieldRunID, field.TypeString, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(waithistory.FieldRunID, field.TypeString)
 	}
 	if value, ok := _u.mutation.Generation(); ok {
 		_spec.SetField(waithistory.FieldGeneration, field.TypeInt, value)

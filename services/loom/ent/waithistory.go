@@ -20,6 +20,8 @@ type WaitHistory struct {
 	ID string `json:"id,omitempty"`
 	// GoalID holds the value of the "goal_id" field.
 	GoalID string `json:"goal_id,omitempty"`
+	// RunID holds the value of the "run_id" field.
+	RunID *string `json:"run_id,omitempty"`
 	// Generation holds the value of the "generation" field.
 	Generation int `json:"generation,omitempty"`
 	// Condition holds the value of the "condition" field.
@@ -46,7 +48,7 @@ func (*WaitHistory) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case waithistory.FieldGeneration:
 			values[i] = new(sql.NullInt64)
-		case waithistory.FieldID, waithistory.FieldGoalID, waithistory.FieldEventID, waithistory.FieldPreparedByAttempt:
+		case waithistory.FieldID, waithistory.FieldGoalID, waithistory.FieldRunID, waithistory.FieldEventID, waithistory.FieldPreparedByAttempt:
 			values[i] = new(sql.NullString)
 		case waithistory.FieldArmedAt, waithistory.FieldSatisfiedAt, waithistory.FieldClosedAt:
 			values[i] = new(sql.NullTime)
@@ -76,6 +78,13 @@ func (_m *WaitHistory) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field goal_id", values[i])
 			} else if value.Valid {
 				_m.GoalID = value.String
+			}
+		case waithistory.FieldRunID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field run_id", values[i])
+			} else if value.Valid {
+				_m.RunID = new(string)
+				*_m.RunID = value.String
 			}
 		case waithistory.FieldGeneration:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -164,6 +173,11 @@ func (_m *WaitHistory) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("goal_id=")
 	builder.WriteString(_m.GoalID)
+	builder.WriteString(", ")
+	if v := _m.RunID; v != nil {
+		builder.WriteString("run_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("generation=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Generation))

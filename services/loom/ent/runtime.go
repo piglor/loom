@@ -93,8 +93,12 @@ func init() {
 	integrationsetupsession.DefaultID = integrationsetupsessionDescID.Default.(func() string)
 	outboxFields := schema.Outbox{}.Fields()
 	_ = outboxFields
+	// outboxDescStepKey is the schema descriptor for step_key field.
+	outboxDescStepKey := outboxFields[3].Descriptor()
+	// outbox.DefaultStepKey holds the default value on creation for the step_key field.
+	outbox.DefaultStepKey = outboxDescStepKey.Default.(string)
 	// outboxDescFailures is the schema descriptor for failures field.
-	outboxDescFailures := outboxFields[5].Descriptor()
+	outboxDescFailures := outboxFields[7].Descriptor()
 	// outbox.DefaultFailures holds the default value on creation for the failures field.
 	outbox.DefaultFailures = outboxDescFailures.Default.(int)
 	// outboxDescID is the schema descriptor for id field.
@@ -104,7 +108,7 @@ func init() {
 	runFields := schema.Run{}.Fields()
 	_ = runFields
 	// runDescState is the schema descriptor for state field.
-	runDescState := runFields[8].Descriptor()
+	runDescState := runFields[9].Descriptor()
 	// run.DefaultState holds the default value on creation for the state field.
 	run.DefaultState = runDescState.Default.(string)
 	// runDescID is the schema descriptor for id field.
@@ -120,7 +124,7 @@ func init() {
 	waitFields := schema.Wait{}.Fields()
 	_ = waitFields
 	// waitDescGeneration is the schema descriptor for generation field.
-	waitDescGeneration := waitFields[2].Descriptor()
+	waitDescGeneration := waitFields[3].Descriptor()
 	// wait.DefaultGeneration holds the default value on creation for the generation field.
 	wait.DefaultGeneration = waitDescGeneration.Default.(int)
 	// waitDescID is the schema descriptor for id field.

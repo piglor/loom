@@ -87,6 +87,10 @@ func TestOutboxBatchFiltersIneligibleWakeRowsBeforeLimit(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err = store.tx(ctx, func(tx *transaction) error {
+			runRow, err := runRow(ctx, tx, id)
+			if err != nil {
+				return err
+			}
 			if _, err := tx.client.Outbox.Delete().Where(func(s *entsql.Selector) {
 				s.Where(entsql.EQ(s.C("goal_id"), id))
 			}).Exec(ctx); err != nil {
@@ -95,7 +99,7 @@ func TestOutboxBatchFiltersIneligibleWakeRowsBeforeLimit(t *testing.T) {
 			if err := tx.client.Goal.UpdateOneID(id).SetState("WAITING").Exec(ctx); err != nil {
 				return err
 			}
-			return tx.client.Outbox.Create().SetGoalID(id).SetKind("wake").SetAvailableAt(tx.now.Add(-time.Hour)).SetDeliveredAt(tx.now).Exec(ctx)
+			return tx.client.Outbox.Create().SetGoalID(id).SetRunID(runRow.ID).SetKind("wake").SetAvailableAt(tx.now.Add(-time.Hour)).SetDeliveredAt(tx.now).Exec(ctx)
 		}); err != nil {
 			t.Fatal(err)
 		}

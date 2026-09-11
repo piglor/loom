@@ -42,6 +42,26 @@ func (_u *WaitUpdate) SetNillableGoalID(v *string) *WaitUpdate {
 	return _u
 }
 
+// SetRunID sets the "run_id" field.
+func (_u *WaitUpdate) SetRunID(v string) *WaitUpdate {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *WaitUpdate) SetNillableRunID(v *string) *WaitUpdate {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *WaitUpdate) ClearRunID() *WaitUpdate {
+	_u.mutation.ClearRunID()
+	return _u
+}
+
 // SetGeneration sets the "generation" field.
 func (_u *WaitUpdate) SetGeneration(v int) *WaitUpdate {
 	_u.mutation.ResetGeneration()
@@ -213,6 +233,12 @@ func (_u *WaitUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(wait.FieldGoalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(wait.FieldRunID, field.TypeString, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(wait.FieldRunID, field.TypeString)
+	}
 	if value, ok := _u.mutation.Generation(); ok {
 		_spec.SetField(wait.FieldGeneration, field.TypeInt, value)
 	}
@@ -283,6 +309,26 @@ func (_u *WaitUpdateOne) SetNillableGoalID(v *string) *WaitUpdateOne {
 	if v != nil {
 		_u.SetGoalID(*v)
 	}
+	return _u
+}
+
+// SetRunID sets the "run_id" field.
+func (_u *WaitUpdateOne) SetRunID(v string) *WaitUpdateOne {
+	_u.mutation.SetRunID(v)
+	return _u
+}
+
+// SetNillableRunID sets the "run_id" field if the given value is not nil.
+func (_u *WaitUpdateOne) SetNillableRunID(v *string) *WaitUpdateOne {
+	if v != nil {
+		_u.SetRunID(*v)
+	}
+	return _u
+}
+
+// ClearRunID clears the value of the "run_id" field.
+func (_u *WaitUpdateOne) ClearRunID() *WaitUpdateOne {
+	_u.mutation.ClearRunID()
 	return _u
 }
 
@@ -486,6 +532,12 @@ func (_u *WaitUpdateOne) sqlSave(ctx context.Context) (_node *Wait, err error) {
 	}
 	if value, ok := _u.mutation.GoalID(); ok {
 		_spec.SetField(wait.FieldGoalID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RunID(); ok {
+		_spec.SetField(wait.FieldRunID, field.TypeString, value)
+	}
+	if _u.mutation.RunIDCleared() {
+		_spec.ClearField(wait.FieldRunID, field.TypeString)
 	}
 	if value, ok := _u.mutation.Generation(); ok {
 		_spec.SetField(wait.FieldGeneration, field.TypeInt, value)

@@ -48,6 +48,18 @@ func (_u *RunUpdate) SetPolicy(v map[string]interface{}) *RunUpdate {
 	return _u
 }
 
+// SetContext sets the "context" field.
+func (_u *RunUpdate) SetContext(v map[string]interface{}) *RunUpdate {
+	_u.mutation.SetContext(v)
+	return _u
+}
+
+// ClearContext clears the value of the "context" field.
+func (_u *RunUpdate) ClearContext() *RunUpdate {
+	_u.mutation.ClearContext()
+	return _u
+}
+
 // SetWorkflowID sets the "workflow_id" field.
 func (_u *RunUpdate) SetWorkflowID(v string) *RunUpdate {
 	_u.mutation.SetWorkflowID(v)
@@ -309,6 +321,12 @@ func (_u *RunUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Policy(); ok {
 		_spec.SetField(run.FieldPolicy, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.Context(); ok {
+		_spec.SetField(run.FieldContext, field.TypeJSON, value)
+	}
+	if _u.mutation.ContextCleared() {
+		_spec.ClearField(run.FieldContext, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.WorkflowID(); ok {
 		_spec.SetField(run.FieldWorkflowID, field.TypeString, value)
 	}
@@ -409,6 +427,18 @@ func (_u *RunUpdateOne) SetNillableGoalID(v *string) *RunUpdateOne {
 // SetPolicy sets the "policy" field.
 func (_u *RunUpdateOne) SetPolicy(v map[string]interface{}) *RunUpdateOne {
 	_u.mutation.SetPolicy(v)
+	return _u
+}
+
+// SetContext sets the "context" field.
+func (_u *RunUpdateOne) SetContext(v map[string]interface{}) *RunUpdateOne {
+	_u.mutation.SetContext(v)
+	return _u
+}
+
+// ClearContext clears the value of the "context" field.
+func (_u *RunUpdateOne) ClearContext() *RunUpdateOne {
+	_u.mutation.ClearContext()
 	return _u
 }
 
@@ -702,6 +732,12 @@ func (_u *RunUpdateOne) sqlSave(ctx context.Context) (_node *Run, err error) {
 	}
 	if value, ok := _u.mutation.Policy(); ok {
 		_spec.SetField(run.FieldPolicy, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.Context(); ok {
+		_spec.SetField(run.FieldContext, field.TypeJSON, value)
+	}
+	if _u.mutation.ContextCleared() {
+		_spec.ClearField(run.FieldContext, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.WorkflowID(); ok {
 		_spec.SetField(run.FieldWorkflowID, field.TypeString, value)

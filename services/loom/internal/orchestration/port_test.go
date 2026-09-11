@@ -25,3 +25,19 @@ func TestCompileTopologyPreservesLoomRelationships(t *testing.T) {
 		t.Fatalf("relationship lost: %#v", topology)
 	}
 }
+
+func TestValidateDispatchTopologyRequiresPinnedAgentNode(t *testing.T) {
+	topology := WorkflowTopology{
+		VersionID: "version",
+		Nodes:     []TopologyNode{{Key: "agent", Type: "agent"}, {Key: "done", Type: "complete"}},
+	}
+	if err := ValidateDispatchTopology(topology, "version", "agent"); err != nil {
+		t.Fatalf("expected agent node to be dispatchable: %v", err)
+	}
+	if err := ValidateDispatchTopology(topology, "other", "agent"); err == nil {
+		t.Fatal("expected version mismatch to be rejected")
+	}
+	if err := ValidateDispatchTopology(topology, "version", "done"); err == nil {
+		t.Fatal("expected non-agent node to be rejected")
+	}
+}

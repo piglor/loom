@@ -63,7 +63,15 @@ func Run(ctx context.Context, store *control.Store) error {
 		if !control.ValidID(input.GoalID) || !control.ValidID(input.RunID) || !control.ValidID(input.IntentID) {
 			return DispatchOutput{}, errors.New("invalid Loom dispatch identity")
 		}
-		if err := store.Dispatch(taskContext, input.GoalID); err != nil {
+		if input.WorkflowVersionID != "" {
+			if input.Topology == nil {
+				return DispatchOutput{}, errors.New("missing Loom workflow topology")
+			}
+			if err := ValidateDispatchTopology(*input.Topology, input.WorkflowVersionID, input.StepKey); err != nil {
+				return DispatchOutput{}, err
+			}
+		}
+		if err := store.DispatchRun(taskContext, input.GoalID, input.RunID); err != nil {
 			return DispatchOutput{}, err
 		}
 		return DispatchOutput{GoalID: input.GoalID}, nil

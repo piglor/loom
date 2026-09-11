@@ -19,6 +19,8 @@ type Attempt struct {
 	ID string `json:"id,omitempty"`
 	// GoalID holds the value of the "goal_id" field.
 	GoalID string `json:"goal_id,omitempty"`
+	// RunID holds the value of the "run_id" field.
+	RunID string `json:"run_id,omitempty"`
 	// SessionID holds the value of the "session_id" field.
 	SessionID string `json:"session_id,omitempty"`
 	// WorkerID holds the value of the "worker_id" field.
@@ -47,7 +49,7 @@ func (*Attempt) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case attempt.FieldPhase:
 			values[i] = new(sql.NullInt64)
-		case attempt.FieldID, attempt.FieldGoalID, attempt.FieldSessionID, attempt.FieldWorkerID, attempt.FieldState, attempt.FieldOutcome:
+		case attempt.FieldID, attempt.FieldGoalID, attempt.FieldRunID, attempt.FieldSessionID, attempt.FieldWorkerID, attempt.FieldState, attempt.FieldOutcome:
 			values[i] = new(sql.NullString)
 		case attempt.FieldStartedAt, attempt.FieldStoppedAt:
 			values[i] = new(sql.NullTime)
@@ -77,6 +79,12 @@ func (_m *Attempt) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field goal_id", values[i])
 			} else if value.Valid {
 				_m.GoalID = value.String
+			}
+		case attempt.FieldRunID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field run_id", values[i])
+			} else if value.Valid {
+				_m.RunID = value.String
 			}
 		case attempt.FieldSessionID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -167,6 +175,9 @@ func (_m *Attempt) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("goal_id=")
 	builder.WriteString(_m.GoalID)
+	builder.WriteString(", ")
+	builder.WriteString("run_id=")
+	builder.WriteString(_m.RunID)
 	builder.WriteString(", ")
 	builder.WriteString("session_id=")
 	builder.WriteString(_m.SessionID)

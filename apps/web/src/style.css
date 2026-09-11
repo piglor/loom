@@ -1257,6 +1257,28 @@ summary {
   flex-wrap: wrap;
   gap: 9px;
 }
+.relationship-editor {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+  padding: 16px;
+  border: 1px solid #29435f;
+  border-radius: 11px;
+  background: #0a1525;
+}
+.relationship-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(180px, 1fr) minmax(
+      180px,
+      1fr
+    );
+  gap: 10px;
+  align-items: end;
+}
+.relationship-row > strong {
+  align-self: center;
+  color: #d8eaff;
+}
 .relationship-panel {
   position: sticky;
   top: 24px;
@@ -1274,6 +1296,14 @@ summary {
   color: #5f8db8;
   font-style: normal;
   transform: rotate(90deg);
+}
+.relationship-links {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 0 12px 42px;
+  color: #8eb7df;
+  font-size: 12px;
 }
 .relationship-node {
   width: 100%;
@@ -1310,6 +1340,22 @@ summary {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   align-items: center;
   gap: 8px;
+}
+.workflow-run-progress {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #29435f;
+  border-radius: 10px;
+  background: #0a1525;
+}
+.workflow-run-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #b7d5f5;
+  font-size: 12px;
 }
 .workflow-progress .relationship-item {
   grid-template-columns: 1fr auto;
@@ -1521,6 +1567,9 @@ summary {
   .step-editor li > button {
     grid-column: 2;
     justify-self: start;
+  }
+  .relationship-row {
+    grid-template-columns: 1fr;
   }
   .setup-card {
     min-height: 235px;

@@ -19,6 +19,10 @@ type Outbox struct {
 	ID string `json:"id,omitempty"`
 	// GoalID holds the value of the "goal_id" field.
 	GoalID string `json:"goal_id,omitempty"`
+	// RunID holds the value of the "run_id" field.
+	RunID string `json:"run_id,omitempty"`
+	// StepKey holds the value of the "step_key" field.
+	StepKey string `json:"step_key,omitempty"`
 	// Kind holds the value of the "kind" field.
 	Kind string `json:"kind,omitempty"`
 	// AvailableAt holds the value of the "available_at" field.
@@ -37,7 +41,7 @@ func (*Outbox) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case outbox.FieldFailures:
 			values[i] = new(sql.NullInt64)
-		case outbox.FieldID, outbox.FieldGoalID, outbox.FieldKind:
+		case outbox.FieldID, outbox.FieldGoalID, outbox.FieldRunID, outbox.FieldStepKey, outbox.FieldKind:
 			values[i] = new(sql.NullString)
 		case outbox.FieldAvailableAt, outbox.FieldDeliveredAt:
 			values[i] = new(sql.NullTime)
@@ -67,6 +71,18 @@ func (_m *Outbox) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field goal_id", values[i])
 			} else if value.Valid {
 				_m.GoalID = value.String
+			}
+		case outbox.FieldRunID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field run_id", values[i])
+			} else if value.Valid {
+				_m.RunID = value.String
+			}
+		case outbox.FieldStepKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field step_key", values[i])
+			} else if value.Valid {
+				_m.StepKey = value.String
 			}
 		case outbox.FieldKind:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -131,6 +147,12 @@ func (_m *Outbox) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("goal_id=")
 	builder.WriteString(_m.GoalID)
+	builder.WriteString(", ")
+	builder.WriteString("run_id=")
+	builder.WriteString(_m.RunID)
+	builder.WriteString(", ")
+	builder.WriteString("step_key=")
+	builder.WriteString(_m.StepKey)
 	builder.WriteString(", ")
 	builder.WriteString("kind=")
 	builder.WriteString(_m.Kind)

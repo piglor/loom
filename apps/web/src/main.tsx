@@ -606,40 +606,95 @@ function GoalDetail({
       </p>
       {goal.run.workflow_version_id && (
         <section className="panel workflow-progress">
-          <div className="section-heading">
-            <div>
-              <p className="step-kicker">LOOM WORKFLOW</p>
-              <h2>Current workflow relationship</h2>
-            </div>
-            <span className="muted">
-              {
-                (goal.workflow_steps ?? []).filter(
-                  (step) => step.state === "succeeded",
-                ).length
-              }
-              /{(goal.workflow_steps ?? []).length} steps complete
-            </span>
-          </div>
-          <div className="relationship-map" aria-label="Workflow progress">
-            {(goal.workflow_steps ?? []).map((step, index, steps) => (
-              <div className="relationship-item" key={step.id}>
-                <div
-                  className={`relationship-node node-${step.step_type} progress-${step.state}`}
-                >
-                  <span>{index + 1}</span>
+          {(() => {
+            const workflowSteps = goal.workflow_steps ?? [];
+            const activeSteps = workflowSteps.filter(
+              (step) => step.state !== "pending",
+            );
+            const completedSteps = activeSteps.filter(
+              (step) => step.state === "succeeded",
+            );
+            return (
+              <>
+                <div className="section-heading">
                   <div>
-                    <small>{step.state}</small>
-                    <strong>{step.step_key.replaceAll("_", " ")}</strong>
+                    <p className="step-kicker">LOOM WORKFLOW</p>
+                    <h2>Current workflow relationship</h2>
                   </div>
+                  <span className="muted">
+                    {activeSteps.length === 0
+                      ? "Ready to start"
+                      : `${completedSteps.length}/${activeSteps.length} active steps complete`}
+                  </span>
                 </div>
-                {index < steps.length - 1 && <i aria-hidden="true">→</i>}
-              </div>
-            ))}
-          </div>
-          <p className="muted">
-            Loom owns this relationship map. Scheduler references remain an
-            implementation detail.
-          </p>
+                <div
+                  className="relationship-map"
+                  aria-label="Workflow progress"
+                >
+                  {(goal.workflow_runs ?? []).map((run) => {
+                    const steps = (goal.workflow_steps ?? []).filter(
+                      (step) => step.run_id === run.id,
+                    );
+                    const names = new Map(
+                      (run.spec?.steps ?? []).map((step) => [
+                        step.key,
+                        step.name,
+                      ]),
+                    );
+                    const edges = run.spec?.edges ?? [];
+                    return (
+                      <div className="workflow-run-progress" key={run.id}>
+                        <div className="workflow-run-label">
+                          <strong>
+                            {run.parent_run_id ? "Child run" : "Root run"}
+                          </strong>
+                          <span className="muted">
+                            {run.current_step_key?.replaceAll("_", " ") ??
+                              "starting"}{" "}
+                            · {run.state}
+                          </span>
+                        </div>
+                        {steps.map((step, index) => (
+                          <div className="relationship-item" key={step.id}>
+                            <div
+                              className={`relationship-node node-${step.step_type} progress-${step.state}`}
+                            >
+                              <span>{index + 1}</span>
+                              <div>
+                                <small>{step.state}</small>
+                                <strong>
+                                  {step.step_key.replaceAll("_", " ")}
+                                </strong>
+                              </div>
+                            </div>
+                            {edges.filter((edge) => edge.from === step.step_key)
+                              .length > 0 && (
+                              <div className="relationship-links">
+                                {edges
+                                  .filter((edge) => edge.from === step.step_key)
+                                  .map((edge) => (
+                                    <span
+                                      key={`${run.id}-${edge.from}-${edge.outcome}`}
+                                    >
+                                      {edge.outcome} →{" "}
+                                      {names.get(edge.to) ?? edge.to}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="muted">
+                  Loom owns this relationship map. Scheduler references remain
+                  an implementation detail.
+                </p>
+              </>
+            );
+          })()}
         </section>
       )}
       <div className="detail-grid">

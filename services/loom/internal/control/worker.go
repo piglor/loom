@@ -18,6 +18,7 @@ import (
 	"github.com/piglor/loom/services/loom/ent/session"
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/worker"
+	"github.com/piglor/loom/services/loom/ent/workflowsteprun"
 )
 
 func (s *Store) Enroll(ctx context.Context, r Enrollment) (map[string]any, error) {
@@ -97,6 +98,12 @@ func (s *Store) goalRow(ctx context.Context, t *transaction, id string) (*ent.Go
 func runRow(ctx context.Context, t *transaction, id string) (*ent.Run, error) {
 	return t.client.Run.Query().Where(run.GoalIDEQ(id), run.ParentRunIDIsNil()).Only(ctx)
 }
+func runForWait(ctx context.Context, t *transaction, w *ent.Wait) (*ent.Run, error) {
+	if w.RunID != nil {
+		return t.client.Run.Get(ctx, *w.RunID)
+	}
+	return runRow(ctx, t, w.GoalID)
+}
 func waitRow(ctx context.Context, t *transaction, id string) (*ent.Wait, error) {
 	return t.client.Wait.Query().Where(wait.GoalIDEQ(id)).Only(ctx)
 }
@@ -110,67 +117,104 @@ func policy(r *ent.Run) Policy {
 	return p
 }
 
+func workflowAttemptBudget(ctx context.Context, t *transaction, g *ent.Goal, r *ent.Run, p Policy) (used, phase int, err error) {
+	if p.Lifecycle != "workflow-v1" {
+		return g.Phase, g.Phase, nil
+	}
+	used, err = t.client.Attempt.Query().Where(attempt.RunIDEQ(r.ID)).Count(ctx)
+	return used, used, err
+}
+
 // Dispatch admits at most one queued attempt under the Goal lock. An offline
 // bound worker leaves a durable command; it is never moved to another machine.
 func (s *Store) Dispatch(ctx context.Context, id string) error {
 	return s.tx(ctx, func(t *transaction) error {
-		g, err := s.goalRow(ctx, t, id)
-		if err != nil {
-			return err
-		}
-		if g.State != "READY" {
-			return nil
-		}
 		r, err := runRow(ctx, t, id)
 		if err != nil {
 			return err
 		}
-		p := policy(r)
-		se, err := t.client.Session.Query().Where(session.RunIDEQ(r.ID)).Only(ctx)
-		if err != nil {
-			return err
-		}
-		if se.Runtime == "demo" {
-			return s.dispatchDemo(ctx, t, g, r, se)
-		}
-		if se.Runtime != "remote-demo" && se.Runtime != "codex-container" {
-			return conflict("Native dispatcher requires an outbound runtime")
-		}
-		w, err := waitRow(ctx, t, id)
-		if err != nil {
-			return err
-		}
-		if g.Phase > 0 && w.SatisfiedAt == nil {
-			return nil
-		}
-		if g.Phase >= p.MaxAttempts {
-			if err = t.client.Wait.UpdateOneID(w.ID).SetClosedAt(t.now).Exec(ctx); err != nil {
-				return err
-			}
-			if err = transition(ctx, t, id, "BLOCKED"); err != nil {
-				return err
-			}
-			return audit(ctx, t, id, "attempt_budget_exhausted", nil)
-		}
-		exists, err := t.client.Attempt.Query().Where(attempt.GoalIDEQ(id), attempt.PhaseEQ(g.Phase)).Exist(ctx)
-		if err != nil || exists {
-			return err
-		}
-		a, err := t.client.Attempt.Create().SetGoalID(id).SetSessionID(se.ID).SetWorkerID(se.WorkerID).SetPhase(g.Phase).SetState("QUEUED").SetStartedAt(t.now).Save(ctx)
-		if err != nil {
-			return err
-		}
-		if err = t.client.Command.Create().SetGoalID(id).SetAttemptID(a.ID).SetWorkerID(se.WorkerID).SetState("QUEUED").SetCreatedAt(t.now).Exec(ctx); err != nil {
-			return err
-		}
-		if err = transition(ctx, t, id, "WAITING"); err != nil {
-			return err
-		}
-		if err = t.client.Goal.UpdateOneID(id).SetWaitingReason("worker").Exec(ctx); err != nil {
-			return err
-		}
-		return audit(ctx, t, id, "command_queued", map[string]any{"worker_id": se.WorkerID})
+		return s.dispatchRun(ctx, t, id, r)
 	})
+}
+
+// DispatchRun admits a durable intent for a particular workflow run. The
+// root-only Dispatch wrapper remains for legacy callers; child workflow
+// intents must never be redirected to the root run.
+func (s *Store) DispatchRun(ctx context.Context, goalID, runID string) error {
+	if !ValidID(goalID) || !ValidID(runID) {
+		return invalid("Invalid dispatch identity")
+	}
+	return s.tx(ctx, func(t *transaction) error {
+		r, err := t.client.Run.Query().Where(run.IDEQ(runID), run.GoalIDEQ(goalID)).Only(ctx)
+		if err != nil {
+			return err
+		}
+		return s.dispatchRun(ctx, t, goalID, r)
+	})
+}
+
+func (s *Store) dispatchRun(ctx context.Context, t *transaction, id string, r *ent.Run) error {
+	g, err := s.goalRow(ctx, t, id)
+	if err != nil {
+		return err
+	}
+	if g.State != "READY" {
+		return nil
+	}
+	p := policy(r)
+	se, err := t.client.Session.Query().Where(session.RunIDEQ(r.ID)).Only(ctx)
+	if err != nil {
+		return err
+	}
+	if se.Runtime == "demo" {
+		return s.dispatchDemo(ctx, t, g, r, se)
+	}
+	if se.Runtime != "remote-demo" && se.Runtime != "codex-container" {
+		return conflict("Native dispatcher requires an outbound runtime")
+	}
+	used, phase, err := workflowAttemptBudget(ctx, t, g, r, p)
+	if err != nil {
+		return err
+	}
+	w, err := waitRow(ctx, t, id)
+	if err != nil {
+		return err
+	}
+	if p.Lifecycle != "workflow-v1" && g.Phase > 0 && w.SatisfiedAt == nil {
+		return nil
+	}
+	if used >= p.MaxAttempts {
+		if err = t.client.Wait.UpdateOneID(w.ID).SetClosedAt(t.now).Exec(ctx); err != nil {
+			return err
+		}
+		if err = transition(ctx, t, id, "BLOCKED"); err != nil {
+			return err
+		}
+		return audit(ctx, t, id, "attempt_budget_exhausted", nil)
+	}
+	exists, err := t.client.Attempt.Query().Where(attempt.RunIDEQ(r.ID), attempt.PhaseEQ(phase)).Exist(ctx)
+	if err != nil || exists {
+		return err
+	}
+	a, err := t.client.Attempt.Create().SetGoalID(id).SetRunID(r.ID).SetSessionID(se.ID).SetWorkerID(se.WorkerID).SetPhase(phase).SetState("QUEUED").SetStartedAt(t.now).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if err = t.client.Command.Create().SetGoalID(id).SetAttemptID(a.ID).SetWorkerID(se.WorkerID).SetState("QUEUED").SetCreatedAt(t.now).Exec(ctx); err != nil {
+		return err
+	}
+	if err = transition(ctx, t, id, "WAITING"); err != nil {
+		return err
+	}
+	if err = t.client.Goal.UpdateOneID(id).SetWaitingReason("worker").Exec(ctx); err != nil {
+		return err
+	}
+	if p.Lifecycle == "workflow-v1" && r.CurrentStepKey != nil {
+		if err = t.client.WorkflowStepRun.Update().Where(workflowsteprun.RunIDEQ(r.ID), workflowsteprun.StepKeyEQ(*r.CurrentStepKey), workflowsteprun.StateEQ("pending")).SetState("running").SetStartedAt(t.now).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return audit(ctx, t, id, "command_queued", map[string]any{"worker_id": se.WorkerID})
 }
 
 // dispatchDemo is a finite, in-process acceptance runtime. It never invokes a
@@ -178,14 +222,18 @@ func (s *Store) Dispatch(ctx context.Context, id string) error {
 // preserves legacy/demo Goals while the production runtimes use outbound Agents.
 func (s *Store) dispatchDemo(ctx context.Context, t *transaction, g *ent.Goal, r *ent.Run, se *ent.Session) error {
 	p := policy(r)
+	used, phase, err := workflowAttemptBudget(ctx, t, g, r, p)
+	if err != nil {
+		return err
+	}
 	w, err := waitRow(ctx, t, g.ID)
 	if err != nil {
 		return err
 	}
-	if g.Phase > 0 && w.SatisfiedAt == nil {
+	if p.Lifecycle != "workflow-v1" && g.Phase > 0 && w.SatisfiedAt == nil {
 		return nil
 	}
-	if g.Phase >= p.MaxAttempts {
+	if used >= p.MaxAttempts {
 		if err = t.client.Wait.UpdateOneID(w.ID).SetClosedAt(t.now).Exec(ctx); err != nil {
 			return err
 		}
@@ -194,7 +242,7 @@ func (s *Store) dispatchDemo(ctx context.Context, t *transaction, g *ent.Goal, r
 		}
 		return audit(ctx, t, g.ID, "attempt_budget_exhausted", nil)
 	}
-	exists, err := t.client.Attempt.Query().Where(attempt.GoalIDEQ(g.ID), attempt.PhaseEQ(g.Phase)).Exist(ctx)
+	exists, err := t.client.Attempt.Query().Where(attempt.RunIDEQ(r.ID), attempt.PhaseEQ(phase)).Exist(ctx)
 	if err != nil || exists {
 		return err
 	}
@@ -205,7 +253,7 @@ func (s *Store) dispatchDemo(ctx context.Context, t *transaction, g *ent.Goal, r
 			outcome = "complete"
 		}
 	}
-	a, err := t.client.Attempt.Create().SetGoalID(g.ID).SetSessionID(se.ID).SetWorkerID(se.WorkerID).SetPhase(g.Phase).SetState("STOPPED").SetStartedAt(t.now).SetStoppedAt(t.now).SetDurationMs(0).SetOutcome(outcome).Save(ctx)
+	a, err := t.client.Attempt.Create().SetGoalID(g.ID).SetRunID(r.ID).SetSessionID(se.ID).SetWorkerID(se.WorkerID).SetPhase(phase).SetState("STOPPED").SetStartedAt(t.now).SetStoppedAt(t.now).SetDurationMs(0).SetOutcome(outcome).Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -300,7 +348,7 @@ func (s *Store) admission(ctx context.Context, t *transaction, token, id string,
 	if err != nil {
 		return nil, err
 	}
-	run, err := runRow(ctx, t, g.ID)
+	run, err := t.client.Run.Get(ctx, se.RunID)
 	if err != nil {
 		return nil, err
 	}
@@ -444,7 +492,7 @@ func (s *Store) Prepare(ctx context.Context, token, id string, r PrepareWait) (m
 			if w.Generation != r.Generation || w.ClosedAt == nil || a.attempt.Phase == 0 {
 				return conflict("Wait not ready for replacement")
 			}
-			if err = t.client.WaitHistory.Create().SetID(w.ID).SetGoalID(w.GoalID).SetGeneration(w.Generation).SetCondition(w.Condition).SetNillableArmedAt(w.ArmedAt).SetNillableSatisfiedAt(w.SatisfiedAt).SetNillableEventID(w.EventID).SetNillableClosedAt(w.ClosedAt).SetNillablePreparedByAttempt(w.PreparedByAttempt).Exec(ctx); err != nil {
+			if err = t.client.WaitHistory.Create().SetID(ID()).SetGoalID(w.GoalID).SetNillableRunID(&a.session.RunID).SetGeneration(w.Generation).SetCondition(w.Condition).SetNillableArmedAt(w.ArmedAt).SetNillableSatisfiedAt(w.SatisfiedAt).SetNillableEventID(w.EventID).SetNillableClosedAt(w.ClosedAt).SetNillablePreparedByAttempt(w.PreparedByAttempt).Exec(ctx); err != nil {
 				return err
 			}
 			if err = t.client.Wait.DeleteOneID(w.ID).Exec(ctx); err != nil {
@@ -533,7 +581,7 @@ func (s *Store) Report(ctx context.Context, token, id string, r Stop) (map[strin
 			return err
 		}
 		if workflowRun {
-			workflow, runErr := runRow(ctx, t, a.goal.ID)
+			workflow, runErr := t.client.Run.Get(ctx, a.session.RunID)
 			if runErr != nil {
 				return runErr
 			}
