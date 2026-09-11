@@ -103,9 +103,6 @@ func NewOpenBao(config OpenBaoConfig) (*OpenBao, error) {
 	if !referencePattern.MatchString(mount) || strings.Contains(mount, "/") {
 		return nil, errors.New("invalid OpenBao mount")
 	}
-	if config.Token == "" && (config.RoleID == "" || config.SecretID == "") {
-		return nil, errors.New("OpenBao AppRole credentials are required")
-	}
 	base.Path = strings.TrimSuffix(base.Path, "/")
 	return &OpenBao{base: base, mount: mount, roleID: config.RoleID, secretID: config.SecretID, static: config.Token, client: &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
@@ -120,6 +117,12 @@ func (o *OpenBao) endpoint(parts ...string) string {
 
 func (o *OpenBao) Status(ctx context.Context) Status {
 	if !o.configured() {
+		return StatusUnconfigured
+	}
+	// The bundled OpenBao starts before an operator has entered its AppRole
+	// credentials. Keep the process healthy and let the plugin store explain
+	// the missing setup instead of failing the whole server at startup.
+	if o.static == "" && (o.roleID == "" || o.secretID == "") {
 		return StatusUnconfigured
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.endpoint("sys", "health"), nil)
@@ -147,6 +150,9 @@ func (o *OpenBao) authenticate(ctx context.Context, force bool) (string, error) 
 	}
 	if o.static != "" {
 		return o.static, nil
+	}
+	if o.roleID == "" || o.secretID == "" {
+		return "", ErrNotConfigured
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()

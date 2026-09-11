@@ -3,6 +3,7 @@ package secrets
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,6 +65,20 @@ func TestOpenBaoConfigurationAndFailures(t *testing.T) {
 	}
 	if _, err = NewOpenBao(OpenBaoConfig{Address: "https://user:pass@example.com", Token: "token"}); err == nil {
 		t.Fatal("accepted embedded credentials")
+	}
+	configuredWithoutCredentials := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer configuredWithoutCredentials.Close()
+	configuredStore, err := NewOpenBao(OpenBaoConfig{Address: configuredWithoutCredentials.URL})
+	if err != nil {
+		t.Fatalf("expected missing AppRole credentials to remain actionable: %v", err)
+	}
+	if status := configuredStore.Status(context.Background()); status != StatusUnconfigured {
+		t.Fatalf("expected missing AppRole credentials to remain actionable: status=%s", status)
+	}
+	if _, err = configuredStore.Put(context.Background(), "organizations/test/plugins/github/credentials/id", map[string]string{"key": "value"}); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("expected Put without credentials to be rejected as unconfigured, got %v", err)
 	}
 	sealed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }))
 	defer sealed.Close()
