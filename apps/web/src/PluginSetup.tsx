@@ -248,11 +248,11 @@ export function PluginSetup({
             <div className="configuration-block">
               <div className="configuration-title">
                 <span className="configuration-icon">!</span>
-                <strong>
+                <h3>
                   {storageNeedsCredentials
                     ? "Finish secure storage setup"
                     : "OpenBao needs attention first"}
-                </strong>
+                </h3>
               </div>
               {storageNeedsCredentials ? (
                 <>
