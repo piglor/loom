@@ -131,6 +131,10 @@ services:
 
   loom-server:
     <<: *loom
+    # The OpenBao image owns the credentials volume as UID 100/GID 1000. Keep
+    # Loom's application UID while joining that group for least-privilege
+    # read-only access to the generated AppRole files.
+    user: "65532:1000"
     command: [serve]
     environment:
       <<: *environment

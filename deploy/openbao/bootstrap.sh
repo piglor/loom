@@ -22,6 +22,10 @@ ROLE="${LOOM_OPENBAO_ROLE:-loom}"
 
 mkdir -p "$STATE_DIR" "$CREDENTIALS_DIR"
 chmod 700 "$STATE_DIR" "$CREDENTIALS_DIR"
+# Loom's server keeps its own non-root UID but joins the OpenBao group when it
+# reads this shared volume. Keep the directory private to that group; the
+# credential files below are replaced atomically and are group-readable only.
+chmod 750 "$CREDENTIALS_DIR"
 
 status_json() {
   bao status -format=json 2>/dev/null || true
@@ -139,7 +143,7 @@ if [ -s "$root_file" ]; then
   secret_tmp="$CREDENTIALS_DIR/secret_id.tmp"
   printf '%s\n' "$role_id" >"$role_tmp"
   printf '%s\n' "$secret_id" >"$secret_tmp"
-  chmod 444 "$role_tmp" "$secret_tmp"
+  chmod 440 "$role_tmp" "$secret_tmp"
   mv "$role_tmp" "$CREDENTIALS_DIR/role_id"
   mv "$secret_tmp" "$CREDENTIALS_DIR/secret_id"
 

@@ -41,6 +41,7 @@ printf '%s' "$config" | jq -e '
   .services["openbao-unseal"].entrypoint[0] == "/openbao/unseal-monitor.sh" and
   .services["openbao-unseal"].depends_on["openbao-bootstrap"].condition == "service_completed_successfully" and
   (.services["loom-server"].networks | has("openbao")) and
+  .services["loom-server"].user == "65532:1000" and
   (.services["loom-server"].depends_on.openbao == null) and
   (.services["loom-server"].depends_on["openbao-bootstrap"].condition == "service_completed_successfully") and
   (.services["loom-server"].volumes[] | select(.target == "/run/secrets/loom-openbao") | .read_only == true) and
