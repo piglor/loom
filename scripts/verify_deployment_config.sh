@@ -18,6 +18,9 @@ printf '%s' "$config" | jq -e '
 
 echo "PASS: reverse proxy is pinned to the configured Coolify ingress network"
 
+grep -Fq 'select(.key == "LOOM_OPENBAO_ADDR") | (.value // .real_value // "")' .github/workflows/ci.yml
+echo "PASS: Coolify fills an empty bundled OpenBao address"
+
 printf '%s' "$config" | jq -e '
   (.services.openbao.image | startswith("piglor-loom-openbao:local")) and
   (.services.openbao.build.dockerfile == "deploy/openbao/Dockerfile") and

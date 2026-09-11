@@ -146,7 +146,7 @@ jobs:
               "$coolify_api/services/$loom_service_uuid/envs/bulk"
           fi
           openbao_addr_present=$(printf '%s' "$service_envs" | jq -r \
-            'first(.[] | select(.key == "LOOM_OPENBAO_ADDR") | (.real_value // .value // "")) // ""')
+            'first(.[] | select(.key == "LOOM_OPENBAO_ADDR") | (.value // .real_value // "")) // ""')
           if [ -z "$openbao_addr_present" ]; then
             loom_openbao_envs=$(jq -n \
               '{data:[
