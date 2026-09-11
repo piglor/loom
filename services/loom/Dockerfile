@@ -1,7 +1,19 @@
 FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS source
 ARG LOOM_BUILD_SHA=development
+ARG LOOM_SOURCE_REF=local
+ARG LOOM_SOURCE_REPOSITORY=https://github.com/piglor/loom.git
 WORKDIR /source
 COPY . .
+RUN if [ "$LOOM_SOURCE_REF" != "local" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*; \
+      rm -rf /tmp/loom-source; \
+      git init /tmp/loom-source; \
+      git -C /tmp/loom-source remote add origin "$LOOM_SOURCE_REPOSITORY"; \
+      git -C /tmp/loom-source fetch --depth 1 origin "$LOOM_SOURCE_REF"; \
+      git -C /tmp/loom-source checkout --detach FETCH_HEAD; \
+      find /source -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; \
+      cp -a /tmp/loom-source/. /source/; \
+    fi
 RUN printf '{"build_sha":"%s","source_sha":"%s"}\n' "$LOOM_BUILD_SHA" "$(/source/scripts/source_fingerprint.sh)" > /source/build-manifest.json
 
 FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS web

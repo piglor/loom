@@ -6,6 +6,7 @@ x-loom: &loom
     dockerfile: services/loom/Dockerfile
     args:
       LOOM_BUILD_SHA: ${LOOM_BUILD_SHA:-development}
+      LOOM_SOURCE_REF: ${LOOM_SOURCE_REF:-local}
   image: piglor-loom:local
   restart: unless-stopped
   read_only: true
