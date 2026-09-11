@@ -115,6 +115,23 @@ jobs:
             -H "Content-Type: application/json" \
             --data "{\"docker_compose_raw\":\"$compose_b64\"}" \
             "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w"
+          # Coolify materializes the :?required error text as an environment
+          # value when a new variable has not been configured yet. Remove only
+          # that exact placeholder; never overwrite a real operator value.
+          service_envs=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            -H "Accept: application/json" \
+            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs")
+          placeholder_envs=$(printf '%s' "$service_envs" | jq -c '[.[] | select((.value // .real_value // "") == "required") | {key, value: (if .key == "LOOM_PUBLIC_URL" then "https://loom.piglor.com" else "" end), is_preview: false, is_literal: true}]')
+          if [ "$placeholder_envs" != "[]" ]; then
+            curl --fail-with-body --retry 3 --retry-delay 5 \
+              -X PATCH \
+              -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+              -H "Accept: application/json" \
+              -H "Content-Type: application/json" \
+              --data "{\"data\":$placeholder_envs}" \
+              "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs/bulk"
+          fi
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
             -H "Authorization: Bearer $COOLIFY_API_TOKEN" \

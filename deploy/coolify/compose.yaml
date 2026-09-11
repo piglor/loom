@@ -47,11 +47,14 @@ services:
     environment:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
-      LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:?required}
-      LOOM_OPENBAO_ADDR: ${LOOM_OPENBAO_ADDR:?required}
+      LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:-https://loom.piglor.com}
+      # OpenBao is intentionally optional at process startup. The plugin store
+      # reports an actionable configuration state until an operator supplies a
+      # reachable address and AppRole credentials.
+      LOOM_OPENBAO_ADDR: ${LOOM_OPENBAO_ADDR:-}
       LOOM_OPENBAO_MOUNT: ${LOOM_OPENBAO_MOUNT:-loom}
-      LOOM_OPENBAO_ROLE_ID: ${LOOM_OPENBAO_ROLE_ID:?required}
-      LOOM_OPENBAO_SECRET_ID: ${LOOM_OPENBAO_SECRET_ID:?required}
+      LOOM_OPENBAO_ROLE_ID: ${LOOM_OPENBAO_ROLE_ID:-}
+      LOOM_OPENBAO_SECRET_ID: ${LOOM_OPENBAO_SECRET_ID:-}
       LOOM_OPENBAO_CA_CERT: ${LOOM_OPENBAO_CA_CERT:-}
       LOOM_GITHUB_WEBHOOK_SECRET: ${LOOM_GITHUB_WEBHOOK_SECRET:-}
       LOOM_GITHUB_APP_INSTALL_URL: ${LOOM_GITHUB_APP_INSTALL_URL:-}
