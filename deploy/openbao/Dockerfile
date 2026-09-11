@@ -7,3 +7,9 @@ COPY --chown=openbao:openbao deploy/openbao/config/openbao.hcl /openbao/config/o
 COPY --chown=openbao:openbao deploy/openbao/config/loom-policy.hcl /openbao/config/loom-policy.hcl
 RUN mkdir -p /openbao/data /openbao/logs \
     && chown -R openbao:openbao /openbao/data /openbao/logs /openbao/config
+
+# Keep the image non-root even when a deployment forgets to repeat the
+# Compose-level user setting. The shipped config and volume mountpoints are
+# already owned by this UID/GID, so the upstream entrypoint does not need to
+# chown them at runtime.
+USER 100:1000

@@ -157,11 +157,12 @@ not waive [production release gates](production-readiness.md).
 
 ## Safe stop / retry
 
-Operate only on service UUID `yidv3el41pezd8qp22s6el2w`. Coolify's service Stop
-action is the rollback for this initial deployment; preserve its volumes and
+Operate on Loom service UUID `yidv3el41pezd8qp22s6el2w` and the dedicated
+`loom-openbao` service UUID created by the deployment workflow. Coolify's service
+Stop action is the rollback for either resource; preserve their volumes and
 secrets for diagnosis/retry. Do not delete volumes or touch the existing Hatchet
 service. Pin subsequent deployments to a tested source commit or accessible image
-digest and redeploy this same Loom service instead of creating duplicates.
+digest and update these same resources instead of creating duplicates.
 
 References: [Coolify create service API](https://coolify.io/docs/api-reference/api/services/create-service),
 [installed-version service launcher](https://github.com/coollabsio/coolify/blob/v4.1.2/app/Actions/Service/StartService.php),

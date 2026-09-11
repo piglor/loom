@@ -3,8 +3,8 @@ ui = false
 # OpenBao 2.5+ removed mlock support. Swap must be disabled or encrypted on the
 # host; this setting is required by the pinned image and does not expose data.
 disable_mlock = true
-# Coolify keeps this listener on the private Compose network. Public TLS ends
-# at the Loom ingress; a separately hosted OpenBao must use verified TLS.
+# The local/Lite module keeps this listener on its private Compose network.
+# The dedicated Coolify resource terminates verified HTTPS at its ingress.
 api_addr = "http://openbao:8200"
 cluster_addr = "http://openbao:8201"
 

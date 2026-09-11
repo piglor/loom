@@ -9,12 +9,15 @@ context and `deploy/coolify/compose.yaml`. The multi-stage image builds the Reac
 console and static Go binary, then runs as the distroless non-root user with a
 read-only root filesystem and no Linux capabilities.
 
-This stack includes a private, single-node OpenBao service. It has persistent
-Raft data and audit volumes, no host port, and an explicit `traefik.enable=false`
-label. It starts sealed; Loom intentionally does not depend on its health or
-require OpenBao credentials at process startup, so unsealing and AppRole setup
-can be completed safely before enabling plugin writes. See
-[`deploy/openbao/README.md`](../openbao/README.md) for the bootstrap commands.
+OpenBao is a separate Coolify resource, defined by
+[`openbao.compose.yaml`](openbao.compose.yaml). Keeping it separate matters:
+Coolify 4.1.2 injects a resource's `.env` file into every service in that
+resource, so embedding OpenBao beside Loom would expose unrelated application
+credentials to the secret server. The dedicated resource has persistent Raft
+and audit volumes, no host port, and an explicit HTTPS proxy route. It starts
+sealed; Loom does not depend on its health or require OpenBao credentials at
+process startup. See [`deploy/openbao/README.md`](../openbao/README.md) for
+bootstrap and recovery commands.
 
 Supply these in Coolify's secret/environment settings, not in the Compose file:
 
@@ -22,10 +25,16 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
 - `LOOM_PUBLIC_URL`: canonical HTTPS origin used for GitHub setup callbacks.
 - `LOOM_OPENBAO_ADDR`, `LOOM_OPENBAO_MOUNT`, `LOOM_OPENBAO_ROLE_ID` and
-  `LOOM_OPENBAO_SECRET_ID`: the private stack uses `http://openbao:8200` after
-  the embedded service is initialized, unsealed and given the least-privilege
-  AppRole. For an independently hosted OpenBao, use its verified HTTPS URL and
-  set `LOOM_OPENBAO_CA_CERT` for a private CA.
+  `LOOM_OPENBAO_SECRET_ID`: use the dedicated OpenBao HTTPS domain after it is
+  initialized, unsealed and given the least-privilege AppRole. For an
+  independently hosted OpenBao, use its verified HTTPS URL and set
+  `LOOM_OPENBAO_CA_CERT` for a private CA.
+- `COOLIFY_OPENBAO_DOMAIN` (GitHub Actions variable/secret): the HTTPS hostname
+  assigned to the dedicated OpenBao resource (default `openbao.piglor.com`).
+  Point DNS at Coolify before enabling plugin writes.
+- `COOLIFY_OPENBAO_SERVICE_UUID` (optional): pin an already-created dedicated
+  OpenBao resource. If omitted, the deployment workflow discovers `loom-openbao`
+  or creates it in the same Coolify project/environment as Loom.
 - `LOOM_GITHUB_APP_INSTALL_URL`: HTTPS installation page for the GitHub App shown
   in the console plugin store.
 - `LOOM_GITHUB_WEBHOOK_SECRET`: GitHub App webhook secret, at least 32 characters.
@@ -56,6 +65,9 @@ Configure PostgreSQL backups in Coolify against the `loom-db` component and
 upload them to a validated S3-compatible storage. Keep a small local retention
 window as a fallback, configure independent S3 retention, trigger a backup
 immediately after setup, and restore that artifact into a disposable database.
+Back up OpenBao separately with the Raft snapshot and audit-volume procedure in
+[`deploy/openbao/README.md`](../openbao/README.md); database backups alone do
+not recover integration credentials.
 Do not add a backup sidecar to this Compose stack: backup scheduling, credentials
 and retention belong to the deployment control plane.
 
@@ -68,21 +80,22 @@ public Git build context. See [rollout status](../../docs/production-rollout.md)
 for the exact deployed revision, image visibility and remaining release gates.
 
 The first Coolify deployment of OpenBao requires an operator bootstrap from the
-Coolify service terminal: initialize once, retain the unseal/recovery material
-off-host, unseal, enable the `loom` KV v2 mount, write the policy and AppRole,
-enable the file audit device, then copy only the AppRole ID/secret into Loom's
-Coolify environment variables. Redeploy Loom after setting those values. Never
-put the temporary root token in the Compose file or GitHub Actions.
+OpenBao resource terminal: initialize once, retain the unseal/recovery material
+off-host, unseal, enable and tune the `loom` KV v2 mount, write the policy and
+AppRole, enable the file audit device, then copy only the AppRole ID/secret into
+Loom's Coolify environment variables. Redeploy Loom after setting those values.
+Revoke the temporary root token after bootstrap. Never put a root token in the
+Compose file or GitHub Actions.
 
 Coolify 4.1.2 uses `docker compose up ... --build` for custom services. Its parser
 adds declared top-level networks to services and injects the service environment
-file into containers. Do not assume the per-container network/environment lists
-in the source descriptor enforce isolation after Coolify transforms it. Use a
-dedicated trusted stack; inspect the generated Compose in Coolify before adding
-privileged workloads. No host database port is published by this descriptor.
+file into containers. The separate OpenBao resource avoids cross-resource
+environment leakage; inspect the generated Compose and proxy route in Coolify
+before enabling writes. No host database or OpenBao port is published by these
+descriptors.
 
-Before rollout: rotate credentials pasted into chat; take and restore-test both
-Loom and Hatchet database backups; preserve Hatchet config/secrets and worker
-journals; test migration against a copy; verify TLS and revocation; establish log
+Before rollout: rotate credentials pasted into chat; take and restore-test Loom,
+Hatchet and OpenBao backups; preserve Hatchet config/secrets and worker journals;
+test migration against a copy; verify TLS and revocation; establish audit-log
 retention, database/disk alerts and an operator recovery procedure. Do not remove
 volumes as a migration or password-reset workaround.

@@ -1,17 +1,22 @@
-# Standalone OpenBao module. It has no public port and can be included in an
-# all-in-one Compose project or deployed as its own Coolify service.
+# Dedicated Coolify resource for OpenBao. Keep this separate from the Loom
+# application resource: Coolify injects one resource's .env file into every
+# service in that resource and adds its predefined network to each service.
 services:
   openbao:
     build:
-      context: ../..
+      context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
       dockerfile: deploy/openbao/Dockerfile
-    image: loom-openbao:local
+    image: piglor-openbao:local
     command: ["server"]
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:
       BAO_ADDR: http://127.0.0.1:8200
+      # Coolify terminates HTTPS at the resource domain. OpenBao uses this
+      # advertised URL for redirects and cluster metadata.
+      BAO_API_ADDR: ${OPENBAO_API_ADDR:-https://openbao.piglor.com}
+      BAO_CLUSTER_ADDR: http://openbao:8201
       SKIP_CHOWN: "1"
     volumes:
       - openbao-data:/openbao/data
@@ -19,10 +24,12 @@ services:
     expose: [8200]
     networks: [openbao]
     labels:
-      traefik.enable: "false"
+      traefik.enable: "true"
+      traefik.http.services.openbao.loadbalancer.server.port: "8200"
     healthcheck:
-      # /sys/health reports sealed (503) and uninitialized (501) as reachable
-      # states. Bootstrap is an operator action and must not look dead.
+      # /sys/health intentionally reports sealed (503) and uninitialized
+      # (501) as reachable states. Bootstrap is an operator action and must
+      # not be blocked by a readiness check.
       test:
         - CMD-SHELL
         - >-

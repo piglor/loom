@@ -19,17 +19,39 @@ printf '%s' "$config" | jq -e '
 echo "PASS: reverse proxy is pinned to the configured Coolify ingress network"
 
 printf '%s' "$config" | jq -e '
-  (.services.openbao.image | startswith("piglor-openbao:local")) and
-  (.services.openbao.networks | has("private")) and
-  (.services.openbao.expose | index("8200") != null) and
-  (.services.openbao.ports == null) and
-  (.services.openbao.labels["traefik.enable"] == "false") and
-  .volumes["loom-openbao-data"] != null and
-  .volumes["loom-openbao-audit"] != null and
-  (.services["loom-server"].depends_on.openbao == null)
+  (.services.openbao == null) and
+  (.services["loom-server"].depends_on.openbao == null) and
+  (.services["loom-server"].environment.LOOM_OPENBAO_ADDR == "https://openbao.example")
 ' >/dev/null
 
-echo "PASS: Coolify embeds private persistent OpenBao without a hard app dependency"
+echo "PASS: Coolify application is decoupled from the dedicated OpenBao resource"
+
+openbao=$(LOOM_SOURCE_REF=deployment-test-ref \
+  OPENBAO_API_ADDR=https://openbao.example \
+  docker compose -f deploy/coolify/openbao.compose.yaml config --format json)
+
+printf '%s' "$openbao" | jq -e '
+  (.services.openbao.image | startswith("piglor-openbao:local")) and
+  (.services.openbao.build.dockerfile == "deploy/openbao/Dockerfile") and
+  (.services.openbao.networks | has("openbao")) and
+  (.services.openbao.expose | index("8200") != null) and
+  (.services.openbao.ports == null) and
+  (.services.openbao.labels["traefik.enable"] == "true") and
+  (.services.openbao.labels["traefik.http.services.openbao.loadbalancer.server.port"] == "8200") and
+  (.services.openbao.environment.BAO_API_ADDR == "https://openbao.example") and
+  (.services.openbao.healthcheck.test[0] == "CMD-SHELL") and
+  (.services.openbao.healthcheck.test[1] | contains("503")) and
+  .volumes["openbao-data"] != null and
+  .volumes["openbao-audit"] != null
+' >/dev/null
+
+echo "PASS: Dedicated Coolify OpenBao resource uses HTTPS ingress and persistent storage"
+
+grep -Fq 'path "loom/data/organizations/*"' deploy/openbao/config/loom-policy.hcl
+grep -Fq 'capabilities = ["create", "read", "update", "delete"]' deploy/openbao/config/loom-policy.hcl
+! grep -Fq 'loom/metadata/' deploy/openbao/config/loom-policy.hcl
+
+echo "PASS: OpenBao AppRole policy permits soft delete but not metadata destruction"
 
 lite=$(LOOM_POSTGRES_PASSWORD=deployment-test-password \
   LOOM_API_TOKEN=deployment-test-api-token-0000000000000000 \
@@ -44,8 +66,9 @@ lite=$(LOOM_POSTGRES_PASSWORD=deployment-test-password \
 
 printf '%s' "$lite" | jq -e '
   .services["loom-server"].environment.LOOM_OPENBAO_ADDR == "http://openbao:8200" and
-  (.services.openbao.networks | has("private")) and
-  .volumes["loom-openbao-data"] != null
+  (.services.openbao.networks | has("openbao")) and
+  .volumes["openbao-data"] != null and
+  (.services["loom-server"].depends_on.openbao == null)
 ' >/dev/null
 
 echo "PASS: Loom Lite uses private persistent OpenBao storage"

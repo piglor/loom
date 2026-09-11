@@ -30,5 +30,7 @@ type Store interface {
 	Status(context.Context) Status
 	Put(context.Context, string, map[string]string) (int, error)
 	Get(context.Context, string) (map[string]string, int, error)
+	// Delete removes the current version reversibly; permanent destruction is
+	// an operator-only secret-server operation.
 	Delete(context.Context, string) error
 }

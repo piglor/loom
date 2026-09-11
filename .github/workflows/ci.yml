@@ -30,7 +30,7 @@ jobs:
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - name: Build console assets for gateway recovery proofs
         run: npm ci && npm run build
@@ -47,6 +47,8 @@ jobs:
       - name: Generic Goal wait and exact Session lifecycle against PostgreSQL
         working-directory: services/loom
         run: go test -race ./internal/control -count=1
+      - name: Validate deployment descriptors
+        run: ./scripts/verify_deployment_config.sh
       - name: Calculate source fingerprint
         id: source-fingerprint
         run: echo "sha=$(sh scripts/source_fingerprint.sh)" >> "$GITHUB_OUTPUT"
@@ -102,48 +104,130 @@ jobs:
       - name: Request Coolify production deployment
         env:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_OPENBAO_SERVICE_UUID: ${{ vars.COOLIFY_OPENBAO_SERVICE_UUID || secrets.COOLIFY_OPENBAO_SERVICE_UUID }}
+          COOLIFY_OPENBAO_DOMAIN: ${{ vars.COOLIFY_OPENBAO_DOMAIN || secrets.COOLIFY_OPENBAO_DOMAIN }}
         run: |
           if [ -z "$COOLIFY_API_TOKEN" ]; then
             echo "::error::COOLIFY_API_TOKEN is not configured; refusing to report production success."
             exit 1
           fi
           compose_b64=$(base64 --wrap=0 deploy/coolify/compose.yaml)
+          openbao_compose_b64=$(base64 --wrap=0 deploy/coolify/openbao.compose.yaml)
+          coolify_api=https://coolify.piglor.com/api/v1
+          loom_service_uuid=yidv3el41pezd8qp22s6el2w
+          auth_headers=(-H "Authorization: Bearer $COOLIFY_API_TOKEN" -H "Accept: application/json")
+
+          # Keep OpenBao as its own Coolify resource. If a UUID is not supplied,
+          # discover the existing resource by name or create it beside Loom,
+          # using the same project/environment/server placement.
+          loom_service=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+            "${auth_headers[@]}" "$coolify_api/services/$loom_service_uuid")
+          project_uuid=$(printf '%s' "$loom_service" | jq -er '.project_uuid')
+          environment_name=$(printf '%s' "$loom_service" | jq -er '.environment_name // .environment.name // "production"')
+          environment_uuid=$(printf '%s' "$loom_service" | jq -er '.environment_uuid')
+          server_uuid=$(printf '%s' "$loom_service" | jq -er '.server_uuid')
+          destination_uuid=$(printf '%s' "$loom_service" | jq -r '.destination_uuid // empty')
+          openbao_uuid="${COOLIFY_OPENBAO_SERVICE_UUID:-}"
+          if [ -z "$openbao_uuid" ]; then
+            services=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+              "${auth_headers[@]}" "$coolify_api/services")
+            openbao_uuid=$(printf '%s' "$services" | jq -r \
+              --arg name loom-openbao '[.[] | select(.name == $name) | .uuid][0] // empty')
+          fi
+          openbao_domain="${COOLIFY_OPENBAO_DOMAIN:-openbao.piglor.com}"
+          if ! printf '%s' "$openbao_domain" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+            echo "::error::COOLIFY_OPENBAO_DOMAIN must be a DNS hostname without a scheme or path."
+            exit 1
+          fi
+          openbao_addr="https://${openbao_domain}"
+          if [ -z "$openbao_uuid" ]; then
+            create_payload=$(jq -n \
+              --arg name loom-openbao \
+              --arg description "Loom OpenBao integration secret store" \
+              --arg project_uuid "$project_uuid" \
+              --arg environment_name "$environment_name" \
+              --arg environment_uuid "$environment_uuid" \
+              --arg server_uuid "$server_uuid" \
+              --arg destination_uuid "$destination_uuid" \
+              --arg compose "$openbao_compose_b64" \
+              --arg domain "$openbao_addr" \
+              '{name:$name, description:$description, project_uuid:$project_uuid,
+                environment_name:$environment_name,
+                environment_uuid:$environment_uuid, server_uuid:$server_uuid,
+                docker_compose_raw:$compose, instant_deploy:false,
+                connect_to_docker_network:false,
+                urls:[{name:"openbao",url:$domain}],
+                is_container_label_escape_enabled:false}
+               + (if $destination_uuid != "" then {destination_uuid:$destination_uuid} else {} end)')
+            openbao_response=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+              -X POST "${auth_headers[@]}" -H "Content-Type: application/json" \
+              --data "$create_payload" "$coolify_api/services")
+            openbao_uuid=$(printf '%s' "$openbao_response" | jq -er '.uuid')
+            echo "Created dedicated OpenBao Coolify service $openbao_uuid."
+          else
+            update_payload=$(jq -n --arg compose "$openbao_compose_b64" --arg domain "$openbao_addr" \
+              '{docker_compose_raw:$compose, connect_to_docker_network:false,
+                urls:[{name:"openbao",url:$domain}], force_domain_override:false,
+                is_container_label_escape_enabled:false}')
+            curl --fail-with-body --retry 3 --retry-delay 5 \
+              -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
+              --data "$update_payload" "$coolify_api/services/$openbao_uuid"
+            echo "Updated dedicated OpenBao Coolify service $openbao_uuid."
+          fi
+          openbao_envs=$(jq -n --arg ref "$GITHUB_SHA" --arg addr "$openbao_addr" \
+            '{data:[
+              {key:"LOOM_SOURCE_REF",value:$ref,is_preview:false,is_literal:true},
+              {key:"OPENBAO_API_ADDR",value:$addr,is_preview:false,is_literal:true}
+            ]}')
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
+            --data "$openbao_envs" "$coolify_api/services/$openbao_uuid/envs/bulk"
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X GET "${auth_headers[@]}" \
+            "$coolify_api/deploy?uuid=$openbao_uuid&force=true"
+
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
-            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
-            -H "Accept: application/json" \
+            "${auth_headers[@]}" \
             -H "Content-Type: application/json" \
             --data "{\"docker_compose_raw\":\"$compose_b64\"}" \
-            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w"
+            "$coolify_api/services/$loom_service_uuid"
           # Coolify materializes the :?required error text as an environment
           # value when a new variable has not been configured yet. Remove only
           # that exact placeholder; never overwrite a real operator value.
           service_envs=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
-            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
-            -H "Accept: application/json" \
-            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs")
+            "${auth_headers[@]}" "$coolify_api/services/$loom_service_uuid/envs")
           placeholder_envs=$(printf '%s' "$service_envs" | jq -c '[.[] | select((.value // .real_value // "") == "required") | {key, value: (if .key == "LOOM_PUBLIC_URL" then "https://loom.piglor.com" else "" end), is_preview: false, is_literal: true}]')
           if [ "$placeholder_envs" != "[]" ]; then
             curl --fail-with-body --retry 3 --retry-delay 5 \
               -X PATCH \
-              -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
-              -H "Accept: application/json" \
+              "${auth_headers[@]}" \
               -H "Content-Type: application/json" \
               --data "{\"data\":$placeholder_envs}" \
-              "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs/bulk"
+              "$coolify_api/services/$loom_service_uuid/envs/bulk"
+          fi
+          openbao_addr_present=$(printf '%s' "$service_envs" | jq -r \
+            'first(.[] | select(.key == "LOOM_OPENBAO_ADDR") | (.real_value // .value // "")) // ""')
+          if [ -z "$openbao_addr_present" ]; then
+            loom_openbao_envs=$(jq -n --arg addr "$openbao_addr" \
+              '{data:[
+                {key:"LOOM_OPENBAO_ADDR",value:$addr,is_preview:false,is_literal:true},
+                {key:"LOOM_OPENBAO_MOUNT",value:"loom",is_preview:false,is_literal:true}
+              ]}')
+            curl --fail-with-body --retry 3 --retry-delay 5 \
+              -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
+              --data "$loom_openbao_envs" "$coolify_api/services/$loom_service_uuid/envs/bulk"
           fi
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
-            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
-            -H "Accept: application/json" \
+            "${auth_headers[@]}" \
             -H "Content-Type: application/json" \
             --data "{\"data\":[{\"key\":\"LOOM_BUILD_SHA\",\"value\":\"$GITHUB_SHA\",\"is_preview\":false,\"is_literal\":true},{\"key\":\"LOOM_SOURCE_REF\",\"value\":\"$GITHUB_SHA\",\"is_preview\":false,\"is_literal\":true}]}" \
-            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs/bulk"
+            "$coolify_api/services/$loom_service_uuid/envs/bulk"
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X GET \
-            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
-            -H "Accept: application/json" \
-          "https://coolify.piglor.com/api/v1/deploy?uuid=yidv3el41pezd8qp22s6el2w&force=true"
+            "${auth_headers[@]}" \
+            "$coolify_api/deploy?uuid=$loom_service_uuid&force=true"
       - name: Verify public production revision
         env:
           EXPECTED_BUILD_SHA: ${{ github.sha }}
@@ -181,7 +265,7 @@ jobs:
           cache-dependency-path: services/loom/go.sum
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - run: npm ci
       - run: npm run build

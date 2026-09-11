@@ -28,7 +28,7 @@ func TestOpenBaoLifecycleWithAppRole(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"version": 1}})
 		case r.URL.Path == "/v1/loom/data/organizations/test/plugins/github/credentials/id" && r.Method == http.MethodGet:
 			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"data": stored, "metadata": map[string]any{"version": 1}}})
-		case r.URL.Path == "/v1/loom/metadata/organizations/test/plugins/github/credentials/id" && r.Method == http.MethodDelete:
+		case r.URL.Path == "/v1/loom/data/organizations/test/plugins/github/credentials/id" && r.Method == http.MethodDelete:
 			stored = map[string]string{}
 			w.WriteHeader(http.StatusNoContent)
 		default:

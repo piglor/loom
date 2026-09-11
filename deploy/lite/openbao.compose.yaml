@@ -1,6 +1,9 @@
-# Overlay for a single-host Loom Lite deployment. The base Coolify descriptor
-# now carries the pinned, persistent OpenBao service; this file only wires the
-# application to it and keeps the dependency optional for Server deployments.
+# Overlay for a single-host Loom Lite deployment. Compose's include keeps the
+# OpenBao subsystem self-contained while this file only wires the application
+# to its internal address.
+include:
+  - ../openbao/compose.yaml
+
 services:
   loom-server:
     environment:

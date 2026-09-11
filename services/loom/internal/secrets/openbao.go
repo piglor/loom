@@ -288,7 +288,10 @@ func (o *OpenBao) Delete(ctx context.Context, reference string) error {
 	if !validReference(reference) {
 		return errors.New("invalid secret reference")
 	}
-	response, err := o.request(ctx, http.MethodDelete, o.endpoint(o.mount, "metadata", reference), nil, nil)
+	// Delete the current version rather than the metadata key. Metadata DELETE
+	// permanently destroys every version and is reserved for operators; the
+	// AppRole policy intentionally cannot perform that irreversible action.
+	response, err := o.request(ctx, http.MethodDelete, o.endpoint(o.mount, "data", reference), nil, nil)
 	if err != nil {
 		return err
 	}
