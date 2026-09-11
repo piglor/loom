@@ -34,7 +34,6 @@ jobs:
           done <<EOF
 $(printf '%s' "$service" | jq -r '.applications[]? | [.uuid,.name] | @tsv')
 EOF
-          done
 
           echo "--- active deployments ---"
           curl --fail-with-body --silent --show-error "${headers[@]}" "$api/deployments" \
