@@ -76,6 +76,7 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/piglor/loom:sha-${{ github.sha }}
+          build-args: VITE_BUILD_SHA=${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/piglor/loom
             org.opencontainers.image.licenses=MIT

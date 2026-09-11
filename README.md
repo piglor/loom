@@ -31,8 +31,9 @@ savings are claimed.
 
 The [operator console](docs/console.md) adds a React/TypeScript browser interface
 and Go API entry point. It shows real Goals, wait contracts, session/worker
-bindings, audit history and recorded timing. It is currently read-only and uses
-the existing operator credential; multi-user SSO is not implemented.
+bindings, audit history and recorded timing. Operators can also configure
+integration plugins; Goal inspection remains read-only. The console uses the
+existing operator credential, and multi-user SSO is not implemented.
 
 With Node 24 and the Go version pinned in `services/loom/go.mod`, run
 `make console-setup`, then follow the console guide to start it alongside the

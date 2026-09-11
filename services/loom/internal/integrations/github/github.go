@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/piglor/loom/services/loom/internal/control"
+	secretstore "github.com/piglor/loom/services/loom/internal/secrets"
 )
 
 const maxBody = 1 << 20
@@ -176,13 +177,70 @@ type Freshness interface {
 }
 
 type API struct {
-	client *http.Client
-	token  string
-	base   string
+	client  *http.Client
+	token   string
+	base    string
+	managed *managedCredentials
+}
+
+type managedCredentialStore interface {
+	IntegrationCredentialForInstance(context.Context, string, string) (control.IntegrationCredentialRecord, error)
+}
+
+type managedCredentials struct {
+	records managedCredentialStore
+	secrets secretstore.Store
 }
 
 func NewAPI(token string) *API {
 	return &API{client: &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, token: token, base: "https://api.github.com"}
+}
+
+func NewManagedAPI(records managedCredentialStore, secretStore secretstore.Store, legacyToken string) *API {
+	api := NewAPI(legacyToken)
+	api.managed = &managedCredentials{records: records, secrets: secretStore}
+	return api
+}
+
+func (a *API) installationToken(ctx context.Context, installationID int64) (string, error) {
+	if a.managed == nil || installationID < 1 {
+		return a.token, nil
+	}
+	record, err := a.managed.records.IntegrationCredentialForInstance(ctx, "github", strconv.FormatInt(installationID, 10))
+	if err != nil {
+		return "", err
+	}
+	values, _, err := a.managed.secrets.Get(ctx, record.SecretReference)
+	if err != nil {
+		return "", err
+	}
+	jwt, err := appJWT(credentialsFromMap(values))
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.base+"/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("User-Agent", "piglor-loom/0.3")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	response, err := a.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("GitHub token API returned HTTP %d", response.StatusCode)
+	}
+	var result struct {
+		Token string `json:"token"`
+	}
+	if err = json.NewDecoder(io.LimitReader(response.Body, maxBody+1)).Decode(&result); err != nil || result.Token == "" {
+		return "", errors.New("invalid GitHub installation token response")
+	}
+	return result.Token, nil
 }
 
 func (a *API) get(ctx context.Context, endpoint string, destination any) (bool, error) {
@@ -223,6 +281,17 @@ func (a *API) get(ctx context.Context, endpoint string, destination any) (bool, 
 // Current revalidates the public PR head and workflow run at wake time. Private
 // repositories require a least-privilege installation token in the secret store.
 func (a *API) check(ctx context.Context, expected Workflow, requireCompleted bool) (bool, error) {
+	requestAPI := a
+	if a.managed != nil {
+		token, err := a.installationToken(ctx, expected.Installation)
+		if err != nil {
+			return false, err
+		}
+		clone := *a
+		clone.token = token
+		clone.managed = nil
+		requestAPI = &clone
+	}
 	parts := strings.Split(expected.RepositoryRef, "/")
 	if len(parts) != 2 || !repoPattern.MatchString(expected.RepositoryRef) {
 		return false, nil
@@ -242,7 +311,7 @@ func (a *API) check(ctx context.Context, expected Workflow, requireCompleted boo
 			} `json:"repo"`
 		} `json:"base"`
 	}
-	ok, err := a.get(ctx, fmt.Sprintf("%s/pulls/%d", base, expected.PullRequest), &pr)
+	ok, err := requestAPI.get(ctx, fmt.Sprintf("%s/pulls/%d", base, expected.PullRequest), &pr)
 	if err != nil || !ok {
 		return ok, err
 	}
@@ -260,7 +329,7 @@ func (a *API) check(ctx context.Context, expected Workflow, requireCompleted boo
 			ID int64 `json:"id"`
 		} `json:"repository"`
 	}
-	ok, err = a.get(ctx, fmt.Sprintf("%s/actions/runs/%d", base, expected.RunID), &run)
+	ok, err = requestAPI.get(ctx, fmt.Sprintf("%s/actions/runs/%d", base, expected.RunID), &run)
 	if err != nil || !ok {
 		return ok, err
 	}
@@ -285,11 +354,16 @@ type Handler struct {
 	store      *control.Store
 	adminToken string
 	secret     string
+	resolver   func(context.Context, int64) (string, error)
 	freshness  Freshness
 }
 
 func NewHandler(store *control.Store, adminToken, secret string, freshness Freshness) http.Handler {
 	return &Handler{store: store, adminToken: adminToken, secret: secret, freshness: freshness}
+}
+
+func NewManagedHandler(store *control.Store, adminToken, legacySecret string, resolver func(context.Context, int64) (string, error), freshness Freshness) http.Handler {
+	return &Handler{store: store, adminToken: adminToken, secret: legacySecret, resolver: resolver, freshness: freshness}
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
@@ -332,8 +406,11 @@ func (h *Handler) bind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if runtime == "codex-container" {
-		writeJSON(w, http.StatusConflict, map[string]string{"detail": "Privileged GitHub wake remains disabled until installation authorization is implemented"})
-		return
+		active, activeErr := h.store.IntegrationInstanceActive(r.Context(), "github", strconv.FormatInt(request.Installation, 10))
+		if activeErr != nil || !active {
+			writeJSON(w, http.StatusConflict, map[string]string{"detail": "GitHub installation is not authorized for privileged execution"})
+			return
+		}
 	}
 	if h.freshness == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "GitHub freshness validation is unavailable"})
@@ -360,10 +437,6 @@ func (h *Handler) bind(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
-	if len(h.secret) < 32 {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "GitHub integration is not configured"})
-		return
-	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -375,7 +448,24 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if !Verify(body, r.Header.Get("X-Hub-Signature-256"), h.secret) {
+	secret := h.secret
+	if h.resolver != nil {
+		var envelope struct {
+			Installation struct {
+				ID int64 `json:"id"`
+			} `json:"installation"`
+		}
+		if json.Unmarshal(body, &envelope) == nil && envelope.Installation.ID > 0 {
+			if resolved, resolveErr := h.resolver(r.Context(), envelope.Installation.ID); resolveErr == nil {
+				secret = resolved
+			}
+		}
+	}
+	if len(secret) < 32 {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "GitHub integration is not configured"})
+		return
+	}
+	if !Verify(body, r.Header.Get("X-Hub-Signature-256"), secret) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"detail": "Invalid webhook signature"})
 		return
 	}

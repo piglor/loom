@@ -20,7 +20,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/event"
 	"github.com/piglor/loom/services/loom/ent/goal"
 	"github.com/piglor/loom/services/loom/ent/integrationbinding"
+	"github.com/piglor/loom/services/loom/ent/integrationcredential"
 	"github.com/piglor/loom/services/loom/ent/integrationdelivery"
+	"github.com/piglor/loom/services/loom/ent/integrationinstance"
+	"github.com/piglor/loom/services/loom/ent/integrationsetupsession"
 	"github.com/piglor/loom/services/loom/ent/outbox"
 	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/session"
@@ -46,8 +49,14 @@ type Client struct {
 	Goal *GoalClient
 	// IntegrationBinding is the client for interacting with the IntegrationBinding builders.
 	IntegrationBinding *IntegrationBindingClient
+	// IntegrationCredential is the client for interacting with the IntegrationCredential builders.
+	IntegrationCredential *IntegrationCredentialClient
 	// IntegrationDelivery is the client for interacting with the IntegrationDelivery builders.
 	IntegrationDelivery *IntegrationDeliveryClient
+	// IntegrationInstance is the client for interacting with the IntegrationInstance builders.
+	IntegrationInstance *IntegrationInstanceClient
+	// IntegrationSetupSession is the client for interacting with the IntegrationSetupSession builders.
+	IntegrationSetupSession *IntegrationSetupSessionClient
 	// Outbox is the client for interacting with the Outbox builders.
 	Outbox *OutboxClient
 	// Run is the client for interacting with the Run builders.
@@ -77,7 +86,10 @@ func (c *Client) init() {
 	c.Event = NewEventClient(c.config)
 	c.Goal = NewGoalClient(c.config)
 	c.IntegrationBinding = NewIntegrationBindingClient(c.config)
+	c.IntegrationCredential = NewIntegrationCredentialClient(c.config)
 	c.IntegrationDelivery = NewIntegrationDeliveryClient(c.config)
+	c.IntegrationInstance = NewIntegrationInstanceClient(c.config)
+	c.IntegrationSetupSession = NewIntegrationSetupSessionClient(c.config)
 	c.Outbox = NewOutboxClient(c.config)
 	c.Run = NewRunClient(c.config)
 	c.Session = NewSessionClient(c.config)
@@ -174,21 +186,24 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		Attempt:             NewAttemptClient(cfg),
-		Audit:               NewAuditClient(cfg),
-		Command:             NewCommandClient(cfg),
-		Event:               NewEventClient(cfg),
-		Goal:                NewGoalClient(cfg),
-		IntegrationBinding:  NewIntegrationBindingClient(cfg),
-		IntegrationDelivery: NewIntegrationDeliveryClient(cfg),
-		Outbox:              NewOutboxClient(cfg),
-		Run:                 NewRunClient(cfg),
-		Session:             NewSessionClient(cfg),
-		Wait:                NewWaitClient(cfg),
-		WaitHistory:         NewWaitHistoryClient(cfg),
-		Worker:              NewWorkerClient(cfg),
+		ctx:                     ctx,
+		config:                  cfg,
+		Attempt:                 NewAttemptClient(cfg),
+		Audit:                   NewAuditClient(cfg),
+		Command:                 NewCommandClient(cfg),
+		Event:                   NewEventClient(cfg),
+		Goal:                    NewGoalClient(cfg),
+		IntegrationBinding:      NewIntegrationBindingClient(cfg),
+		IntegrationCredential:   NewIntegrationCredentialClient(cfg),
+		IntegrationDelivery:     NewIntegrationDeliveryClient(cfg),
+		IntegrationInstance:     NewIntegrationInstanceClient(cfg),
+		IntegrationSetupSession: NewIntegrationSetupSessionClient(cfg),
+		Outbox:                  NewOutboxClient(cfg),
+		Run:                     NewRunClient(cfg),
+		Session:                 NewSessionClient(cfg),
+		Wait:                    NewWaitClient(cfg),
+		WaitHistory:             NewWaitHistoryClient(cfg),
+		Worker:                  NewWorkerClient(cfg),
 	}, nil
 }
 
@@ -206,21 +221,24 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		Attempt:             NewAttemptClient(cfg),
-		Audit:               NewAuditClient(cfg),
-		Command:             NewCommandClient(cfg),
-		Event:               NewEventClient(cfg),
-		Goal:                NewGoalClient(cfg),
-		IntegrationBinding:  NewIntegrationBindingClient(cfg),
-		IntegrationDelivery: NewIntegrationDeliveryClient(cfg),
-		Outbox:              NewOutboxClient(cfg),
-		Run:                 NewRunClient(cfg),
-		Session:             NewSessionClient(cfg),
-		Wait:                NewWaitClient(cfg),
-		WaitHistory:         NewWaitHistoryClient(cfg),
-		Worker:              NewWorkerClient(cfg),
+		ctx:                     ctx,
+		config:                  cfg,
+		Attempt:                 NewAttemptClient(cfg),
+		Audit:                   NewAuditClient(cfg),
+		Command:                 NewCommandClient(cfg),
+		Event:                   NewEventClient(cfg),
+		Goal:                    NewGoalClient(cfg),
+		IntegrationBinding:      NewIntegrationBindingClient(cfg),
+		IntegrationCredential:   NewIntegrationCredentialClient(cfg),
+		IntegrationDelivery:     NewIntegrationDeliveryClient(cfg),
+		IntegrationInstance:     NewIntegrationInstanceClient(cfg),
+		IntegrationSetupSession: NewIntegrationSetupSessionClient(cfg),
+		Outbox:                  NewOutboxClient(cfg),
+		Run:                     NewRunClient(cfg),
+		Session:                 NewSessionClient(cfg),
+		Wait:                    NewWaitClient(cfg),
+		WaitHistory:             NewWaitHistoryClient(cfg),
+		Worker:                  NewWorkerClient(cfg),
 	}, nil
 }
 
@@ -251,7 +269,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Attempt, c.Audit, c.Command, c.Event, c.Goal, c.IntegrationBinding,
-		c.IntegrationDelivery, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
+		c.IntegrationCredential, c.IntegrationDelivery, c.IntegrationInstance,
+		c.IntegrationSetupSession, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
 		c.Worker,
 	} {
 		n.Use(hooks...)
@@ -263,7 +282,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Attempt, c.Audit, c.Command, c.Event, c.Goal, c.IntegrationBinding,
-		c.IntegrationDelivery, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
+		c.IntegrationCredential, c.IntegrationDelivery, c.IntegrationInstance,
+		c.IntegrationSetupSession, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
 		c.Worker,
 	} {
 		n.Intercept(interceptors...)
@@ -285,8 +305,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Goal.mutate(ctx, m)
 	case *IntegrationBindingMutation:
 		return c.IntegrationBinding.mutate(ctx, m)
+	case *IntegrationCredentialMutation:
+		return c.IntegrationCredential.mutate(ctx, m)
 	case *IntegrationDeliveryMutation:
 		return c.IntegrationDelivery.mutate(ctx, m)
+	case *IntegrationInstanceMutation:
+		return c.IntegrationInstance.mutate(ctx, m)
+	case *IntegrationSetupSessionMutation:
+		return c.IntegrationSetupSession.mutate(ctx, m)
 	case *OutboxMutation:
 		return c.Outbox.mutate(ctx, m)
 	case *RunMutation:
@@ -1102,6 +1128,139 @@ func (c *IntegrationBindingClient) mutate(ctx context.Context, m *IntegrationBin
 	}
 }
 
+// IntegrationCredentialClient is a client for the IntegrationCredential schema.
+type IntegrationCredentialClient struct {
+	config
+}
+
+// NewIntegrationCredentialClient returns a client for the IntegrationCredential from the given config.
+func NewIntegrationCredentialClient(c config) *IntegrationCredentialClient {
+	return &IntegrationCredentialClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `integrationcredential.Hooks(f(g(h())))`.
+func (c *IntegrationCredentialClient) Use(hooks ...Hook) {
+	c.hooks.IntegrationCredential = append(c.hooks.IntegrationCredential, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `integrationcredential.Intercept(f(g(h())))`.
+func (c *IntegrationCredentialClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IntegrationCredential = append(c.inters.IntegrationCredential, interceptors...)
+}
+
+// Create returns a builder for creating a IntegrationCredential entity.
+func (c *IntegrationCredentialClient) Create() *IntegrationCredentialCreate {
+	mutation := newIntegrationCredentialMutation(c.config, OpCreate)
+	return &IntegrationCredentialCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IntegrationCredential entities.
+func (c *IntegrationCredentialClient) CreateBulk(builders ...*IntegrationCredentialCreate) *IntegrationCredentialCreateBulk {
+	return &IntegrationCredentialCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IntegrationCredentialClient) MapCreateBulk(slice any, setFunc func(*IntegrationCredentialCreate, int)) *IntegrationCredentialCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IntegrationCredentialCreateBulk{err: fmt.Errorf("calling to IntegrationCredentialClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IntegrationCredentialCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IntegrationCredentialCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IntegrationCredential.
+func (c *IntegrationCredentialClient) Update() *IntegrationCredentialUpdate {
+	mutation := newIntegrationCredentialMutation(c.config, OpUpdate)
+	return &IntegrationCredentialUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IntegrationCredentialClient) UpdateOne(_m *IntegrationCredential) *IntegrationCredentialUpdateOne {
+	mutation := newIntegrationCredentialMutation(c.config, OpUpdateOne, withIntegrationCredential(_m))
+	return &IntegrationCredentialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IntegrationCredentialClient) UpdateOneID(id string) *IntegrationCredentialUpdateOne {
+	mutation := newIntegrationCredentialMutation(c.config, OpUpdateOne, withIntegrationCredentialID(id))
+	return &IntegrationCredentialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IntegrationCredential.
+func (c *IntegrationCredentialClient) Delete() *IntegrationCredentialDelete {
+	mutation := newIntegrationCredentialMutation(c.config, OpDelete)
+	return &IntegrationCredentialDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IntegrationCredentialClient) DeleteOne(_m *IntegrationCredential) *IntegrationCredentialDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IntegrationCredentialClient) DeleteOneID(id string) *IntegrationCredentialDeleteOne {
+	builder := c.Delete().Where(integrationcredential.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IntegrationCredentialDeleteOne{builder}
+}
+
+// Query returns a query builder for IntegrationCredential.
+func (c *IntegrationCredentialClient) Query() *IntegrationCredentialQuery {
+	return &IntegrationCredentialQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIntegrationCredential},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IntegrationCredential entity by its id.
+func (c *IntegrationCredentialClient) Get(ctx context.Context, id string) (*IntegrationCredential, error) {
+	return c.Query().Where(integrationcredential.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IntegrationCredentialClient) GetX(ctx context.Context, id string) *IntegrationCredential {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IntegrationCredentialClient) Hooks() []Hook {
+	return c.hooks.IntegrationCredential
+}
+
+// Interceptors returns the client interceptors.
+func (c *IntegrationCredentialClient) Interceptors() []Interceptor {
+	return c.inters.IntegrationCredential
+}
+
+func (c *IntegrationCredentialClient) mutate(ctx context.Context, m *IntegrationCredentialMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IntegrationCredentialCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IntegrationCredentialUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IntegrationCredentialUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IntegrationCredentialDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IntegrationCredential mutation op: %q", m.Op())
+	}
+}
+
 // IntegrationDeliveryClient is a client for the IntegrationDelivery schema.
 type IntegrationDeliveryClient struct {
 	config
@@ -1232,6 +1391,272 @@ func (c *IntegrationDeliveryClient) mutate(ctx context.Context, m *IntegrationDe
 		return (&IntegrationDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown IntegrationDelivery mutation op: %q", m.Op())
+	}
+}
+
+// IntegrationInstanceClient is a client for the IntegrationInstance schema.
+type IntegrationInstanceClient struct {
+	config
+}
+
+// NewIntegrationInstanceClient returns a client for the IntegrationInstance from the given config.
+func NewIntegrationInstanceClient(c config) *IntegrationInstanceClient {
+	return &IntegrationInstanceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `integrationinstance.Hooks(f(g(h())))`.
+func (c *IntegrationInstanceClient) Use(hooks ...Hook) {
+	c.hooks.IntegrationInstance = append(c.hooks.IntegrationInstance, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `integrationinstance.Intercept(f(g(h())))`.
+func (c *IntegrationInstanceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IntegrationInstance = append(c.inters.IntegrationInstance, interceptors...)
+}
+
+// Create returns a builder for creating a IntegrationInstance entity.
+func (c *IntegrationInstanceClient) Create() *IntegrationInstanceCreate {
+	mutation := newIntegrationInstanceMutation(c.config, OpCreate)
+	return &IntegrationInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IntegrationInstance entities.
+func (c *IntegrationInstanceClient) CreateBulk(builders ...*IntegrationInstanceCreate) *IntegrationInstanceCreateBulk {
+	return &IntegrationInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IntegrationInstanceClient) MapCreateBulk(slice any, setFunc func(*IntegrationInstanceCreate, int)) *IntegrationInstanceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IntegrationInstanceCreateBulk{err: fmt.Errorf("calling to IntegrationInstanceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IntegrationInstanceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IntegrationInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IntegrationInstance.
+func (c *IntegrationInstanceClient) Update() *IntegrationInstanceUpdate {
+	mutation := newIntegrationInstanceMutation(c.config, OpUpdate)
+	return &IntegrationInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IntegrationInstanceClient) UpdateOne(_m *IntegrationInstance) *IntegrationInstanceUpdateOne {
+	mutation := newIntegrationInstanceMutation(c.config, OpUpdateOne, withIntegrationInstance(_m))
+	return &IntegrationInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IntegrationInstanceClient) UpdateOneID(id string) *IntegrationInstanceUpdateOne {
+	mutation := newIntegrationInstanceMutation(c.config, OpUpdateOne, withIntegrationInstanceID(id))
+	return &IntegrationInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IntegrationInstance.
+func (c *IntegrationInstanceClient) Delete() *IntegrationInstanceDelete {
+	mutation := newIntegrationInstanceMutation(c.config, OpDelete)
+	return &IntegrationInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IntegrationInstanceClient) DeleteOne(_m *IntegrationInstance) *IntegrationInstanceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IntegrationInstanceClient) DeleteOneID(id string) *IntegrationInstanceDeleteOne {
+	builder := c.Delete().Where(integrationinstance.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IntegrationInstanceDeleteOne{builder}
+}
+
+// Query returns a query builder for IntegrationInstance.
+func (c *IntegrationInstanceClient) Query() *IntegrationInstanceQuery {
+	return &IntegrationInstanceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIntegrationInstance},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IntegrationInstance entity by its id.
+func (c *IntegrationInstanceClient) Get(ctx context.Context, id string) (*IntegrationInstance, error) {
+	return c.Query().Where(integrationinstance.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IntegrationInstanceClient) GetX(ctx context.Context, id string) *IntegrationInstance {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IntegrationInstanceClient) Hooks() []Hook {
+	return c.hooks.IntegrationInstance
+}
+
+// Interceptors returns the client interceptors.
+func (c *IntegrationInstanceClient) Interceptors() []Interceptor {
+	return c.inters.IntegrationInstance
+}
+
+func (c *IntegrationInstanceClient) mutate(ctx context.Context, m *IntegrationInstanceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IntegrationInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IntegrationInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IntegrationInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IntegrationInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IntegrationInstance mutation op: %q", m.Op())
+	}
+}
+
+// IntegrationSetupSessionClient is a client for the IntegrationSetupSession schema.
+type IntegrationSetupSessionClient struct {
+	config
+}
+
+// NewIntegrationSetupSessionClient returns a client for the IntegrationSetupSession from the given config.
+func NewIntegrationSetupSessionClient(c config) *IntegrationSetupSessionClient {
+	return &IntegrationSetupSessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `integrationsetupsession.Hooks(f(g(h())))`.
+func (c *IntegrationSetupSessionClient) Use(hooks ...Hook) {
+	c.hooks.IntegrationSetupSession = append(c.hooks.IntegrationSetupSession, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `integrationsetupsession.Intercept(f(g(h())))`.
+func (c *IntegrationSetupSessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.IntegrationSetupSession = append(c.inters.IntegrationSetupSession, interceptors...)
+}
+
+// Create returns a builder for creating a IntegrationSetupSession entity.
+func (c *IntegrationSetupSessionClient) Create() *IntegrationSetupSessionCreate {
+	mutation := newIntegrationSetupSessionMutation(c.config, OpCreate)
+	return &IntegrationSetupSessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IntegrationSetupSession entities.
+func (c *IntegrationSetupSessionClient) CreateBulk(builders ...*IntegrationSetupSessionCreate) *IntegrationSetupSessionCreateBulk {
+	return &IntegrationSetupSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *IntegrationSetupSessionClient) MapCreateBulk(slice any, setFunc func(*IntegrationSetupSessionCreate, int)) *IntegrationSetupSessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &IntegrationSetupSessionCreateBulk{err: fmt.Errorf("calling to IntegrationSetupSessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*IntegrationSetupSessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &IntegrationSetupSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IntegrationSetupSession.
+func (c *IntegrationSetupSessionClient) Update() *IntegrationSetupSessionUpdate {
+	mutation := newIntegrationSetupSessionMutation(c.config, OpUpdate)
+	return &IntegrationSetupSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IntegrationSetupSessionClient) UpdateOne(_m *IntegrationSetupSession) *IntegrationSetupSessionUpdateOne {
+	mutation := newIntegrationSetupSessionMutation(c.config, OpUpdateOne, withIntegrationSetupSession(_m))
+	return &IntegrationSetupSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IntegrationSetupSessionClient) UpdateOneID(id string) *IntegrationSetupSessionUpdateOne {
+	mutation := newIntegrationSetupSessionMutation(c.config, OpUpdateOne, withIntegrationSetupSessionID(id))
+	return &IntegrationSetupSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IntegrationSetupSession.
+func (c *IntegrationSetupSessionClient) Delete() *IntegrationSetupSessionDelete {
+	mutation := newIntegrationSetupSessionMutation(c.config, OpDelete)
+	return &IntegrationSetupSessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IntegrationSetupSessionClient) DeleteOne(_m *IntegrationSetupSession) *IntegrationSetupSessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IntegrationSetupSessionClient) DeleteOneID(id string) *IntegrationSetupSessionDeleteOne {
+	builder := c.Delete().Where(integrationsetupsession.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IntegrationSetupSessionDeleteOne{builder}
+}
+
+// Query returns a query builder for IntegrationSetupSession.
+func (c *IntegrationSetupSessionClient) Query() *IntegrationSetupSessionQuery {
+	return &IntegrationSetupSessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIntegrationSetupSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a IntegrationSetupSession entity by its id.
+func (c *IntegrationSetupSessionClient) Get(ctx context.Context, id string) (*IntegrationSetupSession, error) {
+	return c.Query().Where(integrationsetupsession.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IntegrationSetupSessionClient) GetX(ctx context.Context, id string) *IntegrationSetupSession {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IntegrationSetupSessionClient) Hooks() []Hook {
+	return c.hooks.IntegrationSetupSession
+}
+
+// Interceptors returns the client interceptors.
+func (c *IntegrationSetupSessionClient) Interceptors() []Interceptor {
+	return c.inters.IntegrationSetupSession
+}
+
+func (c *IntegrationSetupSessionClient) mutate(ctx context.Context, m *IntegrationSetupSessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IntegrationSetupSessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IntegrationSetupSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IntegrationSetupSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IntegrationSetupSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown IntegrationSetupSession mutation op: %q", m.Op())
 	}
 }
 
@@ -2036,11 +2461,13 @@ func (c *WorkerClient) mutate(ctx context.Context, m *WorkerMutation) (Value, er
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationDelivery,
-		Outbox, Run, Session, Wait, WaitHistory, Worker []ent.Hook
+		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationCredential,
+		IntegrationDelivery, IntegrationInstance, IntegrationSetupSession, Outbox, Run,
+		Session, Wait, WaitHistory, Worker []ent.Hook
 	}
 	inters struct {
-		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationDelivery,
-		Outbox, Run, Session, Wait, WaitHistory, Worker []ent.Interceptor
+		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationCredential,
+		IntegrationDelivery, IntegrationInstance, IntegrationSetupSession, Outbox, Run,
+		Session, Wait, WaitHistory, Worker []ent.Interceptor
 	}
 )

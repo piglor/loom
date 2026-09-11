@@ -1,4 +1,6 @@
 FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS web
+ARG VITE_BUILD_SHA=development
+ENV VITE_BUILD_SHA=$VITE_BUILD_SHA
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json

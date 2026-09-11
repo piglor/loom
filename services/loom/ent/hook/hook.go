@@ -81,6 +81,18 @@ func (f IntegrationBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationBindingMutation", m)
 }
 
+// The IntegrationCredentialFunc type is an adapter to allow the use of ordinary
+// function as IntegrationCredential mutator.
+type IntegrationCredentialFunc func(context.Context, *ent.IntegrationCredentialMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IntegrationCredentialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IntegrationCredentialMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationCredentialMutation", m)
+}
+
 // The IntegrationDeliveryFunc type is an adapter to allow the use of ordinary
 // function as IntegrationDelivery mutator.
 type IntegrationDeliveryFunc func(context.Context, *ent.IntegrationDeliveryMutation) (ent.Value, error)
@@ -91,6 +103,30 @@ func (f IntegrationDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationDeliveryMutation", m)
+}
+
+// The IntegrationInstanceFunc type is an adapter to allow the use of ordinary
+// function as IntegrationInstance mutator.
+type IntegrationInstanceFunc func(context.Context, *ent.IntegrationInstanceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IntegrationInstanceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IntegrationInstanceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationInstanceMutation", m)
+}
+
+// The IntegrationSetupSessionFunc type is an adapter to allow the use of ordinary
+// function as IntegrationSetupSession mutator.
+type IntegrationSetupSessionFunc func(context.Context, *ent.IntegrationSetupSessionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IntegrationSetupSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IntegrationSetupSessionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IntegrationSetupSessionMutation", m)
 }
 
 // The OutboxFunc type is an adapter to allow the use of ordinary

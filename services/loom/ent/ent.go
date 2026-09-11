@@ -18,7 +18,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/event"
 	"github.com/piglor/loom/services/loom/ent/goal"
 	"github.com/piglor/loom/services/loom/ent/integrationbinding"
+	"github.com/piglor/loom/services/loom/ent/integrationcredential"
 	"github.com/piglor/loom/services/loom/ent/integrationdelivery"
+	"github.com/piglor/loom/services/loom/ent/integrationinstance"
+	"github.com/piglor/loom/services/loom/ent/integrationsetupsession"
 	"github.com/piglor/loom/services/loom/ent/outbox"
 	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/session"
@@ -85,19 +88,22 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			attempt.Table:             attempt.ValidColumn,
-			audit.Table:               audit.ValidColumn,
-			command.Table:             command.ValidColumn,
-			event.Table:               event.ValidColumn,
-			goal.Table:                goal.ValidColumn,
-			integrationbinding.Table:  integrationbinding.ValidColumn,
-			integrationdelivery.Table: integrationdelivery.ValidColumn,
-			outbox.Table:              outbox.ValidColumn,
-			run.Table:                 run.ValidColumn,
-			session.Table:             session.ValidColumn,
-			wait.Table:                wait.ValidColumn,
-			waithistory.Table:         waithistory.ValidColumn,
-			worker.Table:              worker.ValidColumn,
+			attempt.Table:                 attempt.ValidColumn,
+			audit.Table:                   audit.ValidColumn,
+			command.Table:                 command.ValidColumn,
+			event.Table:                   event.ValidColumn,
+			goal.Table:                    goal.ValidColumn,
+			integrationbinding.Table:      integrationbinding.ValidColumn,
+			integrationcredential.Table:   integrationcredential.ValidColumn,
+			integrationdelivery.Table:     integrationdelivery.ValidColumn,
+			integrationinstance.Table:     integrationinstance.ValidColumn,
+			integrationsetupsession.Table: integrationsetupsession.ValidColumn,
+			outbox.Table:                  outbox.ValidColumn,
+			run.Table:                     run.ValidColumn,
+			session.Table:                 session.ValidColumn,
+			wait.Table:                    wait.ValidColumn,
+			waithistory.Table:             waithistory.ValidColumn,
+			worker.Table:                  worker.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

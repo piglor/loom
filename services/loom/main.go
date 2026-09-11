@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,8 +23,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/piglor/loom/services/loom/internal/control"
+	"github.com/piglor/loom/services/loom/internal/integrations/catalog"
 	githubintegration "github.com/piglor/loom/services/loom/internal/integrations/github"
 	"github.com/piglor/loom/services/loom/internal/orchestration"
+	"github.com/piglor/loom/services/loom/internal/secrets"
 )
 
 type reader interface {
@@ -40,7 +43,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=13").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=14").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
@@ -73,7 +76,7 @@ func jsonResponse(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func newHandler(data reader, token string, api http.Handler, assets fs.FS) http.Handler {
+func newHandler(data reader, token string, api http.Handler, assets fs.FS, plugins func(context.Context) []catalog.Plugin) http.Handler {
 	mux := http.NewServeMux()
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +121,9 @@ func newHandler(data reader, token string, api http.Handler, assets fs.FS) http.
 		}
 		jsonResponse(w, 200, result)
 	}))
+	mux.HandleFunc("GET /v1/plugins", auth(func(w http.ResponseWriter, r *http.Request) {
+		jsonResponse(w, http.StatusOK, plugins(r.Context()))
+	}))
 	mux.Handle("/v1/", api)
 	mux.HandleFunc("GET /readyz", auth(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -144,7 +150,7 @@ func newHandler(data reader, token string, api http.Handler, assets fs.FS) http.
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if r.URL.Path != "/" && r.URL.Path != "/goals" && !strings.HasPrefix(r.URL.Path, "/goals/") && r.URL.Path != "/needs-you" {
+		if r.URL.Path != "/" && r.URL.Path != "/goals" && !strings.HasPrefix(r.URL.Path, "/goals/") && r.URL.Path != "/needs-you" && r.URL.Path != "/plugins" && !strings.HasPrefix(r.URL.Path, "/plugins/") {
 			if !strings.HasPrefix(r.URL.Path, "/assets/") {
 				// Browser navigation gets the recovery UI with a real 404. API,
 				// asset and file-like requests retain their resource error behavior.
@@ -173,7 +179,7 @@ func newHandler(data reader, token string, api http.Handler, assets fs.FS) http.
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://github.com")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		mux.ServeHTTP(w, r)
 	})
@@ -334,10 +340,36 @@ func run() error {
 		addr = "127.0.0.1:8080"
 	}
 	store := &control.Store{DB: db, Organization: org, EnableCodex: os.Getenv("LOOM_ENABLE_CODEX_CONTAINER") == "true"}
+	secretStore, err := secrets.OpenBaoFromEnvironment()
+	if err != nil {
+		return errors.New("Invalid OpenBao configuration")
+	}
+	publicURL := os.Getenv("LOOM_PUBLIC_URL")
+	if publicURL == "" {
+		publicURL = "http://127.0.0.1:8080"
+	}
+	setup, err := githubintegration.NewSetupHandler(store, secretStore, token, org, publicURL)
+	if err != nil {
+		return err
+	}
+	resolveWebhookSecret := func(ctx context.Context, installationID int64) (string, error) {
+		record, lookupErr := store.IntegrationCredentialForInstance(ctx, "github", strconv.FormatInt(installationID, 10))
+		if lookupErr != nil {
+			return "", lookupErr
+		}
+		values, _, lookupErr := secretStore.Get(ctx, record.SecretReference)
+		if lookupErr != nil {
+			return "", lookupErr
+		}
+		return values["webhook_secret"], nil
+	}
 	api := http.NewServeMux()
-	api.Handle("/v1/github/", githubintegration.NewHandler(store, token, os.Getenv("LOOM_GITHUB_WEBHOOK_SECRET"), githubintegration.NewAPI(os.Getenv("LOOM_GITHUB_API_TOKEN"))))
+	api.Handle("/v1/github/", githubintegration.NewManagedHandler(store, token, os.Getenv("LOOM_GITHUB_WEBHOOK_SECRET"), resolveWebhookSecret, githubintegration.NewManagedAPI(store, secretStore, os.Getenv("LOOM_GITHUB_API_TOKEN"))))
+	api.Handle("/v1/plugins/", setup)
+	api.Handle("/v1/integration-instances", setup)
+	api.Handle("/v1/integration-instances/", setup)
 	api.Handle("/v1/", control.NewAPIHandler(store, token))
-	server := &http.Server{Addr: addr, Handler: newHandler(postgresReader{pool, org, store}, token, api, os.DirFS(dir)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
+	server := &http.Server{Addr: addr, Handler: newHandler(postgresReader{pool, org, store}, token, api, os.DirFS(dir), func(ctx context.Context) []catalog.Plugin { return []catalog.Plugin{setup.Plugin(ctx)} }), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

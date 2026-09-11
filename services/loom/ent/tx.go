@@ -24,8 +24,14 @@ type Tx struct {
 	Goal *GoalClient
 	// IntegrationBinding is the client for interacting with the IntegrationBinding builders.
 	IntegrationBinding *IntegrationBindingClient
+	// IntegrationCredential is the client for interacting with the IntegrationCredential builders.
+	IntegrationCredential *IntegrationCredentialClient
 	// IntegrationDelivery is the client for interacting with the IntegrationDelivery builders.
 	IntegrationDelivery *IntegrationDeliveryClient
+	// IntegrationInstance is the client for interacting with the IntegrationInstance builders.
+	IntegrationInstance *IntegrationInstanceClient
+	// IntegrationSetupSession is the client for interacting with the IntegrationSetupSession builders.
+	IntegrationSetupSession *IntegrationSetupSessionClient
 	// Outbox is the client for interacting with the Outbox builders.
 	Outbox *OutboxClient
 	// Run is the client for interacting with the Run builders.
@@ -175,7 +181,10 @@ func (tx *Tx) init() {
 	tx.Event = NewEventClient(tx.config)
 	tx.Goal = NewGoalClient(tx.config)
 	tx.IntegrationBinding = NewIntegrationBindingClient(tx.config)
+	tx.IntegrationCredential = NewIntegrationCredentialClient(tx.config)
 	tx.IntegrationDelivery = NewIntegrationDeliveryClient(tx.config)
+	tx.IntegrationInstance = NewIntegrationInstanceClient(tx.config)
+	tx.IntegrationSetupSession = NewIntegrationSetupSessionClient(tx.config)
 	tx.Outbox = NewOutboxClient(tx.config)
 	tx.Run = NewRunClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)

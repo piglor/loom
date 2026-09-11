@@ -3,12 +3,15 @@
 Current scope: native Go signed `workflow_run` completion events for explicitly
 enrolled Goals, with live GitHub API freshness checks before correlation.
 
-Set a random `LOOM_GITHUB_WEBHOOK_SECRET` of at least 32 characters in the server
-secret store and configure a webhook at `/v1/github/webhook`. Until configured,
-that endpoint returns 503. Public repositories can be revalidated without an API
-token. Private repositories require a short-lived, least-privilege installation
-token in `LOOM_GITHUB_API_TOKEN`. Never send the Loom administrator token to
-GitHub.
+Use **Plugins → GitHub → Connect with GitHub** in the operator console. The App
+Manifest flow configures `/v1/github/webhook`, creates a read-only GitHub App,
+stores its credential bundle in OpenBao and verifies the installation against
+the authorizing GitHub user. Webhooks resolve the secret by installation and
+private-repository freshness checks mint a short-lived installation token from
+the App credential. `LOOM_GITHUB_WEBHOOK_SECRET`,
+`LOOM_GITHUB_APP_INSTALL_URL`, and `LOOM_GITHUB_API_TOKEN` remain one-release
+read-only fallbacks for existing deployments. Never send the Loom administrator
+token to GitHub.
 
 An administrator creates a Goal whose condition is:
 
@@ -39,9 +42,9 @@ ambiguous PR associations, forks and `pull_request_target` are rejected. Tests
 include GitHub's official signature vector and tampered bytes.
 
 Repository webhook bindings use `installation_id: 0` and are restricted to
-finite demo runtimes. Privileged Codex bindings remain disabled until GitHub App
-installation authorization and revocation checks are implemented. Finite
-bindings are checked against the current PR head and workflow run both when
+finite demo runtimes. Privileged Codex bindings require an active, verified
+GitHub App installation. Disabling an installation prevents new privileged
+bindings and managed secret resolution. Bindings are checked against the current PR head and workflow run both when
 bound and when delivered, so retained early evidence cannot wake after becoming
 stale. Missed-delivery API reconciliation, required-check policy and the full
 live Codex round trip remain release gates.

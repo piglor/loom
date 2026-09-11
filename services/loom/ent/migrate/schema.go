@@ -118,6 +118,31 @@ var (
 		Columns:    IntegrationBindingsColumns,
 		PrimaryKey: []*schema.Column{IntegrationBindingsColumns[0]},
 	}
+	// IntegrationCredentialsColumns holds the columns for the "integration_credentials" table.
+	IntegrationCredentialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "plugin_id", Type: field.TypeString},
+		{Name: "label", Type: field.TypeString},
+		{Name: "secret_reference", Type: field.TypeString, Unique: true},
+		{Name: "secret_version", Type: field.TypeInt},
+		{Name: "state", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+	}
+	// IntegrationCredentialsTable holds the schema information for the "integration_credentials" table.
+	IntegrationCredentialsTable = &schema.Table{
+		Name:       "integration_credentials",
+		Columns:    IntegrationCredentialsColumns,
+		PrimaryKey: []*schema.Column{IntegrationCredentialsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "integrationcredential_organization_plugin_id",
+				Unique:  false,
+				Columns: []*schema.Column{IntegrationCredentialsColumns[1], IntegrationCredentialsColumns[2]},
+			},
+		},
+	}
 	// IntegrationDeliveriesColumns holds the columns for the "integration_deliveries" table.
 	IntegrationDeliveriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -138,6 +163,55 @@ var (
 		Name:       "integration_deliveries",
 		Columns:    IntegrationDeliveriesColumns,
 		PrimaryKey: []*schema.Column{IntegrationDeliveriesColumns[0]},
+	}
+	// IntegrationInstancesColumns holds the columns for the "integration_instances" table.
+	IntegrationInstancesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "credential_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "plugin_id", Type: field.TypeString},
+		{Name: "external_instance_id", Type: field.TypeString},
+		{Name: "account_id", Type: field.TypeString},
+		{Name: "account_label", Type: field.TypeString},
+		{Name: "repository_selection", Type: field.TypeString},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "state", Type: field.TypeString},
+		{Name: "last_verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+	}
+	// IntegrationInstancesTable holds the schema information for the "integration_instances" table.
+	IntegrationInstancesTable = &schema.Table{
+		Name:       "integration_instances",
+		Columns:    IntegrationInstancesColumns,
+		PrimaryKey: []*schema.Column{IntegrationInstancesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "integrationinstance_organization_plugin_id_external_instance_id",
+				Unique:  true,
+				Columns: []*schema.Column{IntegrationInstancesColumns[1], IntegrationInstancesColumns[3], IntegrationInstancesColumns[4]},
+			},
+		},
+	}
+	// IntegrationSetupSessionsColumns holds the columns for the "integration_setup_sessions" table.
+	IntegrationSetupSessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "plugin_id", Type: field.TypeString},
+		{Name: "mode", Type: field.TypeString},
+		{Name: "state_hash", Type: field.TypeString, Unique: true},
+		{Name: "stage", Type: field.TypeString},
+		{Name: "credential_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "pending_installation_id", Type: field.TypeString, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+	}
+	// IntegrationSetupSessionsTable holds the schema information for the "integration_setup_sessions" table.
+	IntegrationSetupSessionsTable = &schema.Table{
+		Name:       "integration_setup_sessions",
+		Columns:    IntegrationSetupSessionsColumns,
+		PrimaryKey: []*schema.Column{IntegrationSetupSessionsColumns[0]},
 	}
 	// OutboxColumns holds the columns for the "outbox" table.
 	OutboxColumns = []*schema.Column{
@@ -244,7 +318,10 @@ var (
 		EventsTable,
 		GoalsTable,
 		IntegrationBindingsTable,
+		IntegrationCredentialsTable,
 		IntegrationDeliveriesTable,
+		IntegrationInstancesTable,
+		IntegrationSetupSessionsTable,
 		OutboxTable,
 		RunsTable,
 		SessionsTable,
@@ -273,8 +350,17 @@ func init() {
 	IntegrationBindingsTable.Annotation = &entsql.Annotation{
 		Table: "integration_bindings",
 	}
+	IntegrationCredentialsTable.Annotation = &entsql.Annotation{
+		Table: "integration_credentials",
+	}
 	IntegrationDeliveriesTable.Annotation = &entsql.Annotation{
 		Table: "integration_deliveries",
+	}
+	IntegrationInstancesTable.Annotation = &entsql.Annotation{
+		Table: "integration_instances",
+	}
+	IntegrationSetupSessionsTable.Annotation = &entsql.Annotation{
+		Table: "integration_setup_sessions",
 	}
 	OutboxTable.Annotation = &entsql.Annotation{
 		Table: "outbox",

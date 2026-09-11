@@ -6,6 +6,7 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
   useParams,
 } from "react-router-dom";
 import {
@@ -13,7 +14,9 @@ import {
   createClient,
   type Goal,
   type GoalSummary,
+  type Plugin,
 } from "@piglor/loom-client";
+import { PluginSetup } from "./PluginSetup";
 import "./style.css";
 
 type Client = ReturnType<typeof createClient>;
@@ -49,6 +52,19 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unable to load data.";
 }
 
+function pluginStateLabel(plugin: Plugin) {
+  switch (plugin.state) {
+    case "connected":
+      return `${plugin.connection_count} connected`;
+    case "ready_to_connect":
+      return "Ready to connect";
+    case "needs_attention":
+      return "Needs attention";
+    default:
+      return "Server setup needed";
+  }
+}
+
 function Login({ onLogin }: { onLogin: (token: string) => void }) {
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
@@ -57,17 +73,33 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
     document.title = "Sign in · Loom";
   }, []);
   return (
-    <main className="login">
-      <div className="brand">
-        <span className="mark">L</span> loom <small>by Piglor</small>
-      </div>
-      <h1>
-        Pay for thinking.
-        <br />
-        <span>Not waiting.</span>
-      </h1>
-      <p>Your Goals keep moving—even when your agents don’t.</p>
+    <main className="login-shell">
+      <section className="login-story">
+        <div className="brand">
+          <span className="mark">L</span> loom <small>by Piglor</small>
+        </div>
+        <div>
+          <p className="eyebrow">THE AGENT CONTROL PLANE</p>
+          <h1>
+            Keep work moving.
+            <br />
+            <span>Without babysitting it.</span>
+          </h1>
+          <p>
+            Connect your tools, hand Loom an outcome, and let verified events
+            bring your agents back when there is real work to do.
+          </p>
+        </div>
+        <div className="login-proof">
+          <span>Work</span>
+          <i aria-hidden="true">→</i>
+          <span>Wait safely</span>
+          <i aria-hidden="true">→</i>
+          <span>Resume</span>
+        </div>
+      </section>
       <form
+        className="login-card"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -83,7 +115,11 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
           }
         }}
       >
-        <h2>Open your control plane</h2>
+        <p className="eyebrow">WELCOME BACK</p>
+        <h2>Sign in to your workspace</h2>
+        <p className="login-intro">
+          Use the operator token from your Loom server.
+        </p>
         <label htmlFor="token">Operator API token</label>
         <input
           id="token"
@@ -94,8 +130,8 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
           onChange={(e) => setToken(e.target.value)}
         />
         <p className="muted">
-          Single-organization operator access. Your token stays in memory;
-          refreshing signs you out. Never use a Hatchet or worker token here.
+          Your token stays in this tab only. Refreshing or signing out removes
+          it from the browser.
         </p>
         {error && (
           <p role="alert" className="error">
@@ -103,13 +139,235 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
           </p>
         )}
         <button disabled={busy}>
-          {busy ? "Connecting…" : "Connect to Loom →"}
+          {busy ? "Signing in…" : "Connect to Loom →"}
         </button>
+        <p className="token-note">
+          Use a Loom operator token—not a GitHub, Hatchet, or worker token.
+        </p>
       </form>
-      <p className="footnote">
-        Finite-runtime preview · No unattended coding agents enabled
-      </p>
     </main>
+  );
+}
+
+function RouteEffects() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
+  return null;
+}
+
+function GitHubGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="plugin-glyph">
+      <path
+        fill="currentColor"
+        d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.77c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
+      />
+    </svg>
+  );
+}
+
+function PluginGlyph({ plugin }: { plugin: Plugin }) {
+  return plugin.id === "github" ? (
+    <GitHubGlyph />
+  ) : (
+    <span aria-hidden="true">{plugin.name.slice(0, 1).toUpperCase()}</span>
+  );
+}
+
+function Home({
+  client,
+  onUnauthorized,
+}: {
+  client: Client;
+  onUnauthorized: () => void;
+}) {
+  const { plugins, loading } = usePlugins(client, onUnauthorized);
+  const github = plugins.find((plugin) => plugin.id === "github");
+  useEffect(() => {
+    document.title = "Home · Loom";
+  }, []);
+  return (
+    <>
+      <header className="welcome">
+        <div>
+          <p className="eyebrow">WELCOME TO LOOM</p>
+          <h1>Let’s get Loom working for you</h1>
+          <p>
+            Connect the tools your team already uses. Loom can then pause work,
+            wait for trusted events, and continue when there is something to do.
+          </p>
+        </div>
+        <div className="welcome-orbit" aria-hidden="true">
+          <span className="orbit-core">L</span>
+          <span className="orbit-node orbit-one">Git</span>
+          <span className="orbit-node orbit-two">CI</span>
+          <span className="orbit-node orbit-three">AI</span>
+        </div>
+      </header>
+      <section className="setup-section" aria-labelledby="setup-title">
+        <div className="section-heading generous">
+          <div>
+            <p className="eyebrow">START HERE</p>
+            <h2 id="setup-title">
+              Connect the first service Loom can listen to
+            </h2>
+          </div>
+          <span className="progress-pill">Recommended path</span>
+        </div>
+        <div className="setup-grid">
+          <article className="setup-card featured">
+            <div className="plugin-logo">
+              <GitHubGlyph />
+            </div>
+            <h3>
+              {github?.state === "connected"
+                ? "GitHub is connected"
+                : "Connect your first plugin"}
+            </h3>
+            <p>
+              {github?.state === "connected"
+                ? `${github.connection_count} GitHub connection${github.connection_count === 1 ? "" : "s"} ready`
+                : "Start with GitHub to let trusted repository events wake your Goals."}
+            </p>
+            <Link className="button-link" to="/plugins/github">
+              {loading
+                ? "Checking setup…"
+                : github?.state === "connected"
+                  ? "Manage GitHub"
+                  : "Connect GitHub"}{" "}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </article>
+        </div>
+      </section>
+      <section className="explainer-strip">
+        <div>
+          <span>1</span>
+          <p>
+            <strong>An agent works</strong>
+            <br />
+            Only while reasoning or acting
+          </p>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>2</span>
+          <p>
+            <strong>Loom waits</strong>
+            <br />
+            No model kept running
+          </p>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>3</span>
+          <p>
+            <strong>A plugin wakes it</strong>
+            <br />
+            After a verified event
+          </p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function usePlugins(client: Client, onUnauthorized: () => void) {
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const abort = new AbortController();
+    setLoading(true);
+    client
+      .plugins(abort.signal)
+      .then(setPlugins)
+      .catch((e) => {
+        if (!abort.signal.aborted) {
+          if (e instanceof APIError && e.status === 401) onUnauthorized();
+          else setError(errorMessage(e));
+        }
+      })
+      .finally(() => {
+        if (!abort.signal.aborted) setLoading(false);
+      });
+    return () => abort.abort();
+  }, [client, onUnauthorized]);
+  return { plugins, loading, error };
+}
+
+function PluginStore({
+  client,
+  onUnauthorized,
+}: {
+  client: Client;
+  onUnauthorized: () => void;
+}) {
+  const { plugins, loading, error } = usePlugins(client, onUnauthorized);
+  useEffect(() => {
+    document.title = "Plugin store · Loom";
+  }, []);
+  return (
+    <>
+      <header className="page-heading store-heading">
+        <div>
+          <p className="eyebrow">EXTEND LOOM</p>
+          <h1>Plugin store</h1>
+          <p className="page-intro">
+            Add trusted event sources that can wake work already waiting in
+            Loom.
+          </p>
+        </div>
+      </header>
+      <div className="category-tabs" aria-label="Plugin categories">
+        <span className="active">All plugins</span>
+      </div>
+      {error ? (
+        <section className="panel empty error" role="alert">
+          {error}
+        </section>
+      ) : loading ? (
+        <section className="panel empty" role="status">
+          Loading plugins…
+        </section>
+      ) : (
+        <section className="plugin-grid" aria-label="Available plugins">
+          {plugins.map((plugin) => (
+            <Link
+              className="plugin-card"
+              to={`/plugins/${plugin.id}`}
+              key={plugin.id}
+            >
+              <div className="plugin-card-top">
+                <div className="plugin-logo">
+                  <PluginGlyph plugin={plugin} />
+                </div>
+                <span className={`plugin-state ${plugin.state}`}>
+                  {pluginStateLabel(plugin)}
+                </span>
+              </div>
+              <h2>{plugin.name}</h2>
+              <p>{plugin.description}</p>
+              <span className="text-link">
+                View setup <span aria-hidden="true">→</span>
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
+      <aside className="trust-note">
+        <span aria-hidden="true">◇</span>
+        <div>
+          <strong>Plugins deliver evidence, not blanket authority.</strong>
+          <p>
+            Loom verifies the tenant, installation, resource, version, and
+            authorization before a waiting session can resume.
+          </p>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -461,17 +719,28 @@ function App() {
     return <Login onLogin={(token) => setClient(createClient(token))} />;
   return (
     <div className="shell">
+      <RouteEffects />
       <a className="skip" href="#content">
         Skip to content
       </a>
       <aside className="sidebar">
-        <Link className="brand" to="/goals">
+        <Link className="brand" to="/">
           <span className="mark">L</span> loom
         </Link>
-        <p className="eyebrow">PIGLOR / CONTROL PLANE</p>
+        <p className="eyebrow">WORKSPACE</p>
         <nav aria-label="Main navigation">
-          <NavLink to="/goals">◎ Goals</NavLink>
-          <NavLink to="/needs-you">◈ Needs you</NavLink>
+          <NavLink to="/" end>
+            <span aria-hidden="true">⌂</span> Home
+          </NavLink>
+          <NavLink to="/goals">
+            <span aria-hidden="true">◎</span> Goals
+          </NavLink>
+          <NavLink to="/needs-you">
+            <span aria-hidden="true">◈</span> Needs you
+          </NavLink>
+          <NavLink to="/plugins">
+            <span aria-hidden="true">◆</span> Plugins
+          </NavLink>
         </nav>
         <div className="sidebar-bottom">
           <p>
@@ -482,14 +751,17 @@ function App() {
           <button className="secondary" onClick={logout}>
             Sign out
           </button>
-          <small>Operator preview · Read-only console</small>
+          <small>
+            Operator console · build{" "}
+            {(import.meta.env.VITE_BUILD_SHA ?? "development").slice(0, 12)}
+          </small>
         </div>
       </aside>
       <main id="content" className="content" tabIndex={-1}>
         <Routes>
           <Route
             path="/"
-            element={<GoalList client={client} onUnauthorized={logout} />}
+            element={<Home client={client} onUnauthorized={logout} />}
           />
           <Route
             path="/goals"
@@ -509,6 +781,14 @@ function App() {
           <Route
             path="/goals/:id"
             element={<GoalDetail client={client} onUnauthorized={logout} />}
+          />
+          <Route
+            path="/plugins"
+            element={<PluginStore client={client} onUnauthorized={logout} />}
+          />
+          <Route
+            path="/plugins/:id"
+            element={<PluginSetup client={client} onUnauthorized={logout} />}
           />
           <Route
             path="*"

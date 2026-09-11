@@ -24,8 +24,17 @@ type Goal func(*sql.Selector)
 // IntegrationBinding is the predicate function for integrationbinding builders.
 type IntegrationBinding func(*sql.Selector)
 
+// IntegrationCredential is the predicate function for integrationcredential builders.
+type IntegrationCredential func(*sql.Selector)
+
 // IntegrationDelivery is the predicate function for integrationdelivery builders.
 type IntegrationDelivery func(*sql.Selector)
+
+// IntegrationInstance is the predicate function for integrationinstance builders.
+type IntegrationInstance func(*sql.Selector)
+
+// IntegrationSetupSession is the predicate function for integrationsetupsession builders.
+type IntegrationSetupSession func(*sql.Selector)
 
 // Outbox is the predicate function for outbox builders.
 type Outbox func(*sql.Selector)

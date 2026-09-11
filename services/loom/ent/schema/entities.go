@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -248,4 +249,73 @@ func (IntegrationDelivery) Fields() []ent.Field {
 }
 func (IntegrationDelivery) Annotations() []schema.Annotation {
 	return []schema.Annotation{entsql.Annotation{Table: "integration_deliveries"}}
+}
+
+type IntegrationCredential struct{ ent.Schema }
+
+func (IntegrationCredential) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("plugin_id"),
+		field.String("label"),
+		field.String("secret_reference").Unique(),
+		field.Int("secret_version").Positive(),
+		field.String("state"),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+	}
+}
+func (IntegrationCredential) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "plugin_id")}
+}
+func (IntegrationCredential) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "integration_credentials"}}
+}
+
+type IntegrationInstance struct{ ent.Schema }
+
+func (IntegrationInstance) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("credential_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("plugin_id"),
+		field.String("external_instance_id"),
+		field.String("account_id"),
+		field.String("account_label"),
+		field.String("repository_selection"),
+		field.JSON("metadata", map[string]any{}).Optional(),
+		field.String("state"),
+		field.Time("last_verified_at").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+	}
+}
+func (IntegrationInstance) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "plugin_id", "external_instance_id").Unique()}
+}
+func (IntegrationInstance) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "integration_instances"}}
+}
+
+type IntegrationSetupSession struct{ ent.Schema }
+
+func (IntegrationSetupSession) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("plugin_id"),
+		field.String("mode"),
+		field.String("state_hash").Unique(),
+		field.String("stage"),
+		field.String("credential_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.String("pending_installation_id").Optional().Nillable(),
+		field.Time("expires_at"),
+		field.Time("consumed_at").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+	}
+}
+func (IntegrationSetupSession) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "integration_setup_sessions"}}
 }

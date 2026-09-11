@@ -14,7 +14,7 @@ const test = base.extend<{ checkPageErrors: void }>({
 });
 
 const id = "a2222222-2222-4222-8222-222222222222";
-const token = "test-operator-token-never-persist-this";
+const token = "browser-fixture-token-not-a-real-credential";
 const summary = {
   id,
   title: "Investigate deployment health",
@@ -72,6 +72,44 @@ const goal = {
     },
   ],
 };
+const githubPlugin = {
+  id: "github",
+  name: "GitHub",
+  description: "Connect repositories and wake Goals from GitHub events.",
+  category: "Source control",
+  state: "ready_to_connect",
+  setup_title: "Set up GitHub",
+  setup_summary:
+    "Let verified pull request and Actions events wake the right Goal at the right version.",
+  estimated_time: "About 2 minutes",
+  steps: [
+    {
+      title: "Install the Loom GitHub App",
+      description: "Choose the organization you want to connect.",
+    },
+    {
+      title: "Choose repository access",
+      description: "Select only repositories Loom should observe.",
+    },
+  ],
+  checks: [
+    {
+      id: "signed_webhooks",
+      label: "Signed webhooks",
+      status: "ready",
+      detail: "Configured",
+      required: true,
+    },
+  ],
+  action: {
+    label: "Install GitHub app",
+    url: "https://github.com/apps/loom-test/installations/new",
+  },
+  endpoints: [{ label: "Webhook URL", path: "/v1/github/webhook" }],
+  notice: "Installation enables event observation only.",
+  connection_count: 0,
+  secret_backend: "ready",
+};
 async function mockAPI(page: Page) {
   await page.route("**/v1/goals**", async (route) => {
     expect(route.request().headers().authorization).toBe(`Bearer ${token}`);
@@ -79,12 +117,139 @@ async function mockAPI(page: Page) {
       json: route.request().url().endsWith("/v1/goals") ? [summary] : goal,
     });
   });
+  await page.route("**/v1/integration-instances**", async (route) => {
+    expect(route.request().headers().authorization).toBe(`Bearer ${token}`);
+    await route.fulfill({ json: [] });
+  });
 }
-async function login(page: Page, path = "/") {
+async function login(page: Page, path = "/goals") {
   await page.goto(path);
   await page.getByLabel("Operator API token").fill(token);
   await page.getByRole("button", { name: "Connect to Loom" }).click();
 }
+test("sign-in leads to guided setup and a configurable GitHub plugin", async ({
+  page,
+}, testInfo) => {
+  await mockAPI(page);
+  await page.route("**/v1/plugins", (route) =>
+    route.fulfill({
+      json: [githubPlugin],
+    }),
+  );
+  await page.goto("/");
+  await page.getByLabel("Operator API token").fill(token);
+  await page.getByRole("button", { name: "Connect to Loom" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Let’s get Loom working for you" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("guided-home.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "Connect GitHub" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect GitHub to Loom" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("plugin-store.png"),
+    fullPage: true,
+  });
+  await expect(
+    page.getByRole("button", { name: "Connect with GitHub" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("github-plugin.png"),
+    fullPage: true,
+  });
+});
+test("GitHub setup names every missing required server value", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await page.route("**/v1/plugins", (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...githubPlugin,
+          state: "needs_configuration",
+          secret_backend: "unconfigured",
+          checks: [
+            {
+              id: "secret_storage",
+              label: "OpenBao secret storage",
+              status: "missing",
+              detail: "Configure LOOM_OPENBAO_ADDR and AppRole credentials",
+              required: true,
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  await login(page, "/plugins/github");
+  await expect(
+    page.getByRole("heading", { name: "Setup required" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("code").filter({
+      hasText: "Configure LOOM_OPENBAO_ADDR and AppRole credentials",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Connect with GitHub" }),
+  ).toHaveCount(0);
+});
+
+test("advanced GitHub credentials are submitted once and cleared", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await page.route("**/v1/plugins", (route) =>
+    route.fulfill({ json: [{ ...githubPlugin, state: "ready_to_connect" }] }),
+  );
+  let submitted = "";
+  await page.route("**/v1/plugins/github/manual", async (route) => {
+    submitted = route.request().postData() ?? "";
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: "b2222222-2222-4222-8222-222222222222",
+        credential_id: "c2222222-2222-4222-8222-222222222222",
+        plugin_id: "github",
+        external_instance_id: "42",
+        account_id: "7",
+        account_label: "piglor",
+        repository_selection: "selected",
+        metadata: {},
+        state: "active",
+        last_verified_at: "2026-09-11T01:00:00Z",
+      },
+    });
+  });
+  await login(page, "/plugins/github");
+  await page
+    .getByRole("button", { name: "Use an existing GitHub App" })
+    .click();
+  await page.getByLabel("App ID").fill("123");
+  await page.getByLabel("Installation ID").fill("42");
+  await page.getByLabel("Client ID").fill("Iv1.client");
+  await page.getByLabel("App slug").fill("loom-test");
+  await page
+    .getByLabel("Client secret")
+    .fill("client-secret-value-that-is-long");
+  await page.getByLabel("Webhook secret").fill("w".repeat(32));
+  await page.getByLabel("Private key (PEM)").fill("test-private-key");
+  await page
+    .getByRole("button", { name: "Verify and save connection" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Use an existing GitHub App" }),
+  ).toBeVisible();
+  expect(submitted).toContain("client-secret-value-that-is-long");
+  await expect(page.getByText("client-secret-value-that-is-long")).toHaveCount(
+    0,
+  );
+});
 test("unknown browser route retains HTTP 404 and offers recovery", async ({
   page,
 }) => {
@@ -112,7 +277,9 @@ test("keyboard sign-in and skip navigation focus main content", async ({
     page.getByRole("button", { name: "Connect to Loom" }),
   ).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Let’s get Loom working for you" }),
+  ).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Skip to content" }),
@@ -125,7 +292,7 @@ test("back and forward restore Goals and attention navigation", async ({
 }) => {
   await mockAPI(page);
   await login(page, "/goals");
-  await page.getByRole("link", { name: "◈ Needs you" }).click();
+  await page.getByRole("link", { name: "Needs you", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Needs you", exact: true }),
   ).toBeVisible();
@@ -314,7 +481,7 @@ test("filter Goals and display an empty attention queue", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: /Investigate deployment/ }),
   ).toHaveCount(0);
-  await page.getByRole("link", { name: "◈ Needs you" }).click();
+  await page.getByRole("link", { name: "Needs you", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Nothing here needs attention" }),
   ).toBeVisible();

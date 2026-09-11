@@ -12,6 +12,7 @@ import (
 	"testing/fstest"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/piglor/loom/services/loom/internal/integrations/catalog"
 )
 
 const testToken = "operator-test-token-with-at-least-32-characters"
@@ -27,7 +28,9 @@ func (f fakeReader) inspect(context.Context, string) (json.RawMessage, error) {
 	return json.RawMessage(`{"id":"` + goalID + `"}`), f.err
 }
 func handlerForTest(data reader) http.Handler {
-	return newHandler(data, testToken, http.NotFoundHandler(), fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Loom</title>")}, "assets/app.js": {Data: []byte("console.log('loom')")}})
+	return newHandler(data, testToken, http.NotFoundHandler(), fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Loom</title>")}, "assets/app.js": {Data: []byte("console.log('loom')")}}, func(context.Context) []catalog.Plugin {
+		return []catalog.Plugin{{ID: "github", Name: "GitHub", State: "ready_to_connect"}}
+	})
 }
 
 func TestRoutesAndAuthentication(t *testing.T) {
@@ -36,11 +39,11 @@ func TestRoutesAndAuthentication(t *testing.T) {
 		path, token string
 		status      int
 	}{
-		{"/", "", 200}, {"/goals/" + goalID, "", 200}, {"/needs-you", "", 200},
+		{"/", "", 200}, {"/goals/" + goalID, "", 200}, {"/needs-you", "", 200}, {"/plugins", "", 200}, {"/plugins/github", "", 200},
 		{"/assets/app.js", "", 200}, {"/assets/missing.js", "", 404}, {"/.env", "", 404}, {"/main.go", "", 404},
 		{"/healthz", "", 200}, {"/v1/goals", "", 401}, {"/v1/goals", "bad", 401},
 		{"/v1/goals", testToken, 200}, {"/v1/goals/" + goalID, "", 401},
-		{"/v1/goals/" + goalID, testToken, 200}, {"/v1/goals/not-a-uuid", testToken, 422},
+		{"/v1/goals/" + goalID, testToken, 200}, {"/v1/goals/not-a-uuid", testToken, 422}, {"/v1/plugins", "", 401}, {"/v1/plugins", testToken, 200},
 	} {
 		t.Run(tc.path+tc.token[:min(3, len(tc.token))], func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, tc.path, nil)
@@ -52,7 +55,8 @@ func TestRoutesAndAuthentication(t *testing.T) {
 			if w.Code != tc.status {
 				t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 			}
-			if w.Header().Get("Cache-Control") != "no-store" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+			csp := w.Header().Get("Content-Security-Policy")
+			if w.Header().Get("Cache-Control") != "no-store" || !strings.Contains(csp, "frame-ancestors 'none'") || !strings.Contains(csp, "form-action 'self' https://github.com") {
 				t.Fatal("missing security headers")
 			}
 			if strings.Contains(w.Body.String(), testToken) {
@@ -113,7 +117,7 @@ func TestUUIDValidation(t *testing.T) {
 }
 
 func TestMissingAssets(t *testing.T) {
-	h := newHandler(fakeReader{}, testToken, http.NotFoundHandler(), fstest.MapFS{})
+	h := newHandler(fakeReader{}, testToken, http.NotFoundHandler(), fstest.MapFS{}, func(context.Context) []catalog.Plugin { return nil })
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 	if w.Code != 503 {

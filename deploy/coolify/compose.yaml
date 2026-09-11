@@ -36,7 +36,7 @@ services:
     restart: "no"
     networks: [private]
     depends_on:
-      loom-db: {condition: service_healthy}
+      loom-db: { condition: service_healthy }
 
   loom-server:
     <<: *loom
@@ -44,7 +44,14 @@ services:
     environment:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
+      LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:?required}
+      LOOM_OPENBAO_ADDR: ${LOOM_OPENBAO_ADDR:?required}
+      LOOM_OPENBAO_MOUNT: ${LOOM_OPENBAO_MOUNT:-loom}
+      LOOM_OPENBAO_ROLE_ID: ${LOOM_OPENBAO_ROLE_ID:?required}
+      LOOM_OPENBAO_SECRET_ID: ${LOOM_OPENBAO_SECRET_ID:?required}
+      LOOM_OPENBAO_CA_CERT: ${LOOM_OPENBAO_CA_CERT:-}
       LOOM_GITHUB_WEBHOOK_SECRET: ${LOOM_GITHUB_WEBHOOK_SECRET:-}
+      LOOM_GITHUB_APP_INSTALL_URL: ${LOOM_GITHUB_APP_INSTALL_URL:-}
       LOOM_GITHUB_API_TOKEN: ${LOOM_GITHUB_API_TOKEN:-}
     expose: [8080]
     networks: [private, egress]
@@ -54,7 +61,7 @@ services:
       # while the container-local health check passes.
       traefik.docker.network: ${LOOM_INGRESS_NETWORK:-coolify}
     depends_on:
-      loom-migrate: {condition: service_completed_successfully}
+      loom-migrate: { condition: service_completed_successfully }
     healthcheck:
       test:
         - CMD
@@ -76,7 +83,7 @@ services:
       HATCHET_CLIENT_TLS_STRATEGY: ${HATCHET_CLIENT_TLS_STRATEGY:-none}
     networks: [private, hatchet-existing]
     depends_on:
-      loom-migrate: {condition: service_completed_successfully}
+      loom-migrate: { condition: service_completed_successfully }
 
 volumes:
   loom-data:

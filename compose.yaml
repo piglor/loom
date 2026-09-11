@@ -1,4 +1,19 @@
 services:
+  # Development-only OpenBao. Lite/Server must not use dev mode or this token.
+  openbao:
+    image: openbao/openbao:2.5.4
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200", "-dev-root-token-id=loom-development-root-token"]
+    ports:
+      - "127.0.0.1:18200:8200"
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
   loom-postgres:
     image: postgres:17.6
     environment:

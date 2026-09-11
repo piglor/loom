@@ -13,6 +13,17 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
 
 - `LOOM_POSTGRES_PASSWORD`: fresh random URL-safe password (hex is simplest).
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
+- `LOOM_PUBLIC_URL`: canonical HTTPS origin used for GitHub setup callbacks.
+- `LOOM_OPENBAO_ADDR`, `LOOM_OPENBAO_MOUNT`, `LOOM_OPENBAO_ROLE_ID` and
+  `LOOM_OPENBAO_SECRET_ID`: an externally operated OpenBao KV v2 mount and a
+  least-privilege AppRole. Set `LOOM_OPENBAO_CA_CERT` for a private CA.
+- `LOOM_GITHUB_APP_INSTALL_URL`: HTTPS installation page for the GitHub App shown
+  in the console plugin store.
+- `LOOM_GITHUB_WEBHOOK_SECRET`: GitHub App webhook secret, at least 32 characters.
+  This is a one-release legacy fallback; new plugin-store connections keep the
+  value in OpenBao.
+- `LOOM_GITHUB_API_TOKEN`: short-lived, least-privilege installation token when
+  private repository validation is required.
 - `HATCHET_CLIENT_TOKEN`: a scoped Hatchet worker/client credential.
 - `HATCHET_NETWORK`: the exact existing Docker network shared with Hatchet.
 - `LOOM_INGRESS_NETWORK`: the Docker network used by Coolify's reverse proxy

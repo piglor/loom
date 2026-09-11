@@ -8,7 +8,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/event"
 	"github.com/piglor/loom/services/loom/ent/goal"
 	"github.com/piglor/loom/services/loom/ent/integrationbinding"
+	"github.com/piglor/loom/services/loom/ent/integrationcredential"
 	"github.com/piglor/loom/services/loom/ent/integrationdelivery"
+	"github.com/piglor/loom/services/loom/ent/integrationinstance"
+	"github.com/piglor/loom/services/loom/ent/integrationsetupsession"
 	"github.com/piglor/loom/services/loom/ent/outbox"
 	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/schema"
@@ -56,12 +59,34 @@ func init() {
 	integrationbindingDescID := integrationbindingFields[0].Descriptor()
 	// integrationbinding.DefaultID holds the default value on creation for the id field.
 	integrationbinding.DefaultID = integrationbindingDescID.Default.(func() string)
+	integrationcredentialFields := schema.IntegrationCredential{}.Fields()
+	_ = integrationcredentialFields
+	// integrationcredentialDescSecretVersion is the schema descriptor for secret_version field.
+	integrationcredentialDescSecretVersion := integrationcredentialFields[5].Descriptor()
+	// integrationcredential.SecretVersionValidator is a validator for the "secret_version" field. It is called by the builders before save.
+	integrationcredential.SecretVersionValidator = integrationcredentialDescSecretVersion.Validators[0].(func(int) error)
+	// integrationcredentialDescID is the schema descriptor for id field.
+	integrationcredentialDescID := integrationcredentialFields[0].Descriptor()
+	// integrationcredential.DefaultID holds the default value on creation for the id field.
+	integrationcredential.DefaultID = integrationcredentialDescID.Default.(func() string)
 	integrationdeliveryFields := schema.IntegrationDelivery{}.Fields()
 	_ = integrationdeliveryFields
 	// integrationdeliveryDescID is the schema descriptor for id field.
 	integrationdeliveryDescID := integrationdeliveryFields[0].Descriptor()
 	// integrationdelivery.DefaultID holds the default value on creation for the id field.
 	integrationdelivery.DefaultID = integrationdeliveryDescID.Default.(func() string)
+	integrationinstanceFields := schema.IntegrationInstance{}.Fields()
+	_ = integrationinstanceFields
+	// integrationinstanceDescID is the schema descriptor for id field.
+	integrationinstanceDescID := integrationinstanceFields[0].Descriptor()
+	// integrationinstance.DefaultID holds the default value on creation for the id field.
+	integrationinstance.DefaultID = integrationinstanceDescID.Default.(func() string)
+	integrationsetupsessionFields := schema.IntegrationSetupSession{}.Fields()
+	_ = integrationsetupsessionFields
+	// integrationsetupsessionDescID is the schema descriptor for id field.
+	integrationsetupsessionDescID := integrationsetupsessionFields[0].Descriptor()
+	// integrationsetupsession.DefaultID holds the default value on creation for the id field.
+	integrationsetupsession.DefaultID = integrationsetupsessionDescID.Default.(func() string)
 	outboxFields := schema.Outbox{}.Fields()
 	_ = outboxFields
 	// outboxDescFailures is the schema descriptor for failures field.

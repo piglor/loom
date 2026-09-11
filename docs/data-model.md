@@ -32,7 +32,9 @@ erDiagram
 | `execution_attempts` | organization_id, run_id, session_id, worker_id, worker_incarnation, attempt_number, command_id, fence, cause_type/id, state, outcome, provider_turn_id nullable, lease_deadline, local_duration_ns nullable, started_at/stopped_at/received_at, failure JSON |
 | `commands` | organization_id, attempt_id, worker_id, incarnation, session_id, generation, kind, protocol_version, bounded payload, state, claim_expiry, acknowledged_at |
 | `waits` | organization_id, run_id, generation, kind, condition JSON, binding_id nullable, state, deadline nullable, armed_at, satisfied_at nullable, satisfying_event_id nullable |
-| `integrations` | organization_id, project_id, source, external_installation_id, allowed_repository_ids JSON, secret_reference, state |
+| `integration_credentials` | organization_id, plugin_id, label, opaque secret_reference, secret_version, state; no provider secret values |
+| `integration_instances` | organization_id, credential_id, plugin_id, external_instance_id, account identity, nonsecret metadata, state, last_verified_at |
+| `integration_setup_sessions` | organization_id, plugin_id, mode, hashed single-use callback state, stage, expiry and consumption timestamps |
 | `events` | organization_id, integration_id, delivery_id, source, type, schema_version, received_at, occurred_at, digest, verification JSON, correlation JSON, bounded payload, processing_state |
 | `event_bindings` | organization_id, run_id, session_id, integration_id, resource_type, resource_key, expected_version, generation, authorized_by, authorization_snapshot, active |
 | `event_matches` | organization_id, event_id, wait_id, generation, disposition, reason, checked_resource_version, evaluated_at |
