@@ -28,6 +28,7 @@ echo "PASS: Coolify application is decoupled from the dedicated OpenBao resource
 
 openbao=$(LOOM_SOURCE_REF=deployment-test-ref \
   OPENBAO_API_ADDR=https://openbao.example \
+  OPENBAO_DOMAIN=openbao.example \
   docker compose -f deploy/coolify/openbao.compose.yaml config --format json)
 
 printf '%s' "$openbao" | jq -e '
@@ -38,6 +39,9 @@ printf '%s' "$openbao" | jq -e '
   (.services.openbao.ports == null) and
   (.services.openbao.labels["traefik.enable"] == "true") and
   (.services.openbao.labels["traefik.http.services.openbao.loadbalancer.server.port"] == "8200") and
+  (.services["openbao-provenance"].image | startswith("busybox:1.36.1@sha256:")) and
+  (.services["openbao-provenance"].labels["traefik.http.routers.openbao-provenance.rule"] == "Host(`openbao.example`) && PathPrefix(`/_loom/`)" ) and
+  (.services["openbao-provenance"].labels["traefik.http.services.openbao-provenance.loadbalancer.server.port"] == "8080") and
   (.services.openbao.environment.BAO_API_ADDR == "https://openbao.example") and
   (.services.openbao.healthcheck.test[0] == "CMD-SHELL") and
   (.services.openbao.healthcheck.test[1] | contains("503")) and
@@ -45,7 +49,7 @@ printf '%s' "$openbao" | jq -e '
   .volumes["openbao-audit"] != null
 ' >/dev/null
 
-echo "PASS: Dedicated Coolify OpenBao resource uses HTTPS ingress and persistent storage"
+echo "PASS: Dedicated Coolify OpenBao resource uses HTTPS ingress, provenance proof and persistent storage"
 
 grep -Fq 'path "loom/data/organizations/*"' deploy/openbao/config/loom-policy.hcl
 grep -Fq 'capabilities = ["create", "read", "update", "delete"]' deploy/openbao/config/loom-policy.hcl

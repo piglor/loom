@@ -148,8 +148,11 @@ jobs:
                 '[.[] | select((.id | tostring) == $id)][0] // empty')
               if [ -n "$environment" ]; then
                 project_uuid="$candidate_project"
-                environment_uuid=$(printf '%s' "$environment" | jq -er '.uuid')
                 environment_name=$(printf '%s' "$environment" | jq -er '.name')
+                environment_name_path=$(printf '%s' "$environment_name" | jq -sRr @uri)
+                environment_details=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
+                  "${auth_headers[@]}" "$coolify_api/projects/$candidate_project/$environment_name_path")
+                environment_uuid=$(printf '%s' "$environment_details" | jq -er '.uuid')
                 break
               fi
             done < <(printf '%s' "$projects" | jq -r '.[].uuid')
@@ -170,16 +173,11 @@ jobs:
             echo "::error::Could not resolve Loom's Coolify server placement. Set COOLIFY_SERVER_UUID."
             exit 1
           fi
-          if [ -z "$destination_uuid" ] && [ -n "$destination_id" ]; then
-            destinations=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
-              "${auth_headers[@]}" "$coolify_api/servers/$server_uuid/destinations")
-            destination_uuid=$(printf '%s' "$destinations" | jq -r --arg id "$destination_id" \
-              '[.[] | select((.id | tostring) == $id)][0].uuid // empty')
-          fi
-          if [ -n "$destination_id" ] && [ -z "$destination_uuid" ]; then
-            echo "::error::Could not resolve Loom's Coolify destination placement. Set COOLIFY_DESTINATION_UUID."
-            exit 1
-          fi
+          # Coolify 4.1.2 exposes a service's numeric destination_id but does
+          # not expose a supported API endpoint that maps it back to a UUID.
+          # The service-create API chooses the sole server destination itself;
+          # when a server has multiple destinations it requires this explicit
+          # UUID override. Never guess and silently place OpenBao elsewhere.
           if [ -z "$environment_name" ]; then
             environment_name=$(printf '%s' "$loom_service" | jq -r '.environment_name // "production"')
           fi
@@ -232,10 +230,11 @@ jobs:
               --data "$update_payload" "$coolify_api/services/$openbao_uuid"
             echo "Updated dedicated OpenBao Coolify service $openbao_uuid."
           fi
-          openbao_envs=$(jq -n --arg ref "$GITHUB_SHA" --arg addr "$openbao_addr" \
+          openbao_envs=$(jq -n --arg ref "$GITHUB_SHA" --arg addr "$openbao_addr" --arg domain "$openbao_domain" \
             '{data:[
               {key:"LOOM_SOURCE_REF",value:$ref,is_preview:false,is_literal:true},
-              {key:"OPENBAO_API_ADDR",value:$addr,is_preview:false,is_literal:true}
+              {key:"OPENBAO_API_ADDR",value:$addr,is_preview:false,is_literal:true},
+              {key:"OPENBAO_DOMAIN",value:$domain,is_preview:false,is_literal:true}
             ]}')
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH "${auth_headers[@]}" -H "Content-Type: application/json" \
@@ -247,28 +246,42 @@ jobs:
             echo "::error::OpenBao resource did not retain the commit-pinned source reference."
             exit 1
           fi
-          curl --fail-with-body --retry 3 --retry-delay 5 \
+          openbao_deploy_response=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
             -X GET "${auth_headers[@]}" \
-            "$coolify_api/deploy?uuid=$openbao_uuid&force=true"
+            "$coolify_api/deploy?uuid=$openbao_uuid&force=true")
+          if ! printf '%s' "$openbao_deploy_response" | jq -e --arg uuid "$openbao_uuid" \
+            '.deployments[]? | select(.resource_uuid == $uuid)' >/dev/null; then
+            echo "::error::Coolify did not acknowledge the OpenBao service deployment request."
+            exit 1
+          fi
+          echo "Queued OpenBao deployment for $openbao_uuid."
           bao_deadline=$((SECONDS + 300))
           bao_ready=false
+          bao_revision_ready=false
           while (( SECONDS < bao_deadline )); do
             bao_code=$(curl --silent --show-error --max-time 10 \
               -o /dev/null -w '%{http_code}' "https://${openbao_domain}/v1/sys/health" || true)
-            case "$bao_code" in
-              200|429|501|503)
-                bao_ready=true
-                echo "OpenBao HTTPS endpoint is reachable (HTTP $bao_code)."
-                break
-                ;;
-              *)
-                echo "Waiting for OpenBao HTTPS endpoint (HTTP ${bao_code:-unreachable})."
-                sleep 10
-                ;;
-            esac
+            if [[ "$bao_code" =~ ^(200|429|501|503)$ ]]; then
+              bao_ready=true
+            fi
+            served_revision=$(curl --silent --show-error --max-time 10 \
+              "https://${openbao_domain}/_loom/source" 2>/dev/null | tr -d '\r' | sed -n 's/[[:space:]]*$//p' | head -n1 || true)
+            if [ "$served_revision" = "$GITHUB_SHA" ]; then
+              bao_revision_ready=true
+            fi
+            if [ "$bao_ready" = true ] && [ "$bao_revision_ready" = true ]; then
+              echo "OpenBao HTTPS endpoint is reachable (HTTP $bao_code) and serves $GITHUB_SHA."
+              break
+            fi
+            echo "Waiting for OpenBao deployment (health HTTP ${bao_code:-unreachable}, served revision ${served_revision:-unavailable})."
+            sleep 10
           done
           if [ "$bao_ready" != true ]; then
             echo "::error::OpenBao service $openbao_uuid did not become reachable at https://${openbao_domain}."
+            exit 1
+          fi
+          if [ "$bao_revision_ready" != true ]; then
+            echo "::error::OpenBao service $openbao_uuid did not serve source revision $GITHUB_SHA."
             exit 1
           fi
 

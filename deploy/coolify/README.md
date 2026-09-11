@@ -36,9 +36,12 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
   OpenBao resource. If omitted, the deployment workflow discovers `loom-openbao`
   or creates it in the same Coolify project/environment as Loom.
 - `COOLIFY_PROJECT_UUID`, `COOLIFY_ENVIRONMENT_UUID`, `COOLIFY_SERVER_UUID` and
-  `COOLIFY_DESTINATION_UUID` (optional placement overrides): normally the
-  workflow resolves Coolify's numeric placement IDs through the API; set these
-  when the token cannot list projects, environments, servers or destinations.
+  `COOLIFY_DESTINATION_UUID` (optional placement overrides): the workflow
+  resolves the project, environment and server from Loom's numeric placement
+  IDs. Coolify 4.1.2 does not expose a supported API mapping a numeric
+  `destination_id` back to a UUID: omit this override when that server has one
+  destination (Coolify selects it), and set it when the server has multiple
+  destinations.
 - `LOOM_GITHUB_APP_INSTALL_URL`: HTTPS installation page for the GitHub App shown
   in the console plugin store.
 - `LOOM_GITHUB_WEBHOOK_SECRET`: GitHub App webhook secret, at least 32 characters.

@@ -59,6 +59,16 @@ Compose file or committed environment. Copy the snapshot off the host before
 removing the temporary file; a snapshot is encrypted by OpenBao's barrier and
 still requires the source cluster's unseal/recovery material to restore.
 
+Immediately before the snapshot, also create a short-lived, non-root token with
+the `loom` policy and keep it only in the protected backup record. This token
+is the restore-read check; it is not an application credential and must never
+be written to Compose, `.env`, PostgreSQL or logs:
+
+```sh
+SOURCE_VERIFY_TOKEN=$(bao token create -policy=loom -ttl=24h -format=json \
+  | jq -er '.auth.client_token')
+```
+
 ```sh
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 docker compose -f deploy/openbao/compose.yaml exec -T -e BAO_TOKEN="$OPENBAO_OPERATOR_TOKEN" openbao \
@@ -91,13 +101,16 @@ docker compose -p loom-openbao-restore -f deploy/openbao/compose.yaml restart op
 docker compose -p loom-openbao-restore -f deploy/openbao/compose.yaml exec -T openbao \
   bao operator unseal "$SOURCE_UNSEAL_KEY"
 docker compose -p loom-openbao-restore -f deploy/openbao/compose.yaml exec -T \
-  -e BAO_TOKEN="$SOURCE_ROOT_TOKEN" openbao bao kv get -mount=loom \
+  -e BAO_TOKEN="$SOURCE_VERIFY_TOKEN" openbao bao kv get -mount=loom \
   organizations/<hash>/plugins/github/credentials/<id>
 ```
 
-The restored cluster uses the source root token and unseal key; revoke the
+The restored cluster uses the source barrier and unseal key, while the
+short-lived scoped verification token captured with the snapshot proves that
+the data is readable without retaining a source root token. Revoke the
 temporary target token after the drill and destroy the disposable resource
-without touching production volumes.
+without touching production volumes. Let the verification token expire or
+revoke it on the source after the drill.
 
 Keep the audit volume in the deployment backup plan as well. Rotate
 `/openbao/logs/audit.log` at least monthly (disable the file audit device,
