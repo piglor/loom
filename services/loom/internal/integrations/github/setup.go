@@ -94,8 +94,12 @@ func secretStatusDetail(status secrets.Status) string {
 		return "OpenBao is sealed"
 	case secrets.StatusUnavailable:
 		return "OpenBao is unreachable"
-	default:
+	case secrets.StatusNeedsCredentials:
+		return "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy"
+	case secrets.StatusUnconfigured:
 		return "Configure LOOM_OPENBAO_ADDR and AppRole credentials"
+	default:
+		return "Configure OpenBao secret storage"
 	}
 }
 

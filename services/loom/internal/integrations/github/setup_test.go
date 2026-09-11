@@ -165,6 +165,11 @@ func TestPluginReportsOpenBaoAndConnections(t *testing.T) {
 	if plugin.State != "needs_configuration" || plugin.Checks[0].Detail != "OpenBao is sealed" {
 		t.Fatalf("unexpected sealed plugin: %#v", plugin)
 	}
+	vault.status = secrets.StatusNeedsCredentials
+	plugin = setupHandlerForTest(t, records, vault).Plugin(context.Background())
+	if plugin.State != "needs_configuration" || plugin.Checks[0].Detail != "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy" {
+		t.Fatalf("unexpected credential setup plugin: %#v", plugin)
+	}
 }
 
 func TestManualSetupStoresSecretsOutsideMetadata(t *testing.T) {

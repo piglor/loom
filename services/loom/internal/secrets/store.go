@@ -18,10 +18,11 @@ var (
 type Status string
 
 const (
-	StatusReady        Status = "ready"
-	StatusUnconfigured Status = "unconfigured"
-	StatusSealed       Status = "sealed"
-	StatusUnavailable  Status = "unavailable"
+	StatusReady            Status = "ready"
+	StatusUnconfigured     Status = "unconfigured"
+	StatusNeedsCredentials Status = "needs_credentials"
+	StatusSealed           Status = "sealed"
+	StatusUnavailable      Status = "unavailable"
 )
 
 // Store never exposes provider values through presentation contracts. Callers

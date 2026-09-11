@@ -123,7 +123,7 @@ func (o *OpenBao) Status(ctx context.Context) Status {
 	// credentials. Keep the process healthy and let the plugin store explain
 	// the missing setup instead of failing the whole server at startup.
 	if o.static == "" && (o.roleID == "" || o.secretID == "") {
-		return StatusUnconfigured
+		return StatusNeedsCredentials
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.endpoint("sys", "health"), nil)
 	if err != nil {

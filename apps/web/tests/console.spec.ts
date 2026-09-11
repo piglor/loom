@@ -200,6 +200,44 @@ test("GitHub setup names every missing required server value", async ({
   ).toHaveCount(0);
 });
 
+test("bundled OpenBao setup gives an actionable next step", async ({
+  page,
+}) => {
+  await mockAPI(page);
+  await page.route("**/v1/plugins", (route) =>
+    route.fulfill({
+      json: [
+        {
+          ...githubPlugin,
+          state: "needs_configuration",
+          secret_backend: "needs_credentials",
+          checks: [
+            {
+              id: "secret_storage",
+              label: "OpenBao secret storage",
+              status: "missing",
+              detail:
+                "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy",
+              required: true,
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  await login(page, "/plugins/github");
+  await expect(
+    page.getByText("Finish secure storage setup", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("OpenBao is bundled with this Loom deployment."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open setup guide ↗" }),
+  ).toHaveAttribute("href", /deploy\/openbao\/README\.md$/);
+});
+
 test("advanced GitHub credentials are submitted once and cleared", async ({
   page,
 }) => {

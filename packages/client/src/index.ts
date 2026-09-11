@@ -39,7 +39,8 @@ export interface Plugin {
   endpoints?: { label: string; path: string }[];
   notice: string;
   connection_count: number;
-  secret_backend: "ready" | "unconfigured" | "sealed" | "unavailable";
+  secret_backend:
+    "ready" | "unconfigured" | "needs_credentials" | "sealed" | "unavailable";
 }
 export interface IntegrationInstance {
   id: string;

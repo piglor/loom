@@ -705,6 +705,22 @@ small,
   background: #2b281c;
   color: #eadba8;
 }
+.configuration-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.configuration-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+}
 .configuration-block p {
   margin: 5px 0 12px;
   color: #bdb18c;
@@ -713,6 +729,26 @@ small,
 .configuration-block code {
   color: #f3e6b9;
   font-size: 11px;
+}
+.configuration-steps {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 18px;
+  padding-left: 21px;
+  color: #d7c99e;
+  font-size: 12px;
+}
+.configuration-steps code {
+  color: inherit;
+}
+.configuration-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.configuration-actions .text-link {
+  font-size: 12px;
 }
 .readiness-panel h2 {
   margin-bottom: 24px;
@@ -1539,6 +1575,10 @@ small,
 
 .configuration-block code {
   color: #d6ebff;
+}
+
+.configuration-steps {
+  color: #c2d8ed;
 }
 
 .readiness-panel h2 {

@@ -182,6 +182,7 @@ export function PluginSetup({
 
   const active = connections.filter((item) => item.state === "active");
   const storageReady = plugin.secret_backend === "ready";
+  const storageNeedsCredentials = plugin.secret_backend === "needs_credentials";
   return (
     <>
       <Link className="back" to="/plugins">
@@ -245,16 +246,67 @@ export function PluginSetup({
           </div>
           {!storageReady ? (
             <div className="configuration-block">
-              <strong>OpenBao needs attention first</strong>
-              <p>
-                Loom cannot accept plugin credentials until its secret store is
-                ready. Existing Goals are unaffected.
-              </p>
-              {plugin.checks
-                .filter((check) => check.status !== "ready")
-                .map((check) => (
-                  <code key={check.id}>{check.detail}</code>
-                ))}
+              <div className="configuration-title">
+                <span className="configuration-icon">!</span>
+                <strong>
+                  {storageNeedsCredentials
+                    ? "Finish secure storage setup"
+                    : "OpenBao needs attention first"}
+                </strong>
+              </div>
+              {storageNeedsCredentials ? (
+                <>
+                  <p>
+                    OpenBao is bundled with this Loom deployment. Finish its
+                    one-time setup, then Loom can securely save GitHub
+                    credentials.
+                  </p>
+                  <ol className="configuration-steps">
+                    <li>
+                      Open the <code>openbao</code> terminal in your Coolify
+                      Loom service.
+                    </li>
+                    <li>
+                      Initialize and unseal OpenBao, then create the Loom
+                      AppRole.
+                    </li>
+                    <li>
+                      Add <code>LOOM_OPENBAO_ROLE_ID</code> and{" "}
+                      <code>LOOM_OPENBAO_SECRET_ID</code> to the Loom service
+                      environment and redeploy.
+                    </li>
+                  </ol>
+                </>
+              ) : (
+                <>
+                  <p>
+                    Loom cannot accept plugin credentials until its secret store
+                    is ready. Existing Goals are unaffected.
+                  </p>
+                  {plugin.checks
+                    .filter((check) => check.status !== "ready")
+                    .map((check) => (
+                      <code key={check.id}>{check.detail}</code>
+                    ))}
+                </>
+              )}
+              <div className="configuration-actions">
+                <button
+                  className="secondary"
+                  disabled={loading}
+                  onClick={() => setRevision((value) => value + 1)}
+                >
+                  {loading ? "Checking…" : "Check again"}
+                </button>
+                <a
+                  className="text-link"
+                  href="https://github.com/piglor/loom/blob/main/deploy/openbao/README.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open setup guide ↗
+                </a>
+              </div>
             </div>
           ) : (
             <>

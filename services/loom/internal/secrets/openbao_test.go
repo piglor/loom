@@ -74,7 +74,7 @@ func TestOpenBaoConfigurationAndFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected missing AppRole credentials to remain actionable: %v", err)
 	}
-	if status := configuredStore.Status(context.Background()); status != StatusUnconfigured {
+	if status := configuredStore.Status(context.Background()); status != StatusNeedsCredentials {
 		t.Fatalf("expected missing AppRole credentials to remain actionable: status=%s", status)
 	}
 	if _, err = configuredStore.Put(context.Background(), "organizations/test/plugins/github/credentials/id", map[string]string{"key": "value"}); !errors.Is(err, ErrNotConfigured) {
