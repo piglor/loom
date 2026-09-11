@@ -26,6 +26,7 @@ type IntegrationInstanceRecord struct {
 	CredentialID        string         `json:"credential_id"`
 	PluginID            string         `json:"plugin_id"`
 	ExternalInstanceID  string         `json:"external_instance_id"`
+	RoutingIdentity     string         `json:"-"`
 	AccountID           string         `json:"account_id"`
 	AccountLabel        string         `json:"account_label"`
 	RepositorySelection string         `json:"repository_selection"`
@@ -165,6 +166,12 @@ func (s *Store) UpsertIntegrationInstance(ctx context.Context, record Integratio
 	if record.RepositorySelection != "all" && record.RepositorySelection != "selected" {
 		return "", invalid("Invalid repository selection")
 	}
+	if record.RoutingIdentity == "" {
+		record.RoutingIdentity = record.PluginID + ":" + record.ExternalInstanceID
+	}
+	if !textBetween(record.RoutingIdentity, 256) {
+		return "", invalid("Invalid integration routing identity")
+	}
 	if record.ID == "" {
 		record.ID = ID()
 	}
@@ -177,9 +184,9 @@ func (s *Store) UpsertIntegrationInstance(ctx context.Context, record Integratio
 		if !credentialExists {
 			return notFound()
 		}
-		if err := t.client.IntegrationInstance.Create().SetID(record.ID).SetOrganization(s.Organization).SetCredentialID(record.CredentialID).SetPluginID(record.PluginID).SetExternalInstanceID(record.ExternalInstanceID).SetAccountID(record.AccountID).SetAccountLabel(record.AccountLabel).SetRepositorySelection(record.RepositorySelection).SetMetadata(record.Metadata).SetState("active").SetLastVerifiedAt(t.now).SetCreatedAt(t.now).SetUpdatedAt(t.now).
+		if err := t.client.IntegrationInstance.Create().SetID(record.ID).SetOrganization(s.Organization).SetCredentialID(record.CredentialID).SetPluginID(record.PluginID).SetExternalInstanceID(record.ExternalInstanceID).SetRoutingIdentity(record.RoutingIdentity).SetAccountID(record.AccountID).SetAccountLabel(record.AccountLabel).SetRepositorySelection(record.RepositorySelection).SetMetadata(record.Metadata).SetState("active").SetLastVerifiedAt(t.now).SetCreatedAt(t.now).SetUpdatedAt(t.now).
 			OnConflictColumns("organization", "plugin_id", "external_instance_id").Update(func(u *ent.IntegrationInstanceUpsert) {
-			u.SetCredentialID(record.CredentialID).SetAccountID(record.AccountID).SetAccountLabel(record.AccountLabel).SetRepositorySelection(record.RepositorySelection).SetMetadata(record.Metadata).SetState("active").SetLastVerifiedAt(t.now).SetUpdatedAt(t.now)
+			u.SetCredentialID(record.CredentialID).SetRoutingIdentity(record.RoutingIdentity).SetAccountID(record.AccountID).SetAccountLabel(record.AccountLabel).SetRepositorySelection(record.RepositorySelection).SetMetadata(record.Metadata).SetState("active").SetLastVerifiedAt(t.now).SetUpdatedAt(t.now)
 		}).Exec(ctx); err != nil {
 			return err
 		}
@@ -208,7 +215,7 @@ func (s *Store) ListIntegrationInstances(ctx context.Context, pluginID string) (
 			return err
 		}
 		for _, row := range rows {
-			result = append(result, IntegrationInstanceRecord{ID: row.ID, CredentialID: row.CredentialID, PluginID: row.PluginID, ExternalInstanceID: row.ExternalInstanceID, AccountID: row.AccountID, AccountLabel: row.AccountLabel, RepositorySelection: row.RepositorySelection, Metadata: row.Metadata, State: row.State, LastVerifiedAt: row.LastVerifiedAt})
+			result = append(result, IntegrationInstanceRecord{ID: row.ID, CredentialID: row.CredentialID, PluginID: row.PluginID, ExternalInstanceID: row.ExternalInstanceID, RoutingIdentity: row.RoutingIdentity, AccountID: row.AccountID, AccountLabel: row.AccountLabel, RepositorySelection: row.RepositorySelection, Metadata: row.Metadata, State: row.State, LastVerifiedAt: row.LastVerifiedAt})
 		}
 		return nil
 	})

@@ -50,7 +50,7 @@ func (h *SetupHandler) Plugin(ctx context.Context) catalog.Plugin {
 	status := h.secrets.Status(ctx)
 	plugin := catalog.Plugin{
 		ID: "github", Name: "GitHub", Category: "Source control",
-		Description: "Connect repositories and wake Goals from trusted GitHub events.",
+		Description: "Connect repositories as a verified event source for Loom workflows.",
 		State:       catalog.NeedsConfiguration, SetupTitle: "Connect GitHub",
 		SetupSummary:  "Create a least-privilege GitHub App, choose repositories, and let Loom store its credentials securely.",
 		EstimatedTime: "About 3 minutes", SecretBackend: string(status),
@@ -60,7 +60,7 @@ func (h *SetupHandler) Plugin(ctx context.Context) catalog.Plugin {
 			{Title: "Return connected", Description: "Loom verifies the installation and starts accepting signed events."},
 		},
 		Endpoints: []catalog.Endpoint{{Label: "Webhook URL", Path: "/v1/github/webhook"}},
-		Notice:    "GitHub can wake an authorized wait; connecting it does not grant merge, deployment, or unrelated execution authority.",
+		Notice:    "GitHub only delivers verified evidence. A published Loom workflow decides what starts or continues; connecting it grants no execution authority.",
 	}
 	backendReady := status == secrets.StatusReady
 	plugin.Checks = []catalog.Check{{ID: "secret_storage", Label: "OpenBao secret storage", Status: checkStatus(backendReady), Detail: readyDetail(backendReady, secretStatusDetail(status)), Required: true}}
@@ -95,7 +95,11 @@ func secretStatusDetail(status secrets.Status) string {
 	case secrets.StatusUnavailable:
 		return "OpenBao is unreachable"
 	case secrets.StatusNeedsCredentials:
-		return "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy"
+		return "Bundled OpenBao is creating Loom's AppRole credentials"
+	case secrets.StatusInitializing:
+		return "Bundled OpenBao is initializing its encrypted storage"
+	case secrets.StatusAuthentication:
+		return "OpenBao rejected Loom's AppRole credentials"
 	case secrets.StatusUnconfigured:
 		return "Configure LOOM_OPENBAO_ADDR and AppRole credentials"
 	default:
@@ -564,7 +568,8 @@ func (h *SetupHandler) loadCredential(ctx context.Context, id string) (control.I
 func (h *SetupHandler) activateInstallation(ctx context.Context, record control.IntegrationCredentialRecord, installed installation) (control.IntegrationInstanceRecord, error) {
 	instance := control.IntegrationInstanceRecord{
 		CredentialID: record.ID, PluginID: "github", ExternalInstanceID: strconv.FormatInt(installed.ID, 10),
-		AccountID: strconv.FormatInt(installed.Account.ID, 10), AccountLabel: installed.Account.Login,
+		RoutingIdentity: "installation:" + strconv.FormatInt(installed.ID, 10),
+		AccountID:       strconv.FormatInt(installed.Account.ID, 10), AccountLabel: installed.Account.Login,
 		RepositorySelection: installed.RepositorySelection, Metadata: map[string]any{"permissions": installed.Permissions}, State: "active",
 	}
 	id, err := h.store.UpsertIntegrationInstance(ctx, instance)

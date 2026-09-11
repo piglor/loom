@@ -28,6 +28,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/waithistory"
 	"github.com/piglor/loom/services/loom/ent/worker"
+	"github.com/piglor/loom/services/loom/ent/workflowdefinition"
+	"github.com/piglor/loom/services/loom/ent/workflowsteprun"
+	"github.com/piglor/loom/services/loom/ent/workflowtriggerbinding"
+	"github.com/piglor/loom/services/loom/ent/workflowversion"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -104,6 +108,10 @@ func checkColumn(t, c string) error {
 			wait.Table:                    wait.ValidColumn,
 			waithistory.Table:             waithistory.ValidColumn,
 			worker.Table:                  worker.ValidColumn,
+			workflowdefinition.Table:      workflowdefinition.ValidColumn,
+			workflowsteprun.Table:         workflowsteprun.ValidColumn,
+			workflowtriggerbinding.Table:  workflowtriggerbinding.ValidColumn,
+			workflowversion.Table:         workflowversion.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -11,8 +11,12 @@ import (
 )
 
 type DispatchInput struct {
-	GoalID   string `json:"goal_id"`
-	IntentID string `json:"intent_id"`
+	GoalID            string            `json:"goal_id"`
+	RunID             string            `json:"run_id"`
+	WorkflowVersionID string            `json:"workflow_version_id,omitempty"`
+	StepKey           string            `json:"step_key,omitempty"`
+	IntentID          string            `json:"intent_id"`
+	Topology          *WorkflowTopology `json:"topology,omitempty"`
 }
 
 type DispatchOutput struct {
@@ -22,9 +26,17 @@ type DispatchOutput struct {
 type hatchetPublisher struct{ task *hatchet.StandaloneTask }
 
 func (p hatchetPublisher) Publish(ctx context.Context, item control.OutboxItem) (string, error) {
-	ref, err := p.task.RunNoWait(ctx, DispatchInput{GoalID: item.GoalID, IntentID: item.ID},
+	var topology *WorkflowTopology
+	if item.WorkflowVersionID != "" {
+		compiled, err := CompileTopology(item.WorkflowDefinitionID, item.WorkflowVersionID, item.WorkflowVersionNumber, item.WorkflowSpec)
+		if err != nil {
+			return "", err
+		}
+		topology = &compiled
+	}
+	ref, err := p.task.RunNoWait(ctx, DispatchInput{GoalID: item.GoalID, RunID: item.RunID, WorkflowVersionID: item.WorkflowVersionID, StepKey: item.StepKey, IntentID: item.ID, Topology: topology},
 		hatchet.WithRunKey(item.ID),
-		hatchet.WithRunMetadata(map[string]string{"loom_goal_id": item.GoalID, "loom_intent_id": item.ID, "loom_intent_kind": item.Kind}),
+		hatchet.WithRunMetadata(map[string]string{"loom_goal_id": item.GoalID, "loom_run_id": item.RunID, "loom_workflow_version_id": item.WorkflowVersionID, "loom_step_key": item.StepKey, "loom_intent_id": item.ID, "loom_intent_kind": item.Kind}),
 	)
 	if err != nil {
 		return "", err
@@ -47,8 +59,8 @@ func Run(ctx context.Context, store *control.Store) error {
 		}
 	}()
 
-	task := client.NewStandaloneTask("loom-dispatch-v1", func(taskContext hatchet.Context, input DispatchInput) (DispatchOutput, error) {
-		if !control.ValidID(input.GoalID) || !control.ValidID(input.IntentID) {
+	task := client.NewStandaloneTask("loom-workflow-dispatch-v1", func(taskContext hatchet.Context, input DispatchInput) (DispatchOutput, error) {
+		if !control.ValidID(input.GoalID) || !control.ValidID(input.RunID) || !control.ValidID(input.IntentID) {
 			return DispatchOutput{}, errors.New("invalid Loom dispatch identity")
 		}
 		if err := store.Dispatch(taskContext, input.GoalID); err != nil {

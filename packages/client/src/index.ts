@@ -40,7 +40,13 @@ export interface Plugin {
   notice: string;
   connection_count: number;
   secret_backend:
-    "ready" | "unconfigured" | "needs_credentials" | "sealed" | "unavailable";
+    | "ready"
+    | "unconfigured"
+    | "needs_credentials"
+    | "initializing"
+    | "authentication_failed"
+    | "sealed"
+    | "unavailable";
 }
 export interface IntegrationInstance {
   id: string;
@@ -53,6 +59,54 @@ export interface IntegrationInstance {
   metadata: { permissions?: Record<string, string> };
   state: "active" | "needs_attention" | "disabled";
   last_verified_at: string | null;
+}
+export type WorkflowStepType =
+  "agent" | "wait_event" | "condition" | "subflow" | "complete";
+export interface WorkflowTrigger {
+  type: "manual" | "integration_event";
+  integration_instance_id?: string;
+  source?: string;
+  event_type?: string;
+  resource?: string;
+  version?: string;
+}
+export interface WorkflowStep {
+  key: string;
+  name: string;
+  type: WorkflowStepType;
+  config: Record<string, unknown>;
+}
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  outcome: "success" | "failure";
+}
+export interface WorkflowSpec {
+  schema_version: 1;
+  triggers: WorkflowTrigger[];
+  steps: WorkflowStep[];
+  edges: WorkflowEdge[];
+}
+export interface WorkflowDefinition {
+  id: string;
+  name: string;
+  description: string;
+  state: "draft" | "published" | "archived";
+  draft_spec: WorkflowSpec;
+  latest_version: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface WorkflowValidation {
+  valid: boolean;
+  errors: string[];
+}
+export interface PublishedWorkflow {
+  definition_id: string;
+  version_id: string;
+  version: number;
+  digest: string;
+  spec: WorkflowSpec;
 }
 export interface GitHubSetupStart {
   setup_id: string;
@@ -88,7 +142,29 @@ export interface Goal extends GoalSummary {
     runtime: string;
     provider_session_id: string | null;
   };
-  run: { id: string; policy: unknown };
+  run: {
+    id: string;
+    policy: unknown;
+    workflow_definition_id?: string | null;
+    workflow_version_id?: string | null;
+    current_step_key?: string | null;
+    state?: string;
+  };
+  workflow_runs?: {
+    id: string;
+    parent_run_id: string | null;
+    invoking_step_key: string | null;
+    state: string;
+    current_step_key: string | null;
+  }[];
+  workflow_steps?: {
+    id: string;
+    run_id: string;
+    step_key: string;
+    step_type: WorkflowStepType;
+    position: number;
+    state: string;
+  }[];
   wait: {
     id: string;
     generation: number;
@@ -138,7 +214,7 @@ export function createClient(
   async function request<T>(
     path: string,
     signal?: AbortSignal,
-    options: { method?: "GET" | "POST"; body?: unknown } = {},
+    options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {},
   ): Promise<T> {
     const response = await transport(`${baseURL}${path}`, {
       method: options.method ?? "GET",
@@ -181,6 +257,54 @@ export function createClient(
       request<IntegrationInstance[]>(
         `/v1/integration-instances${plugin ? `?plugin=${encodeURIComponent(plugin)}` : ""}`,
         signal,
+      ),
+    workflows: (signal?: AbortSignal) =>
+      request<WorkflowDefinition[]>("/v1/workflows", signal),
+    workflow: (id: string, signal?: AbortSignal) =>
+      request<WorkflowDefinition>(
+        `/v1/workflows/${encodeURIComponent(id)}`,
+        signal,
+      ),
+    workflowVersion: (id: string, signal?: AbortSignal) =>
+      request<PublishedWorkflow>(
+        `/v1/workflow-versions/${encodeURIComponent(id)}`,
+        signal,
+      ),
+    createWorkflow: (
+      input: { name: string; description: string; spec?: WorkflowSpec },
+      signal?: AbortSignal,
+    ) =>
+      request<WorkflowDefinition>("/v1/workflows", signal, {
+        method: "POST",
+        body: input,
+      }),
+    updateWorkflow: (
+      id: string,
+      input: { name: string; description: string; spec: WorkflowSpec },
+      signal?: AbortSignal,
+    ) =>
+      request<WorkflowDefinition>(
+        `/v1/workflows/${encodeURIComponent(id)}`,
+        signal,
+        { method: "PATCH", body: input },
+      ),
+    validateWorkflow: (id: string, spec: WorkflowSpec, signal?: AbortSignal) =>
+      request<WorkflowValidation>(
+        `/v1/workflows/${encodeURIComponent(id)}/validate`,
+        signal,
+        { method: "POST", body: spec },
+      ),
+    publishWorkflow: (id: string, signal?: AbortSignal) =>
+      request<PublishedWorkflow>(
+        `/v1/workflows/${encodeURIComponent(id)}/publish`,
+        signal,
+        { method: "POST" },
+      ),
+    startWorkflow: (id: string, signal?: AbortSignal) =>
+      request<{ goal_id: string }>(
+        `/v1/workflows/${encodeURIComponent(id)}/runs`,
+        signal,
+        { method: "POST" },
       ),
     startGitHubSetup: (
       input: { account_type: "organization" | "personal"; account: string },

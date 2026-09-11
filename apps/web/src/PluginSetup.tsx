@@ -182,7 +182,9 @@ export function PluginSetup({
 
   const active = connections.filter((item) => item.state === "active");
   const storageReady = plugin.secret_backend === "ready";
-  const storageNeedsCredentials = plugin.secret_backend === "needs_credentials";
+  const storagePreparing =
+    plugin.secret_backend === "needs_credentials" ||
+    plugin.secret_backend === "initializing";
   return (
     <>
       <Link className="back" to="/plugins">
@@ -207,6 +209,18 @@ export function PluginSetup({
               <h2 id="connections">GitHub accounts</h2>
             </div>
             <span className="progress-pill">{active.length} active</span>
+          </div>
+          <div className="connection-workflow-callout">
+            <div>
+              <strong>Connection ready for workflows</strong>
+              <p>
+                GitHub delivers verified evidence; choose what that evidence
+                starts in the workflow builder.
+              </p>
+            </div>
+            <Link className="button-link" to="/workflows">
+              Use in workflow →
+            </Link>
           </div>
           <div className="connection-list">
             {active.map((connection) => (
@@ -249,12 +263,12 @@ export function PluginSetup({
               <div className="configuration-title">
                 <span className="configuration-icon">!</span>
                 <h3>
-                  {storageNeedsCredentials
-                    ? "Finish secure storage setup"
+                  {storagePreparing
+                    ? "Secure storage is starting"
                     : "OpenBao needs attention first"}
                 </h3>
               </div>
-              {storageNeedsCredentials ? (
+              {storagePreparing ? (
                 <>
                   <p>
                     OpenBao is bundled with this Loom deployment. Loom is

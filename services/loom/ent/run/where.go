@@ -74,9 +74,54 @@ func WorkflowID(v string) predicate.Run {
 	return predicate.Run(sql.FieldEQ(FieldWorkflowID, v))
 }
 
+// WorkflowDefinitionID applies equality check predicate on the "workflow_definition_id" field. It's identical to WorkflowDefinitionIDEQ.
+func WorkflowDefinitionID(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowVersionID applies equality check predicate on the "workflow_version_id" field. It's identical to WorkflowVersionIDEQ.
+func WorkflowVersionID(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldWorkflowVersionID, v))
+}
+
+// ParentRunID applies equality check predicate on the "parent_run_id" field. It's identical to ParentRunIDEQ.
+func ParentRunID(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldParentRunID, v))
+}
+
+// InvokingStepKey applies equality check predicate on the "invoking_step_key" field. It's identical to InvokingStepKeyEQ.
+func InvokingStepKey(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldInvokingStepKey, v))
+}
+
+// State applies equality check predicate on the "state" field. It's identical to StateEQ.
+func State(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldState, v))
+}
+
+// CurrentStepKey applies equality check predicate on the "current_step_key" field. It's identical to CurrentStepKeyEQ.
+func CurrentStepKey(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldCurrentStepKey, v))
+}
+
+// OrchestrationReference applies equality check predicate on the "orchestration_reference" field. It's identical to OrchestrationReferenceEQ.
+func OrchestrationReference(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldOrchestrationReference, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Run {
 	return predicate.Run(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+func UpdatedAt(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// EndedAt applies equality check predicate on the "ended_at" field. It's identical to EndedAtEQ.
+func EndedAt(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldEndedAt, v))
 }
 
 // GoalIDEQ applies the EQ predicate on the "goal_id" field.
@@ -219,6 +264,521 @@ func WorkflowIDContainsFold(v string) predicate.Run {
 	return predicate.Run(sql.FieldContainsFold(FieldWorkflowID, v))
 }
 
+// WorkflowDefinitionIDEQ applies the EQ predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDNEQ applies the NEQ predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDIn applies the In predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldWorkflowDefinitionID, vs...))
+}
+
+// WorkflowDefinitionIDNotIn applies the NotIn predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldWorkflowDefinitionID, vs...))
+}
+
+// WorkflowDefinitionIDGT applies the GT predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDGTE applies the GTE predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDLT applies the LT predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDLTE applies the LTE predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDContains applies the Contains predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDHasPrefix applies the HasPrefix predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDHasSuffix applies the HasSuffix predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDIsNil applies the IsNil predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldWorkflowDefinitionID))
+}
+
+// WorkflowDefinitionIDNotNil applies the NotNil predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldWorkflowDefinitionID))
+}
+
+// WorkflowDefinitionIDEqualFold applies the EqualFold predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowDefinitionIDContainsFold applies the ContainsFold predicate on the "workflow_definition_id" field.
+func WorkflowDefinitionIDContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldWorkflowDefinitionID, v))
+}
+
+// WorkflowVersionIDEQ applies the EQ predicate on the "workflow_version_id" field.
+func WorkflowVersionIDEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDNEQ applies the NEQ predicate on the "workflow_version_id" field.
+func WorkflowVersionIDNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDIn applies the In predicate on the "workflow_version_id" field.
+func WorkflowVersionIDIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldWorkflowVersionID, vs...))
+}
+
+// WorkflowVersionIDNotIn applies the NotIn predicate on the "workflow_version_id" field.
+func WorkflowVersionIDNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldWorkflowVersionID, vs...))
+}
+
+// WorkflowVersionIDGT applies the GT predicate on the "workflow_version_id" field.
+func WorkflowVersionIDGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDGTE applies the GTE predicate on the "workflow_version_id" field.
+func WorkflowVersionIDGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDLT applies the LT predicate on the "workflow_version_id" field.
+func WorkflowVersionIDLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDLTE applies the LTE predicate on the "workflow_version_id" field.
+func WorkflowVersionIDLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDContains applies the Contains predicate on the "workflow_version_id" field.
+func WorkflowVersionIDContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDHasPrefix applies the HasPrefix predicate on the "workflow_version_id" field.
+func WorkflowVersionIDHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDHasSuffix applies the HasSuffix predicate on the "workflow_version_id" field.
+func WorkflowVersionIDHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDIsNil applies the IsNil predicate on the "workflow_version_id" field.
+func WorkflowVersionIDIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldWorkflowVersionID))
+}
+
+// WorkflowVersionIDNotNil applies the NotNil predicate on the "workflow_version_id" field.
+func WorkflowVersionIDNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldWorkflowVersionID))
+}
+
+// WorkflowVersionIDEqualFold applies the EqualFold predicate on the "workflow_version_id" field.
+func WorkflowVersionIDEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldWorkflowVersionID, v))
+}
+
+// WorkflowVersionIDContainsFold applies the ContainsFold predicate on the "workflow_version_id" field.
+func WorkflowVersionIDContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldWorkflowVersionID, v))
+}
+
+// ParentRunIDEQ applies the EQ predicate on the "parent_run_id" field.
+func ParentRunIDEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldParentRunID, v))
+}
+
+// ParentRunIDNEQ applies the NEQ predicate on the "parent_run_id" field.
+func ParentRunIDNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldParentRunID, v))
+}
+
+// ParentRunIDIn applies the In predicate on the "parent_run_id" field.
+func ParentRunIDIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldParentRunID, vs...))
+}
+
+// ParentRunIDNotIn applies the NotIn predicate on the "parent_run_id" field.
+func ParentRunIDNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldParentRunID, vs...))
+}
+
+// ParentRunIDGT applies the GT predicate on the "parent_run_id" field.
+func ParentRunIDGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldParentRunID, v))
+}
+
+// ParentRunIDGTE applies the GTE predicate on the "parent_run_id" field.
+func ParentRunIDGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldParentRunID, v))
+}
+
+// ParentRunIDLT applies the LT predicate on the "parent_run_id" field.
+func ParentRunIDLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldParentRunID, v))
+}
+
+// ParentRunIDLTE applies the LTE predicate on the "parent_run_id" field.
+func ParentRunIDLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldParentRunID, v))
+}
+
+// ParentRunIDContains applies the Contains predicate on the "parent_run_id" field.
+func ParentRunIDContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldParentRunID, v))
+}
+
+// ParentRunIDHasPrefix applies the HasPrefix predicate on the "parent_run_id" field.
+func ParentRunIDHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldParentRunID, v))
+}
+
+// ParentRunIDHasSuffix applies the HasSuffix predicate on the "parent_run_id" field.
+func ParentRunIDHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldParentRunID, v))
+}
+
+// ParentRunIDIsNil applies the IsNil predicate on the "parent_run_id" field.
+func ParentRunIDIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldParentRunID))
+}
+
+// ParentRunIDNotNil applies the NotNil predicate on the "parent_run_id" field.
+func ParentRunIDNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldParentRunID))
+}
+
+// ParentRunIDEqualFold applies the EqualFold predicate on the "parent_run_id" field.
+func ParentRunIDEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldParentRunID, v))
+}
+
+// ParentRunIDContainsFold applies the ContainsFold predicate on the "parent_run_id" field.
+func ParentRunIDContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldParentRunID, v))
+}
+
+// InvokingStepKeyEQ applies the EQ predicate on the "invoking_step_key" field.
+func InvokingStepKeyEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyNEQ applies the NEQ predicate on the "invoking_step_key" field.
+func InvokingStepKeyNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyIn applies the In predicate on the "invoking_step_key" field.
+func InvokingStepKeyIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldInvokingStepKey, vs...))
+}
+
+// InvokingStepKeyNotIn applies the NotIn predicate on the "invoking_step_key" field.
+func InvokingStepKeyNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldInvokingStepKey, vs...))
+}
+
+// InvokingStepKeyGT applies the GT predicate on the "invoking_step_key" field.
+func InvokingStepKeyGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyGTE applies the GTE predicate on the "invoking_step_key" field.
+func InvokingStepKeyGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyLT applies the LT predicate on the "invoking_step_key" field.
+func InvokingStepKeyLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyLTE applies the LTE predicate on the "invoking_step_key" field.
+func InvokingStepKeyLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyContains applies the Contains predicate on the "invoking_step_key" field.
+func InvokingStepKeyContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyHasPrefix applies the HasPrefix predicate on the "invoking_step_key" field.
+func InvokingStepKeyHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyHasSuffix applies the HasSuffix predicate on the "invoking_step_key" field.
+func InvokingStepKeyHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyIsNil applies the IsNil predicate on the "invoking_step_key" field.
+func InvokingStepKeyIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldInvokingStepKey))
+}
+
+// InvokingStepKeyNotNil applies the NotNil predicate on the "invoking_step_key" field.
+func InvokingStepKeyNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldInvokingStepKey))
+}
+
+// InvokingStepKeyEqualFold applies the EqualFold predicate on the "invoking_step_key" field.
+func InvokingStepKeyEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldInvokingStepKey, v))
+}
+
+// InvokingStepKeyContainsFold applies the ContainsFold predicate on the "invoking_step_key" field.
+func InvokingStepKeyContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldInvokingStepKey, v))
+}
+
+// StateEQ applies the EQ predicate on the "state" field.
+func StateEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldState, v))
+}
+
+// StateNEQ applies the NEQ predicate on the "state" field.
+func StateNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldState, v))
+}
+
+// StateIn applies the In predicate on the "state" field.
+func StateIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldState, vs...))
+}
+
+// StateNotIn applies the NotIn predicate on the "state" field.
+func StateNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldState, vs...))
+}
+
+// StateGT applies the GT predicate on the "state" field.
+func StateGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldState, v))
+}
+
+// StateGTE applies the GTE predicate on the "state" field.
+func StateGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldState, v))
+}
+
+// StateLT applies the LT predicate on the "state" field.
+func StateLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldState, v))
+}
+
+// StateLTE applies the LTE predicate on the "state" field.
+func StateLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldState, v))
+}
+
+// StateContains applies the Contains predicate on the "state" field.
+func StateContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldState, v))
+}
+
+// StateHasPrefix applies the HasPrefix predicate on the "state" field.
+func StateHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldState, v))
+}
+
+// StateHasSuffix applies the HasSuffix predicate on the "state" field.
+func StateHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldState, v))
+}
+
+// StateEqualFold applies the EqualFold predicate on the "state" field.
+func StateEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldState, v))
+}
+
+// StateContainsFold applies the ContainsFold predicate on the "state" field.
+func StateContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldState, v))
+}
+
+// CurrentStepKeyEQ applies the EQ predicate on the "current_step_key" field.
+func CurrentStepKeyEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyNEQ applies the NEQ predicate on the "current_step_key" field.
+func CurrentStepKeyNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyIn applies the In predicate on the "current_step_key" field.
+func CurrentStepKeyIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldCurrentStepKey, vs...))
+}
+
+// CurrentStepKeyNotIn applies the NotIn predicate on the "current_step_key" field.
+func CurrentStepKeyNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldCurrentStepKey, vs...))
+}
+
+// CurrentStepKeyGT applies the GT predicate on the "current_step_key" field.
+func CurrentStepKeyGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyGTE applies the GTE predicate on the "current_step_key" field.
+func CurrentStepKeyGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyLT applies the LT predicate on the "current_step_key" field.
+func CurrentStepKeyLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyLTE applies the LTE predicate on the "current_step_key" field.
+func CurrentStepKeyLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyContains applies the Contains predicate on the "current_step_key" field.
+func CurrentStepKeyContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyHasPrefix applies the HasPrefix predicate on the "current_step_key" field.
+func CurrentStepKeyHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyHasSuffix applies the HasSuffix predicate on the "current_step_key" field.
+func CurrentStepKeyHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyIsNil applies the IsNil predicate on the "current_step_key" field.
+func CurrentStepKeyIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldCurrentStepKey))
+}
+
+// CurrentStepKeyNotNil applies the NotNil predicate on the "current_step_key" field.
+func CurrentStepKeyNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldCurrentStepKey))
+}
+
+// CurrentStepKeyEqualFold applies the EqualFold predicate on the "current_step_key" field.
+func CurrentStepKeyEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldCurrentStepKey, v))
+}
+
+// CurrentStepKeyContainsFold applies the ContainsFold predicate on the "current_step_key" field.
+func CurrentStepKeyContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldCurrentStepKey, v))
+}
+
+// OrchestrationReferenceEQ applies the EQ predicate on the "orchestration_reference" field.
+func OrchestrationReferenceEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceNEQ applies the NEQ predicate on the "orchestration_reference" field.
+func OrchestrationReferenceNEQ(v string) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceIn applies the In predicate on the "orchestration_reference" field.
+func OrchestrationReferenceIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldOrchestrationReference, vs...))
+}
+
+// OrchestrationReferenceNotIn applies the NotIn predicate on the "orchestration_reference" field.
+func OrchestrationReferenceNotIn(vs ...string) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldOrchestrationReference, vs...))
+}
+
+// OrchestrationReferenceGT applies the GT predicate on the "orchestration_reference" field.
+func OrchestrationReferenceGT(v string) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceGTE applies the GTE predicate on the "orchestration_reference" field.
+func OrchestrationReferenceGTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceLT applies the LT predicate on the "orchestration_reference" field.
+func OrchestrationReferenceLT(v string) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceLTE applies the LTE predicate on the "orchestration_reference" field.
+func OrchestrationReferenceLTE(v string) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceContains applies the Contains predicate on the "orchestration_reference" field.
+func OrchestrationReferenceContains(v string) predicate.Run {
+	return predicate.Run(sql.FieldContains(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceHasPrefix applies the HasPrefix predicate on the "orchestration_reference" field.
+func OrchestrationReferenceHasPrefix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasPrefix(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceHasSuffix applies the HasSuffix predicate on the "orchestration_reference" field.
+func OrchestrationReferenceHasSuffix(v string) predicate.Run {
+	return predicate.Run(sql.FieldHasSuffix(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceIsNil applies the IsNil predicate on the "orchestration_reference" field.
+func OrchestrationReferenceIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldOrchestrationReference))
+}
+
+// OrchestrationReferenceNotNil applies the NotNil predicate on the "orchestration_reference" field.
+func OrchestrationReferenceNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldOrchestrationReference))
+}
+
+// OrchestrationReferenceEqualFold applies the EqualFold predicate on the "orchestration_reference" field.
+func OrchestrationReferenceEqualFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldEqualFold(FieldOrchestrationReference, v))
+}
+
+// OrchestrationReferenceContainsFold applies the ContainsFold predicate on the "orchestration_reference" field.
+func OrchestrationReferenceContainsFold(v string) predicate.Run {
+	return predicate.Run(sql.FieldContainsFold(FieldOrchestrationReference, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Run {
 	return predicate.Run(sql.FieldEQ(FieldCreatedAt, v))
@@ -267,6 +827,106 @@ func CreatedAtIsNil() predicate.Run {
 // CreatedAtNotNil applies the NotNil predicate on the "created_at" field.
 func CreatedAtNotNil() predicate.Run {
 	return predicate.Run(sql.FieldNotNull(FieldCreatedAt))
+}
+
+// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
+func UpdatedAtEQ(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+func UpdatedAtNEQ(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtIn applies the In predicate on the "updated_at" field.
+func UpdatedAtIn(vs ...time.Time) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtNotIn applies the NotIn predicate on the "updated_at" field.
+func UpdatedAtNotIn(vs ...time.Time) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+func UpdatedAtGT(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
+func UpdatedAtGTE(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLT applies the LT predicate on the "updated_at" field.
+func UpdatedAtLT(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
+func UpdatedAtLTE(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// UpdatedAtIsNil applies the IsNil predicate on the "updated_at" field.
+func UpdatedAtIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldUpdatedAt))
+}
+
+// UpdatedAtNotNil applies the NotNil predicate on the "updated_at" field.
+func UpdatedAtNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldUpdatedAt))
+}
+
+// EndedAtEQ applies the EQ predicate on the "ended_at" field.
+func EndedAtEQ(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldEQ(FieldEndedAt, v))
+}
+
+// EndedAtNEQ applies the NEQ predicate on the "ended_at" field.
+func EndedAtNEQ(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldNEQ(FieldEndedAt, v))
+}
+
+// EndedAtIn applies the In predicate on the "ended_at" field.
+func EndedAtIn(vs ...time.Time) predicate.Run {
+	return predicate.Run(sql.FieldIn(FieldEndedAt, vs...))
+}
+
+// EndedAtNotIn applies the NotIn predicate on the "ended_at" field.
+func EndedAtNotIn(vs ...time.Time) predicate.Run {
+	return predicate.Run(sql.FieldNotIn(FieldEndedAt, vs...))
+}
+
+// EndedAtGT applies the GT predicate on the "ended_at" field.
+func EndedAtGT(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldGT(FieldEndedAt, v))
+}
+
+// EndedAtGTE applies the GTE predicate on the "ended_at" field.
+func EndedAtGTE(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldGTE(FieldEndedAt, v))
+}
+
+// EndedAtLT applies the LT predicate on the "ended_at" field.
+func EndedAtLT(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldLT(FieldEndedAt, v))
+}
+
+// EndedAtLTE applies the LTE predicate on the "ended_at" field.
+func EndedAtLTE(v time.Time) predicate.Run {
+	return predicate.Run(sql.FieldLTE(FieldEndedAt, v))
+}
+
+// EndedAtIsNil applies the IsNil predicate on the "ended_at" field.
+func EndedAtIsNil() predicate.Run {
+	return predicate.Run(sql.FieldIsNull(FieldEndedAt))
+}
+
+// EndedAtNotNil applies the NotNil predicate on the "ended_at" field.
+func EndedAtNotNil() predicate.Run {
+	return predicate.Run(sql.FieldNotNull(FieldEndedAt))
 }
 
 // And groups predicates with the AND operator between them.

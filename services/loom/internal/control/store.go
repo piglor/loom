@@ -193,7 +193,7 @@ func (s *Store) GoalRuntime(ctx context.Context, id string) (string, error) {
 		if err != nil {
 			return err
 		}
-		r, err := t.client.Run.Query().Where(run.GoalIDEQ(g.ID)).Only(ctx)
+		r, err := t.client.Run.Query().Where(run.GoalIDEQ(g.ID), run.ParentRunIDIsNil()).Only(ctx)
 		if err != nil {
 			return err
 		}
@@ -308,6 +308,16 @@ func (s *Store) receive(ctx context.Context, t *transaction, e Event) (EventResu
 	if result.Disposition == "accepted" {
 		if err = t.client.Wait.UpdateOneID(w.ID).SetSatisfiedAt(t.now).SetEventID(result.ID).Exec(ctx); err != nil {
 			return result, err
+		}
+		workflowRun, runErr := runRow(ctx, t, g.ID)
+		if runErr == nil && policy(workflowRun).Lifecycle == "workflow-v1" {
+			if err = t.client.Wait.UpdateOneID(w.ID).SetClosedAt(t.now).Exec(ctx); err != nil {
+				return result, err
+			}
+			return result, s.advanceWorkflowAfterWait(ctx, t, g.ID, workflowRun)
+		}
+		if runErr != nil && !ent.IsNotFound(runErr) {
+			return result, runErr
 		}
 		if g.State == "WAITING" && str(g.WaitingReason) != "worker" {
 			if err = transition(ctx, t, g.ID, "READY"); err != nil {

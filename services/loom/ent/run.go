@@ -24,8 +24,26 @@ type Run struct {
 	Policy map[string]interface{} `json:"policy,omitempty"`
 	// WorkflowID holds the value of the "workflow_id" field.
 	WorkflowID *string `json:"workflow_id,omitempty"`
+	// WorkflowDefinitionID holds the value of the "workflow_definition_id" field.
+	WorkflowDefinitionID *string `json:"workflow_definition_id,omitempty"`
+	// WorkflowVersionID holds the value of the "workflow_version_id" field.
+	WorkflowVersionID *string `json:"workflow_version_id,omitempty"`
+	// ParentRunID holds the value of the "parent_run_id" field.
+	ParentRunID *string `json:"parent_run_id,omitempty"`
+	// InvokingStepKey holds the value of the "invoking_step_key" field.
+	InvokingStepKey *string `json:"invoking_step_key,omitempty"`
+	// State holds the value of the "state" field.
+	State string `json:"state,omitempty"`
+	// CurrentStepKey holds the value of the "current_step_key" field.
+	CurrentStepKey *string `json:"current_step_key,omitempty"`
+	// OrchestrationReference holds the value of the "orchestration_reference" field.
+	OrchestrationReference *string `json:"orchestration_reference,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// EndedAt holds the value of the "ended_at" field.
+	EndedAt      *time.Time `json:"ended_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -36,9 +54,9 @@ func (*Run) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case run.FieldPolicy:
 			values[i] = new([]byte)
-		case run.FieldID, run.FieldGoalID, run.FieldWorkflowID:
+		case run.FieldID, run.FieldGoalID, run.FieldWorkflowID, run.FieldWorkflowDefinitionID, run.FieldWorkflowVersionID, run.FieldParentRunID, run.FieldInvokingStepKey, run.FieldState, run.FieldCurrentStepKey, run.FieldOrchestrationReference:
 			values[i] = new(sql.NullString)
-		case run.FieldCreatedAt:
+		case run.FieldCreatedAt, run.FieldUpdatedAt, run.FieldEndedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -82,11 +100,72 @@ func (_m *Run) assignValues(columns []string, values []any) error {
 				_m.WorkflowID = new(string)
 				*_m.WorkflowID = value.String
 			}
+		case run.FieldWorkflowDefinitionID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field workflow_definition_id", values[i])
+			} else if value.Valid {
+				_m.WorkflowDefinitionID = new(string)
+				*_m.WorkflowDefinitionID = value.String
+			}
+		case run.FieldWorkflowVersionID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field workflow_version_id", values[i])
+			} else if value.Valid {
+				_m.WorkflowVersionID = new(string)
+				*_m.WorkflowVersionID = value.String
+			}
+		case run.FieldParentRunID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field parent_run_id", values[i])
+			} else if value.Valid {
+				_m.ParentRunID = new(string)
+				*_m.ParentRunID = value.String
+			}
+		case run.FieldInvokingStepKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field invoking_step_key", values[i])
+			} else if value.Valid {
+				_m.InvokingStepKey = new(string)
+				*_m.InvokingStepKey = value.String
+			}
+		case run.FieldState:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field state", values[i])
+			} else if value.Valid {
+				_m.State = value.String
+			}
+		case run.FieldCurrentStepKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field current_step_key", values[i])
+			} else if value.Valid {
+				_m.CurrentStepKey = new(string)
+				*_m.CurrentStepKey = value.String
+			}
+		case run.FieldOrchestrationReference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field orchestration_reference", values[i])
+			} else if value.Valid {
+				_m.OrchestrationReference = new(string)
+				*_m.OrchestrationReference = value.String
+			}
 		case run.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
+			}
+		case run.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
+			}
+		case run.FieldEndedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field ended_at", values[i])
+			} else if value.Valid {
+				_m.EndedAt = new(time.Time)
+				*_m.EndedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -135,8 +214,49 @@ func (_m *Run) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
+	if v := _m.WorkflowDefinitionID; v != nil {
+		builder.WriteString("workflow_definition_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.WorkflowVersionID; v != nil {
+		builder.WriteString("workflow_version_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ParentRunID; v != nil {
+		builder.WriteString("parent_run_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.InvokingStepKey; v != nil {
+		builder.WriteString("invoking_step_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("state=")
+	builder.WriteString(_m.State)
+	builder.WriteString(", ")
+	if v := _m.CurrentStepKey; v != nil {
+		builder.WriteString("current_step_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.OrchestrationReference; v != nil {
+		builder.WriteString("orchestration_reference=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.EndedAt; v != nil {
+		builder.WriteString("ended_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

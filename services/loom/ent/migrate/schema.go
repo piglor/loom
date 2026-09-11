@@ -171,6 +171,7 @@ var (
 		{Name: "credential_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "plugin_id", Type: field.TypeString},
 		{Name: "external_instance_id", Type: field.TypeString},
+		{Name: "routing_identity", Type: field.TypeString},
 		{Name: "account_id", Type: field.TypeString},
 		{Name: "account_label", Type: field.TypeString},
 		{Name: "repository_selection", Type: field.TypeString},
@@ -234,7 +235,16 @@ var (
 		{Name: "goal_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
 		{Name: "policy", Type: field.TypeJSON},
 		{Name: "workflow_id", Type: field.TypeString, Nullable: true},
+		{Name: "workflow_definition_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "workflow_version_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "parent_run_id", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "invoking_step_key", Type: field.TypeString, Nullable: true},
+		{Name: "state", Type: field.TypeString, Default: "legacy"},
+		{Name: "current_step_key", Type: field.TypeString, Nullable: true},
+		{Name: "orchestration_reference", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "ended_at", Type: field.TypeTime, Nullable: true},
 	}
 	// RunsTable holds the schema information for the "runs" table.
 	RunsTable = &schema.Table{
@@ -310,6 +320,109 @@ var (
 		Columns:    WorkersColumns,
 		PrimaryKey: []*schema.Column{WorkersColumns[0]},
 	}
+	// WorkflowDefinitionsColumns holds the columns for the "workflow_definitions" table.
+	WorkflowDefinitionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Default: ""},
+		{Name: "state", Type: field.TypeString, Default: "draft"},
+		{Name: "draft_spec", Type: field.TypeJSON},
+		{Name: "latest_version", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WorkflowDefinitionsTable holds the schema information for the "workflow_definitions" table.
+	WorkflowDefinitionsTable = &schema.Table{
+		Name:       "workflow_definitions",
+		Columns:    WorkflowDefinitionsColumns,
+		PrimaryKey: []*schema.Column{WorkflowDefinitionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowdefinition_organization_name",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowDefinitionsColumns[1], WorkflowDefinitionsColumns[2]},
+			},
+		},
+	}
+	// WorkflowStepRunsColumns holds the columns for the "workflow_step_runs" table.
+	WorkflowStepRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "run_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "step_key", Type: field.TypeString},
+		{Name: "step_type", Type: field.TypeString},
+		{Name: "position", Type: field.TypeInt},
+		{Name: "state", Type: field.TypeString},
+		{Name: "attempt", Type: field.TypeInt, Default: 1},
+		{Name: "input", Type: field.TypeJSON, Nullable: true},
+		{Name: "output", Type: field.TypeJSON, Nullable: true},
+		{Name: "error_code", Type: field.TypeString, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "ended_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WorkflowStepRunsTable holds the schema information for the "workflow_step_runs" table.
+	WorkflowStepRunsTable = &schema.Table{
+		Name:       "workflow_step_runs",
+		Columns:    WorkflowStepRunsColumns,
+		PrimaryKey: []*schema.Column{WorkflowStepRunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowsteprun_run_id_step_key_attempt",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowStepRunsColumns[1], WorkflowStepRunsColumns[2], WorkflowStepRunsColumns[6]},
+			},
+		},
+	}
+	// WorkflowTriggerBindingsColumns holds the columns for the "workflow_trigger_bindings" table.
+	WorkflowTriggerBindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "workflow_version_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "integration_instance_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "source", Type: field.TypeString},
+		{Name: "ingress_instance", Type: field.TypeString},
+		{Name: "event_type", Type: field.TypeString},
+		{Name: "resource", Type: field.TypeString, Default: "*"},
+		{Name: "version", Type: field.TypeString, Default: "*"},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WorkflowTriggerBindingsTable holds the schema information for the "workflow_trigger_bindings" table.
+	WorkflowTriggerBindingsTable = &schema.Table{
+		Name:       "workflow_trigger_bindings",
+		Columns:    WorkflowTriggerBindingsColumns,
+		PrimaryKey: []*schema.Column{WorkflowTriggerBindingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowtriggerbinding_organization_source_ingress_instance_event_type",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowTriggerBindingsColumns[1], WorkflowTriggerBindingsColumns[4], WorkflowTriggerBindingsColumns[5], WorkflowTriggerBindingsColumns[6]},
+			},
+		},
+	}
+	// WorkflowVersionsColumns holds the columns for the "workflow_versions" table.
+	WorkflowVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "definition_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "version", Type: field.TypeInt},
+		{Name: "spec", Type: field.TypeJSON},
+		{Name: "spec_digest", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WorkflowVersionsTable holds the schema information for the "workflow_versions" table.
+	WorkflowVersionsTable = &schema.Table{
+		Name:       "workflow_versions",
+		Columns:    WorkflowVersionsColumns,
+		PrimaryKey: []*schema.Column{WorkflowVersionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowversion_definition_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowVersionsColumns[1], WorkflowVersionsColumns[3]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AttemptsTable,
@@ -328,6 +441,10 @@ var (
 		WaitsTable,
 		WaitHistoryTable,
 		WorkersTable,
+		WorkflowDefinitionsTable,
+		WorkflowStepRunsTable,
+		WorkflowTriggerBindingsTable,
+		WorkflowVersionsTable,
 	}
 )
 
@@ -379,5 +496,17 @@ func init() {
 	}
 	WorkersTable.Annotation = &entsql.Annotation{
 		Table: "workers",
+	}
+	WorkflowDefinitionsTable.Annotation = &entsql.Annotation{
+		Table: "workflow_definitions",
+	}
+	WorkflowStepRunsTable.Annotation = &entsql.Annotation{
+		Table: "workflow_step_runs",
+	}
+	WorkflowTriggerBindingsTable.Annotation = &entsql.Annotation{
+		Table: "workflow_trigger_bindings",
+	}
+	WorkflowVersionsTable.Annotation = &entsql.Annotation{
+		Table: "workflow_versions",
 	}
 }

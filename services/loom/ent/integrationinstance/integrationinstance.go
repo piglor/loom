@@ -19,6 +19,8 @@ const (
 	FieldPluginID = "plugin_id"
 	// FieldExternalInstanceID holds the string denoting the external_instance_id field in the database.
 	FieldExternalInstanceID = "external_instance_id"
+	// FieldRoutingIdentity holds the string denoting the routing_identity field in the database.
+	FieldRoutingIdentity = "routing_identity"
 	// FieldAccountID holds the string denoting the account_id field in the database.
 	FieldAccountID = "account_id"
 	// FieldAccountLabel holds the string denoting the account_label field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldCredentialID,
 	FieldPluginID,
 	FieldExternalInstanceID,
+	FieldRoutingIdentity,
 	FieldAccountID,
 	FieldAccountLabel,
 	FieldRepositorySelection,
@@ -97,6 +100,11 @@ func ByPluginID(opts ...sql.OrderTermOption) OrderOption {
 // ByExternalInstanceID orders the results by the external_instance_id field.
 func ByExternalInstanceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExternalInstanceID, opts...).ToFunc()
+}
+
+// ByRoutingIdentity orders the results by the routing_identity field.
+func ByRoutingIdentity(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoutingIdentity, opts...).ToFunc()
 }
 
 // ByAccountID orders the results by the account_id field.

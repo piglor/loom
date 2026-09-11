@@ -5,8 +5,8 @@
 Loom is a durable, event-driven control plane for long-running AI agents. It preserves a Goal while its agent stops, then resumes the correct session on the correct worker when useful work becomes possible.
 
 ```text
-RUN → YIELD → STOP → WAIT → EVENT → WAKE → RESUME
-                     └── no agent/model execution ──┘
+GOAL → WORKFLOW RUN → AGENT STEP → WAIT → VERIFIED EVENT → NEXT WORKFLOW STEP
+                                  └── no agent/model execution while waiting ──┘
 ```
 
 The durable object is the desired outcome, not a permanently running process. Codex + GitHub is the first reference workflow; deployments, research, customer operations and external jobs use the same primitives.
@@ -63,12 +63,12 @@ requirements are tracked in [production readiness](docs/production-readiness.md)
 See the [Codex conformance evidence](docs/codex-adapter.md) and
 [GitHub ingress scope](docs/github-ingress.md) before enabling integrations.
 
-GitHub and GitLab are optional integration plugins, not core dependencies. Their
-normalized conditions use the same durable Goal/Wait/Session contract as every
-other external system. Native signed provider HTTP ingress is still a release
-gate; see [integration plugins](docs/integration-plugins.md) for the contract and
-current limitations. Repeatable outbound execution is opt-in through
-[worker protocol 2](docs/repeatable-worker.md).
+GitHub and GitLab are optional integration plugins, not core dependencies. They
+authenticate and normalize evidence; a published Loom workflow decides whether
+that evidence starts or continues work. Plugins never directly resume an agent.
+See [integration plugins](docs/integration-plugins.md) for the contract and
+current limitations. Repeatable outbound execution is opt-in through [worker
+protocol 2](docs/repeatable-worker.md).
 
 ## Design
 

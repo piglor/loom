@@ -130,17 +130,6 @@ func (o *OpenBao) Status(ctx context.Context) Status {
 	if !o.configured() {
 		return StatusUnconfigured
 	}
-	// The bundled bootstrap writes AppRole files after the server starts. Keep
-	// this transient state actionable instead of failing Loom at startup.
-	static, staticErr := readCredential(o.static, o.staticFile)
-	roleID, roleErr := readCredential(o.roleID, o.roleIDFile)
-	secretID, secretErr := readCredential(o.secretID, o.secretIDFile)
-	if staticErr != nil || roleErr != nil || secretErr != nil {
-		return StatusUnavailable
-	}
-	if static == "" && (roleID == "" || secretID == "") {
-		return StatusNeedsCredentials
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.endpoint("sys", "health"), nil)
 	if err != nil {
 		return StatusUnavailable
@@ -152,12 +141,31 @@ func (o *OpenBao) Status(ctx context.Context) Status {
 	defer response.Body.Close()
 	switch response.StatusCode {
 	case http.StatusOK, http.StatusTooManyRequests:
-		return StatusReady
+		// Continue below and verify the AppRole when one is configured.
+	case http.StatusNotImplemented:
+		return StatusInitializing
 	case http.StatusServiceUnavailable:
 		return StatusSealed
 	default:
 		return StatusUnavailable
 	}
+	// The bundled bootstrap writes AppRole files after the server starts. Keep
+	// this transient state actionable instead of failing Loom at startup.
+	static, staticErr := readCredential(o.static, o.staticFile)
+	roleID, roleErr := readCredential(o.roleID, o.roleIDFile)
+	secretID, secretErr := readCredential(o.secretID, o.secretIDFile)
+	if staticErr != nil || roleErr != nil || secretErr != nil {
+		return StatusUnavailable
+	}
+	if static == "" && (roleID == "" || secretID == "") {
+		return StatusNeedsCredentials
+	}
+	if static == "" {
+		if _, err = o.authenticate(ctx, true); err != nil {
+			return StatusAuthentication
+		}
+	}
+	return StatusReady
 }
 
 func (o *OpenBao) authenticate(ctx context.Context, force bool) (string, error) {

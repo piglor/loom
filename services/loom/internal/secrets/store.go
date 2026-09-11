@@ -21,6 +21,8 @@ const (
 	StatusReady            Status = "ready"
 	StatusUnconfigured     Status = "unconfigured"
 	StatusNeedsCredentials Status = "needs_credentials"
+	StatusInitializing     Status = "initializing"
+	StatusAuthentication   Status = "authentication_failed"
 	StatusSealed           Status = "sealed"
 	StatusUnavailable      Status = "unavailable"
 )

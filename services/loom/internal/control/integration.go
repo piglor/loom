@@ -270,6 +270,14 @@ func (s *Store) routeReceipt(ctx context.Context, tx *transaction, r *ent.Integr
 	}
 	b, err := tx.client.IntegrationBinding.Query().Where(integrationbinding.OrganizationEQ(s.Organization), integrationbinding.SourceEQ(r.Source), integrationbinding.InstanceEQ(r.Instance), integrationbinding.EventTypeEQ(c.Type), integrationbinding.ResourceEQ(c.Resource), integrationbinding.VersionEQ(c.Version)).Only(ctx)
 	if ent.IsNotFound(err) {
+		started, startErr := s.routeWorkflowTriggers(ctx, tx, r, c)
+		if startErr != nil {
+			return result, startErr
+		}
+		if started > 0 {
+			result.Disposition = "workflow_started"
+			return result, tx.client.IntegrationDelivery.UpdateOneID(r.ID).SetDisposition(result.Disposition).Exec(ctx)
+		}
 		return result, nil
 	}
 	if err != nil {

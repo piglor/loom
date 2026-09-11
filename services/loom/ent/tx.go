@@ -44,6 +44,14 @@ type Tx struct {
 	WaitHistory *WaitHistoryClient
 	// Worker is the client for interacting with the Worker builders.
 	Worker *WorkerClient
+	// WorkflowDefinition is the client for interacting with the WorkflowDefinition builders.
+	WorkflowDefinition *WorkflowDefinitionClient
+	// WorkflowStepRun is the client for interacting with the WorkflowStepRun builders.
+	WorkflowStepRun *WorkflowStepRunClient
+	// WorkflowTriggerBinding is the client for interacting with the WorkflowTriggerBinding builders.
+	WorkflowTriggerBinding *WorkflowTriggerBindingClient
+	// WorkflowVersion is the client for interacting with the WorkflowVersion builders.
+	WorkflowVersion *WorkflowVersionClient
 
 	// lazily loaded.
 	client     *Client
@@ -191,6 +199,10 @@ func (tx *Tx) init() {
 	tx.Wait = NewWaitClient(tx.config)
 	tx.WaitHistory = NewWaitHistoryClient(tx.config)
 	tx.Worker = NewWorkerClient(tx.config)
+	tx.WorkflowDefinition = NewWorkflowDefinitionClient(tx.config)
+	tx.WorkflowStepRun = NewWorkflowStepRunClient(tx.config)
+	tx.WorkflowTriggerBinding = NewWorkflowTriggerBindingClient(tx.config)
+	tx.WorkflowVersion = NewWorkflowVersionClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

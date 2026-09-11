@@ -40,8 +40,108 @@ func (Run) Fields() []ent.Field {
 		field.String("goal_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
 		field.JSON("policy", map[string]any{}),
 		field.String("workflow_id").Optional().Nillable(),
+		field.String("workflow_definition_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.String("workflow_version_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.String("parent_run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).Optional().Nillable(),
+		field.String("invoking_step_key").Optional().Nillable(),
+		field.String("state").Default("legacy"),
+		field.String("current_step_key").Optional().Nillable(),
+		field.String("orchestration_reference").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+		field.Time("ended_at").Optional().Nillable(),
+	}
+}
+
+type WorkflowDefinition struct{ ent.Schema }
+
+func (WorkflowDefinition) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("name"),
+		field.String("description").Default(""),
+		field.String("state").Default("draft"),
+		field.JSON("draft_spec", map[string]any{}),
+		field.Int("latest_version").Default(0),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+	}
+}
+func (WorkflowDefinition) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "name").Unique()}
+}
+func (WorkflowDefinition) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "workflow_definitions"}}
+}
+
+type WorkflowVersion struct{ ent.Schema }
+
+func (WorkflowVersion) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("definition_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("organization"),
+		field.Int("version").Positive(),
+		field.JSON("spec", map[string]any{}),
+		field.String("spec_digest"),
 		field.Time("created_at").Optional(),
 	}
+}
+func (WorkflowVersion) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("definition_id", "version").Unique()}
+}
+func (WorkflowVersion) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "workflow_versions"}}
+}
+
+type WorkflowTriggerBinding struct{ ent.Schema }
+
+func (WorkflowTriggerBinding) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("workflow_version_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("integration_instance_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("source"),
+		field.String("ingress_instance"),
+		field.String("event_type"),
+		field.String("resource").Default("*"),
+		field.String("version").Default("*"),
+		field.Bool("enabled").Default(true),
+		field.Time("created_at").Optional(),
+	}
+}
+func (WorkflowTriggerBinding) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "source", "ingress_instance", "event_type")}
+}
+func (WorkflowTriggerBinding) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "workflow_trigger_bindings"}}
+}
+
+type WorkflowStepRun struct{ ent.Schema }
+
+func (WorkflowStepRun) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("run_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("step_key"),
+		field.String("step_type"),
+		field.Int("position").NonNegative(),
+		field.String("state"),
+		field.Int("attempt").Default(1),
+		field.JSON("input", map[string]any{}).Optional(),
+		field.JSON("output", map[string]any{}).Optional(),
+		field.String("error_code").Optional().Nillable(),
+		field.Time("started_at").Optional().Nillable(),
+		field.Time("ended_at").Optional().Nillable(),
+	}
+}
+func (WorkflowStepRun) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("run_id", "step_key", "attempt").Unique()}
+}
+func (WorkflowStepRun) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "workflow_step_runs"}}
 }
 func (Run) Annotations() []schema.Annotation {
 	return []schema.Annotation{entsql.Annotation{Table: "runs"}}
@@ -282,6 +382,7 @@ func (IntegrationInstance) Fields() []ent.Field {
 		field.String("credential_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
 		field.String("plugin_id"),
 		field.String("external_instance_id"),
+		field.String("routing_identity"),
 		field.String("account_id"),
 		field.String("account_label"),
 		field.String("repository_selection"),

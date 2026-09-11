@@ -53,6 +53,49 @@ func NewAPIHandler(store *Store, adminToken string) http.Handler {
 			return map[string]string{"id": id}, err
 		})
 	}))
+	mux.HandleFunc("GET /v1/workflow-spec/schema", admin(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, WorkflowJSONSchema())
+	}))
+	mux.HandleFunc("GET /v1/workflows", admin(func(w http.ResponseWriter, r *http.Request) {
+		call(w, r, http.StatusOK, func() (any, error) { return store.ListWorkflows(r.Context()) })
+	}))
+	mux.HandleFunc("POST /v1/workflows", admin(func(w http.ResponseWriter, r *http.Request) {
+		var request CreateWorkflow
+		if !decodeJSON(w, r, &request) {
+			return
+		}
+		call(w, r, http.StatusCreated, func() (any, error) { return store.CreateWorkflow(r.Context(), request) })
+	}))
+	mux.HandleFunc("GET /v1/workflows/{id}", admin(func(w http.ResponseWriter, r *http.Request) {
+		call(w, r, http.StatusOK, func() (any, error) { return store.Workflow(r.Context(), r.PathValue("id")) })
+	}))
+	mux.HandleFunc("GET /v1/workflow-versions/{id}", admin(func(w http.ResponseWriter, r *http.Request) {
+		call(w, r, http.StatusOK, func() (any, error) { return store.WorkflowVersion(r.Context(), r.PathValue("id")) })
+	}))
+	mux.HandleFunc("PATCH /v1/workflows/{id}", admin(func(w http.ResponseWriter, r *http.Request) {
+		var request UpdateWorkflow
+		if !decodeJSON(w, r, &request) {
+			return
+		}
+		call(w, r, http.StatusOK, func() (any, error) { return store.UpdateWorkflow(r.Context(), r.PathValue("id"), request) })
+	}))
+	mux.HandleFunc("POST /v1/workflows/{id}/validate", admin(func(w http.ResponseWriter, r *http.Request) {
+		workflow, err := store.Workflow(r.Context(), r.PathValue("id"))
+		if err != nil {
+			writeFailure(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ValidateWorkflowSpec(workflow.DraftSpec))
+	}))
+	mux.HandleFunc("POST /v1/workflows/{id}/publish", admin(func(w http.ResponseWriter, r *http.Request) {
+		call(w, r, http.StatusCreated, func() (any, error) { return store.PublishWorkflow(r.Context(), r.PathValue("id")) })
+	}))
+	mux.HandleFunc("POST /v1/workflows/{id}/runs", admin(func(w http.ResponseWriter, r *http.Request) {
+		call(w, r, http.StatusCreated, func() (any, error) {
+			id, err := store.StartWorkflow(r.Context(), r.PathValue("id"))
+			return map[string]string{"goal_id": id}, err
+		})
+	}))
 	mux.HandleFunc("POST /v1/events", admin(func(w http.ResponseWriter, r *http.Request) {
 		var request Event
 		if !decodeJSON(w, r, &request) {

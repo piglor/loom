@@ -9,13 +9,20 @@ import (
 	"github.com/piglor/loom/services/loom/ent/goal"
 	"github.com/piglor/loom/services/loom/ent/outbox"
 	"github.com/piglor/loom/services/loom/ent/run"
+	"github.com/piglor/loom/services/loom/ent/workflowversion"
 )
 
 type OutboxItem struct {
-	ID          string
-	GoalID      string
-	Kind        string
-	AvailableAt time.Time
+	ID                    string
+	GoalID                string
+	RunID                 string
+	WorkflowVersionID     string
+	WorkflowDefinitionID  string
+	WorkflowVersionNumber int
+	WorkflowSpec          WorkflowSpec
+	StepKey               string
+	Kind                  string
+	AvailableAt           time.Time
 }
 
 func tenantGoals(organization string) func(*entsql.Selector) {
@@ -53,7 +60,28 @@ func (s *Store) OutboxBatch(ctx context.Context) ([]OutboxItem, error) {
 			return err
 		}
 		for _, row := range rows {
-			items = append(items, OutboxItem{ID: row.ID, GoalID: row.GoalID, Kind: row.Kind, AvailableAt: row.AvailableAt})
+			runRow, runErr := t.client.Run.Query().Where(run.GoalIDEQ(row.GoalID), run.ParentRunIDIsNil()).Only(ctx)
+			if runErr != nil {
+				return runErr
+			}
+			item := OutboxItem{ID: row.ID, GoalID: row.GoalID, RunID: runRow.ID, Kind: row.Kind, AvailableAt: row.AvailableAt}
+			if runRow.WorkflowVersionID != nil {
+				item.WorkflowVersionID = *runRow.WorkflowVersionID
+				versionRow, versionErr := t.client.WorkflowVersion.Query().Where(workflowversion.IDEQ(item.WorkflowVersionID), workflowversion.OrganizationEQ(s.Organization)).Only(ctx)
+				if versionErr != nil {
+					return versionErr
+				}
+				item.WorkflowDefinitionID = versionRow.DefinitionID
+				item.WorkflowVersionNumber = versionRow.Version
+				item.WorkflowSpec, versionErr = decodeSpec(versionRow.Spec)
+				if versionErr != nil {
+					return versionErr
+				}
+			}
+			if runRow.CurrentStepKey != nil {
+				item.StepKey = *runRow.CurrentStepKey
+			}
+			items = append(items, item)
 		}
 		return nil
 	})
@@ -72,7 +100,7 @@ func (s *Store) MarkOutboxDelivered(ctx context.Context, item OutboxItem, workfl
 		if err != nil || updated == 0 || workflowID == "" {
 			return err
 		}
-		return t.client.Run.Update().Where(run.GoalIDEQ(item.GoalID)).SetWorkflowID(workflowID).Exec(ctx)
+		return t.client.Run.Update().Where(run.GoalIDEQ(item.GoalID), run.ParentRunIDIsNil()).SetWorkflowID(workflowID).SetOrchestrationReference(workflowID).Exec(ctx)
 	})
 }
 

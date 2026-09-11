@@ -53,3 +53,15 @@ type WaitHistory func(*sql.Selector)
 
 // Worker is the predicate function for worker builders.
 type Worker func(*sql.Selector)
+
+// WorkflowDefinition is the predicate function for workflowdefinition builders.
+type WorkflowDefinition func(*sql.Selector)
+
+// WorkflowStepRun is the predicate function for workflowsteprun builders.
+type WorkflowStepRun func(*sql.Selector)
+
+// WorkflowTriggerBinding is the predicate function for workflowtriggerbinding builders.
+type WorkflowTriggerBinding func(*sql.Selector)
+
+// WorkflowVersion is the predicate function for workflowversion builders.
+type WorkflowVersion func(*sql.Selector)

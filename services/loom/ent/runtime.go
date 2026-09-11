@@ -19,6 +19,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/waithistory"
 	"github.com/piglor/loom/services/loom/ent/worker"
+	"github.com/piglor/loom/services/loom/ent/workflowdefinition"
+	"github.com/piglor/loom/services/loom/ent/workflowsteprun"
+	"github.com/piglor/loom/services/loom/ent/workflowtriggerbinding"
+	"github.com/piglor/loom/services/loom/ent/workflowversion"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -99,6 +103,10 @@ func init() {
 	outbox.DefaultID = outboxDescID.Default.(func() string)
 	runFields := schema.Run{}.Fields()
 	_ = runFields
+	// runDescState is the schema descriptor for state field.
+	runDescState := runFields[8].Descriptor()
+	// run.DefaultState holds the default value on creation for the state field.
+	run.DefaultState = runDescState.Default.(string)
 	// runDescID is the schema descriptor for id field.
 	runDescID := runFields[0].Descriptor()
 	// run.DefaultID holds the default value on creation for the id field.
@@ -131,4 +139,64 @@ func init() {
 	workerDescID := workerFields[0].Descriptor()
 	// worker.DefaultID holds the default value on creation for the id field.
 	worker.DefaultID = workerDescID.Default.(func() string)
+	workflowdefinitionFields := schema.WorkflowDefinition{}.Fields()
+	_ = workflowdefinitionFields
+	// workflowdefinitionDescDescription is the schema descriptor for description field.
+	workflowdefinitionDescDescription := workflowdefinitionFields[3].Descriptor()
+	// workflowdefinition.DefaultDescription holds the default value on creation for the description field.
+	workflowdefinition.DefaultDescription = workflowdefinitionDescDescription.Default.(string)
+	// workflowdefinitionDescState is the schema descriptor for state field.
+	workflowdefinitionDescState := workflowdefinitionFields[4].Descriptor()
+	// workflowdefinition.DefaultState holds the default value on creation for the state field.
+	workflowdefinition.DefaultState = workflowdefinitionDescState.Default.(string)
+	// workflowdefinitionDescLatestVersion is the schema descriptor for latest_version field.
+	workflowdefinitionDescLatestVersion := workflowdefinitionFields[6].Descriptor()
+	// workflowdefinition.DefaultLatestVersion holds the default value on creation for the latest_version field.
+	workflowdefinition.DefaultLatestVersion = workflowdefinitionDescLatestVersion.Default.(int)
+	// workflowdefinitionDescID is the schema descriptor for id field.
+	workflowdefinitionDescID := workflowdefinitionFields[0].Descriptor()
+	// workflowdefinition.DefaultID holds the default value on creation for the id field.
+	workflowdefinition.DefaultID = workflowdefinitionDescID.Default.(func() string)
+	workflowsteprunFields := schema.WorkflowStepRun{}.Fields()
+	_ = workflowsteprunFields
+	// workflowsteprunDescPosition is the schema descriptor for position field.
+	workflowsteprunDescPosition := workflowsteprunFields[4].Descriptor()
+	// workflowsteprun.PositionValidator is a validator for the "position" field. It is called by the builders before save.
+	workflowsteprun.PositionValidator = workflowsteprunDescPosition.Validators[0].(func(int) error)
+	// workflowsteprunDescAttempt is the schema descriptor for attempt field.
+	workflowsteprunDescAttempt := workflowsteprunFields[6].Descriptor()
+	// workflowsteprun.DefaultAttempt holds the default value on creation for the attempt field.
+	workflowsteprun.DefaultAttempt = workflowsteprunDescAttempt.Default.(int)
+	// workflowsteprunDescID is the schema descriptor for id field.
+	workflowsteprunDescID := workflowsteprunFields[0].Descriptor()
+	// workflowsteprun.DefaultID holds the default value on creation for the id field.
+	workflowsteprun.DefaultID = workflowsteprunDescID.Default.(func() string)
+	workflowtriggerbindingFields := schema.WorkflowTriggerBinding{}.Fields()
+	_ = workflowtriggerbindingFields
+	// workflowtriggerbindingDescResource is the schema descriptor for resource field.
+	workflowtriggerbindingDescResource := workflowtriggerbindingFields[7].Descriptor()
+	// workflowtriggerbinding.DefaultResource holds the default value on creation for the resource field.
+	workflowtriggerbinding.DefaultResource = workflowtriggerbindingDescResource.Default.(string)
+	// workflowtriggerbindingDescVersion is the schema descriptor for version field.
+	workflowtriggerbindingDescVersion := workflowtriggerbindingFields[8].Descriptor()
+	// workflowtriggerbinding.DefaultVersion holds the default value on creation for the version field.
+	workflowtriggerbinding.DefaultVersion = workflowtriggerbindingDescVersion.Default.(string)
+	// workflowtriggerbindingDescEnabled is the schema descriptor for enabled field.
+	workflowtriggerbindingDescEnabled := workflowtriggerbindingFields[9].Descriptor()
+	// workflowtriggerbinding.DefaultEnabled holds the default value on creation for the enabled field.
+	workflowtriggerbinding.DefaultEnabled = workflowtriggerbindingDescEnabled.Default.(bool)
+	// workflowtriggerbindingDescID is the schema descriptor for id field.
+	workflowtriggerbindingDescID := workflowtriggerbindingFields[0].Descriptor()
+	// workflowtriggerbinding.DefaultID holds the default value on creation for the id field.
+	workflowtriggerbinding.DefaultID = workflowtriggerbindingDescID.Default.(func() string)
+	workflowversionFields := schema.WorkflowVersion{}.Fields()
+	_ = workflowversionFields
+	// workflowversionDescVersion is the schema descriptor for version field.
+	workflowversionDescVersion := workflowversionFields[3].Descriptor()
+	// workflowversion.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	workflowversion.VersionValidator = workflowversionDescVersion.Validators[0].(func(int) error)
+	// workflowversionDescID is the schema descriptor for id field.
+	workflowversionDescID := workflowversionFields[0].Descriptor()
+	// workflowversion.DefaultID holds the default value on creation for the id field.
+	workflowversion.DefaultID = workflowversionDescID.Default.(func() string)
 }

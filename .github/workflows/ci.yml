@@ -106,14 +106,23 @@ jobs:
       - name: Request Coolify production deployment
         env:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_API_URL: ${{ vars.COOLIFY_API_URL }}
+          COOLIFY_SERVICE_UUID: ${{ vars.COOLIFY_SERVICE_UUID }}
+          LOOM_PUBLIC_URL: ${{ vars.LOOM_PUBLIC_URL }}
         run: |
           if [ -z "$COOLIFY_API_TOKEN" ]; then
             echo "::error::COOLIFY_API_TOKEN is not configured; refusing to report production success."
             exit 1
           fi
+          for required_name in COOLIFY_API_URL COOLIFY_SERVICE_UUID LOOM_PUBLIC_URL; do
+            if [ -z "${!required_name}" ]; then
+              echo "::error::$required_name repository variable is not configured."
+              exit 1
+            fi
+          done
           compose_b64=$(base64 --wrap=0 deploy/coolify/compose.yaml)
-          coolify_api=https://coolify.piglor.com/api/v1
-          loom_service_uuid=yidv3el41pezd8qp22s6el2w
+          coolify_api=${COOLIFY_API_URL%/}
+          loom_service_uuid=$COOLIFY_SERVICE_UUID
           auth_headers=(-H "Authorization: Bearer $COOLIFY_API_TOKEN" -H "Accept: application/json")
 
           # The proxy lives on Coolify's predefined network. Disable label
@@ -136,7 +145,7 @@ jobs:
           # that exact placeholder; never overwrite a real operator value.
           service_envs=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
             "${auth_headers[@]}" "$coolify_api/services/$loom_service_uuid/envs")
-          placeholder_envs=$(printf '%s' "$service_envs" | jq -c '[.[] | select((.value // .real_value // "") == "required") | {key, value: (if .key == "LOOM_PUBLIC_URL" then "https://loom.piglor.com" else "" end), is_preview: false, is_literal: true}]')
+          placeholder_envs=$(printf '%s' "$service_envs" | jq -c --arg public_url "$LOOM_PUBLIC_URL" '[.[] | select((.value // .real_value // "") == "required") | {key, value: (if .key == "LOOM_PUBLIC_URL" then $public_url else "" end), is_preview: false, is_literal: true}]')
           if [ "$placeholder_envs" != "[]" ]; then
             curl --fail-with-body --retry 3 --retry-delay 5 \
               -X PATCH \
@@ -183,7 +192,12 @@ jobs:
         env:
           EXPECTED_BUILD_SHA: ${{ github.sha }}
           EXPECTED_SOURCE_SHA: ${{ steps.source-fingerprint.outputs.sha }}
+          LOOM_PUBLIC_URL: ${{ vars.LOOM_PUBLIC_URL }}
         run: |
+          if [ -z "$LOOM_PUBLIC_URL" ]; then
+            echo "::error::LOOM_PUBLIC_URL repository variable is not configured."
+            exit 1
+          fi
           deadline=$((SECONDS + 600))
           attempt=0
           while :; do
@@ -191,7 +205,7 @@ jobs:
             (( remaining > 0 )) || break
             request_timeout=$(( remaining < 10 ? remaining : 10 ))
             attempt=$((attempt + 1))
-            if response=$(curl --fail --silent --show-error --max-time "$request_timeout" https://loom.piglor.com/healthz); then
+            if response=$(curl --fail --silent --show-error --max-time "$request_timeout" "${LOOM_PUBLIC_URL%/}/healthz"); then
               if printf '%s' "$response" | grep -Fq "\"build_sha\":\"$EXPECTED_BUILD_SHA\"" && printf '%s' "$response" | grep -Fq "\"source_sha\":\"$EXPECTED_SOURCE_SHA\""; then
                 echo "Public production is serving $EXPECTED_BUILD_SHA."
                 exit 0
@@ -222,7 +236,7 @@ jobs:
       - run: npm run build
       - run: npx prettier --check apps/web/src apps/web/tests apps/web/smoke apps/web/playwright.config.ts apps/web/playwright.smoke.config.ts packages/client/src
       - run: npx playwright install --with-deps chromium firefox webkit
-      - name: 72 browser regression and smoke checks (four profiles, no production credentials)
+      - name: Browser regression and smoke checks (four profiles, no production credentials)
         run: npm run test:web
       - uses: actions/upload-artifact@v4
         if: failure()

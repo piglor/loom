@@ -84,6 +84,11 @@ func ExternalInstanceID(v string) predicate.IntegrationInstance {
 	return predicate.IntegrationInstance(sql.FieldEQ(FieldExternalInstanceID, v))
 }
 
+// RoutingIdentity applies equality check predicate on the "routing_identity" field. It's identical to RoutingIdentityEQ.
+func RoutingIdentity(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldEQ(FieldRoutingIdentity, v))
+}
+
 // AccountID applies equality check predicate on the "account_id" field. It's identical to AccountIDEQ.
 func AccountID(v string) predicate.IntegrationInstance {
 	return predicate.IntegrationInstance(sql.FieldEQ(FieldAccountID, v))
@@ -377,6 +382,71 @@ func ExternalInstanceIDEqualFold(v string) predicate.IntegrationInstance {
 // ExternalInstanceIDContainsFold applies the ContainsFold predicate on the "external_instance_id" field.
 func ExternalInstanceIDContainsFold(v string) predicate.IntegrationInstance {
 	return predicate.IntegrationInstance(sql.FieldContainsFold(FieldExternalInstanceID, v))
+}
+
+// RoutingIdentityEQ applies the EQ predicate on the "routing_identity" field.
+func RoutingIdentityEQ(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldEQ(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityNEQ applies the NEQ predicate on the "routing_identity" field.
+func RoutingIdentityNEQ(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldNEQ(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityIn applies the In predicate on the "routing_identity" field.
+func RoutingIdentityIn(vs ...string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldIn(FieldRoutingIdentity, vs...))
+}
+
+// RoutingIdentityNotIn applies the NotIn predicate on the "routing_identity" field.
+func RoutingIdentityNotIn(vs ...string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldNotIn(FieldRoutingIdentity, vs...))
+}
+
+// RoutingIdentityGT applies the GT predicate on the "routing_identity" field.
+func RoutingIdentityGT(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldGT(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityGTE applies the GTE predicate on the "routing_identity" field.
+func RoutingIdentityGTE(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldGTE(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityLT applies the LT predicate on the "routing_identity" field.
+func RoutingIdentityLT(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldLT(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityLTE applies the LTE predicate on the "routing_identity" field.
+func RoutingIdentityLTE(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldLTE(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityContains applies the Contains predicate on the "routing_identity" field.
+func RoutingIdentityContains(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldContains(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityHasPrefix applies the HasPrefix predicate on the "routing_identity" field.
+func RoutingIdentityHasPrefix(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldHasPrefix(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityHasSuffix applies the HasSuffix predicate on the "routing_identity" field.
+func RoutingIdentityHasSuffix(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldHasSuffix(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityEqualFold applies the EqualFold predicate on the "routing_identity" field.
+func RoutingIdentityEqualFold(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldEqualFold(FieldRoutingIdentity, v))
+}
+
+// RoutingIdentityContainsFold applies the ContainsFold predicate on the "routing_identity" field.
+func RoutingIdentityContainsFold(v string) predicate.IntegrationInstance {
+	return predicate.IntegrationInstance(sql.FieldContainsFold(FieldRoutingIdentity, v))
 }
 
 // AccountIDEQ applies the EQ predicate on the "account_id" field.

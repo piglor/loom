@@ -54,6 +54,7 @@ echo "PASS: Coolify Compose bundles private persistent OpenBao with the Loom ser
 
 external=$(LOOM_POSTGRES_PASSWORD=deployment-test-password \
   LOOM_API_TOKEN=deployment-test-api-token-0000000000000000 \
+  LOOM_PUBLIC_URL=https://loom.example \
   LOOM_OPENBAO_ADDR=https://openbao.example \
   HATCHET_CLIENT_TOKEN=deployment-test-hatchet-token \
   HATCHET_NETWORK=deployment-test-hatchet-network \

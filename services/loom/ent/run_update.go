@@ -68,6 +68,140 @@ func (_u *RunUpdate) ClearWorkflowID() *RunUpdate {
 	return _u
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (_u *RunUpdate) SetWorkflowDefinitionID(v string) *RunUpdate {
+	_u.mutation.SetWorkflowDefinitionID(v)
+	return _u
+}
+
+// SetNillableWorkflowDefinitionID sets the "workflow_definition_id" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableWorkflowDefinitionID(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetWorkflowDefinitionID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowDefinitionID clears the value of the "workflow_definition_id" field.
+func (_u *RunUpdate) ClearWorkflowDefinitionID() *RunUpdate {
+	_u.mutation.ClearWorkflowDefinitionID()
+	return _u
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (_u *RunUpdate) SetWorkflowVersionID(v string) *RunUpdate {
+	_u.mutation.SetWorkflowVersionID(v)
+	return _u
+}
+
+// SetNillableWorkflowVersionID sets the "workflow_version_id" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableWorkflowVersionID(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetWorkflowVersionID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowVersionID clears the value of the "workflow_version_id" field.
+func (_u *RunUpdate) ClearWorkflowVersionID() *RunUpdate {
+	_u.mutation.ClearWorkflowVersionID()
+	return _u
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (_u *RunUpdate) SetParentRunID(v string) *RunUpdate {
+	_u.mutation.SetParentRunID(v)
+	return _u
+}
+
+// SetNillableParentRunID sets the "parent_run_id" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableParentRunID(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetParentRunID(*v)
+	}
+	return _u
+}
+
+// ClearParentRunID clears the value of the "parent_run_id" field.
+func (_u *RunUpdate) ClearParentRunID() *RunUpdate {
+	_u.mutation.ClearParentRunID()
+	return _u
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (_u *RunUpdate) SetInvokingStepKey(v string) *RunUpdate {
+	_u.mutation.SetInvokingStepKey(v)
+	return _u
+}
+
+// SetNillableInvokingStepKey sets the "invoking_step_key" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableInvokingStepKey(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetInvokingStepKey(*v)
+	}
+	return _u
+}
+
+// ClearInvokingStepKey clears the value of the "invoking_step_key" field.
+func (_u *RunUpdate) ClearInvokingStepKey() *RunUpdate {
+	_u.mutation.ClearInvokingStepKey()
+	return _u
+}
+
+// SetState sets the "state" field.
+func (_u *RunUpdate) SetState(v string) *RunUpdate {
+	_u.mutation.SetState(v)
+	return _u
+}
+
+// SetNillableState sets the "state" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableState(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetState(*v)
+	}
+	return _u
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (_u *RunUpdate) SetCurrentStepKey(v string) *RunUpdate {
+	_u.mutation.SetCurrentStepKey(v)
+	return _u
+}
+
+// SetNillableCurrentStepKey sets the "current_step_key" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableCurrentStepKey(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetCurrentStepKey(*v)
+	}
+	return _u
+}
+
+// ClearCurrentStepKey clears the value of the "current_step_key" field.
+func (_u *RunUpdate) ClearCurrentStepKey() *RunUpdate {
+	_u.mutation.ClearCurrentStepKey()
+	return _u
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (_u *RunUpdate) SetOrchestrationReference(v string) *RunUpdate {
+	_u.mutation.SetOrchestrationReference(v)
+	return _u
+}
+
+// SetNillableOrchestrationReference sets the "orchestration_reference" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableOrchestrationReference(v *string) *RunUpdate {
+	if v != nil {
+		_u.SetOrchestrationReference(*v)
+	}
+	return _u
+}
+
+// ClearOrchestrationReference clears the value of the "orchestration_reference" field.
+func (_u *RunUpdate) ClearOrchestrationReference() *RunUpdate {
+	_u.mutation.ClearOrchestrationReference()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *RunUpdate) SetCreatedAt(v time.Time) *RunUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -85,6 +219,46 @@ func (_u *RunUpdate) SetNillableCreatedAt(v *time.Time) *RunUpdate {
 // ClearCreatedAt clears the value of the "created_at" field.
 func (_u *RunUpdate) ClearCreatedAt() *RunUpdate {
 	_u.mutation.ClearCreatedAt()
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *RunUpdate) SetUpdatedAt(v time.Time) *RunUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableUpdatedAt(v *time.Time) *RunUpdate {
+	if v != nil {
+		_u.SetUpdatedAt(*v)
+	}
+	return _u
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (_u *RunUpdate) ClearUpdatedAt() *RunUpdate {
+	_u.mutation.ClearUpdatedAt()
+	return _u
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (_u *RunUpdate) SetEndedAt(v time.Time) *RunUpdate {
+	_u.mutation.SetEndedAt(v)
+	return _u
+}
+
+// SetNillableEndedAt sets the "ended_at" field if the given value is not nil.
+func (_u *RunUpdate) SetNillableEndedAt(v *time.Time) *RunUpdate {
+	if v != nil {
+		_u.SetEndedAt(*v)
+	}
+	return _u
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (_u *RunUpdate) ClearEndedAt() *RunUpdate {
+	_u.mutation.ClearEndedAt()
 	return _u
 }
 
@@ -141,11 +315,62 @@ func (_u *RunUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.WorkflowIDCleared() {
 		_spec.ClearField(run.FieldWorkflowID, field.TypeString)
 	}
+	if value, ok := _u.mutation.WorkflowDefinitionID(); ok {
+		_spec.SetField(run.FieldWorkflowDefinitionID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowDefinitionIDCleared() {
+		_spec.ClearField(run.FieldWorkflowDefinitionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowVersionID(); ok {
+		_spec.SetField(run.FieldWorkflowVersionID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowVersionIDCleared() {
+		_spec.ClearField(run.FieldWorkflowVersionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.ParentRunID(); ok {
+		_spec.SetField(run.FieldParentRunID, field.TypeString, value)
+	}
+	if _u.mutation.ParentRunIDCleared() {
+		_spec.ClearField(run.FieldParentRunID, field.TypeString)
+	}
+	if value, ok := _u.mutation.InvokingStepKey(); ok {
+		_spec.SetField(run.FieldInvokingStepKey, field.TypeString, value)
+	}
+	if _u.mutation.InvokingStepKeyCleared() {
+		_spec.ClearField(run.FieldInvokingStepKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.State(); ok {
+		_spec.SetField(run.FieldState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CurrentStepKey(); ok {
+		_spec.SetField(run.FieldCurrentStepKey, field.TypeString, value)
+	}
+	if _u.mutation.CurrentStepKeyCleared() {
+		_spec.ClearField(run.FieldCurrentStepKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.OrchestrationReference(); ok {
+		_spec.SetField(run.FieldOrchestrationReference, field.TypeString, value)
+	}
+	if _u.mutation.OrchestrationReferenceCleared() {
+		_spec.ClearField(run.FieldOrchestrationReference, field.TypeString)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(run.FieldCreatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.CreatedAtCleared() {
 		_spec.ClearField(run.FieldCreatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(run.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.UpdatedAtCleared() {
+		_spec.ClearField(run.FieldUpdatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.EndedAt(); ok {
+		_spec.SetField(run.FieldEndedAt, field.TypeTime, value)
+	}
+	if _u.mutation.EndedAtCleared() {
+		_spec.ClearField(run.FieldEndedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -207,6 +432,140 @@ func (_u *RunUpdateOne) ClearWorkflowID() *RunUpdateOne {
 	return _u
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (_u *RunUpdateOne) SetWorkflowDefinitionID(v string) *RunUpdateOne {
+	_u.mutation.SetWorkflowDefinitionID(v)
+	return _u
+}
+
+// SetNillableWorkflowDefinitionID sets the "workflow_definition_id" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableWorkflowDefinitionID(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetWorkflowDefinitionID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowDefinitionID clears the value of the "workflow_definition_id" field.
+func (_u *RunUpdateOne) ClearWorkflowDefinitionID() *RunUpdateOne {
+	_u.mutation.ClearWorkflowDefinitionID()
+	return _u
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (_u *RunUpdateOne) SetWorkflowVersionID(v string) *RunUpdateOne {
+	_u.mutation.SetWorkflowVersionID(v)
+	return _u
+}
+
+// SetNillableWorkflowVersionID sets the "workflow_version_id" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableWorkflowVersionID(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetWorkflowVersionID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowVersionID clears the value of the "workflow_version_id" field.
+func (_u *RunUpdateOne) ClearWorkflowVersionID() *RunUpdateOne {
+	_u.mutation.ClearWorkflowVersionID()
+	return _u
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (_u *RunUpdateOne) SetParentRunID(v string) *RunUpdateOne {
+	_u.mutation.SetParentRunID(v)
+	return _u
+}
+
+// SetNillableParentRunID sets the "parent_run_id" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableParentRunID(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetParentRunID(*v)
+	}
+	return _u
+}
+
+// ClearParentRunID clears the value of the "parent_run_id" field.
+func (_u *RunUpdateOne) ClearParentRunID() *RunUpdateOne {
+	_u.mutation.ClearParentRunID()
+	return _u
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (_u *RunUpdateOne) SetInvokingStepKey(v string) *RunUpdateOne {
+	_u.mutation.SetInvokingStepKey(v)
+	return _u
+}
+
+// SetNillableInvokingStepKey sets the "invoking_step_key" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableInvokingStepKey(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetInvokingStepKey(*v)
+	}
+	return _u
+}
+
+// ClearInvokingStepKey clears the value of the "invoking_step_key" field.
+func (_u *RunUpdateOne) ClearInvokingStepKey() *RunUpdateOne {
+	_u.mutation.ClearInvokingStepKey()
+	return _u
+}
+
+// SetState sets the "state" field.
+func (_u *RunUpdateOne) SetState(v string) *RunUpdateOne {
+	_u.mutation.SetState(v)
+	return _u
+}
+
+// SetNillableState sets the "state" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableState(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetState(*v)
+	}
+	return _u
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (_u *RunUpdateOne) SetCurrentStepKey(v string) *RunUpdateOne {
+	_u.mutation.SetCurrentStepKey(v)
+	return _u
+}
+
+// SetNillableCurrentStepKey sets the "current_step_key" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableCurrentStepKey(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetCurrentStepKey(*v)
+	}
+	return _u
+}
+
+// ClearCurrentStepKey clears the value of the "current_step_key" field.
+func (_u *RunUpdateOne) ClearCurrentStepKey() *RunUpdateOne {
+	_u.mutation.ClearCurrentStepKey()
+	return _u
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (_u *RunUpdateOne) SetOrchestrationReference(v string) *RunUpdateOne {
+	_u.mutation.SetOrchestrationReference(v)
+	return _u
+}
+
+// SetNillableOrchestrationReference sets the "orchestration_reference" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableOrchestrationReference(v *string) *RunUpdateOne {
+	if v != nil {
+		_u.SetOrchestrationReference(*v)
+	}
+	return _u
+}
+
+// ClearOrchestrationReference clears the value of the "orchestration_reference" field.
+func (_u *RunUpdateOne) ClearOrchestrationReference() *RunUpdateOne {
+	_u.mutation.ClearOrchestrationReference()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *RunUpdateOne) SetCreatedAt(v time.Time) *RunUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -224,6 +583,46 @@ func (_u *RunUpdateOne) SetNillableCreatedAt(v *time.Time) *RunUpdateOne {
 // ClearCreatedAt clears the value of the "created_at" field.
 func (_u *RunUpdateOne) ClearCreatedAt() *RunUpdateOne {
 	_u.mutation.ClearCreatedAt()
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *RunUpdateOne) SetUpdatedAt(v time.Time) *RunUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableUpdatedAt(v *time.Time) *RunUpdateOne {
+	if v != nil {
+		_u.SetUpdatedAt(*v)
+	}
+	return _u
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (_u *RunUpdateOne) ClearUpdatedAt() *RunUpdateOne {
+	_u.mutation.ClearUpdatedAt()
+	return _u
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (_u *RunUpdateOne) SetEndedAt(v time.Time) *RunUpdateOne {
+	_u.mutation.SetEndedAt(v)
+	return _u
+}
+
+// SetNillableEndedAt sets the "ended_at" field if the given value is not nil.
+func (_u *RunUpdateOne) SetNillableEndedAt(v *time.Time) *RunUpdateOne {
+	if v != nil {
+		_u.SetEndedAt(*v)
+	}
+	return _u
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (_u *RunUpdateOne) ClearEndedAt() *RunUpdateOne {
+	_u.mutation.ClearEndedAt()
 	return _u
 }
 
@@ -310,11 +709,62 @@ func (_u *RunUpdateOne) sqlSave(ctx context.Context) (_node *Run, err error) {
 	if _u.mutation.WorkflowIDCleared() {
 		_spec.ClearField(run.FieldWorkflowID, field.TypeString)
 	}
+	if value, ok := _u.mutation.WorkflowDefinitionID(); ok {
+		_spec.SetField(run.FieldWorkflowDefinitionID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowDefinitionIDCleared() {
+		_spec.ClearField(run.FieldWorkflowDefinitionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowVersionID(); ok {
+		_spec.SetField(run.FieldWorkflowVersionID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowVersionIDCleared() {
+		_spec.ClearField(run.FieldWorkflowVersionID, field.TypeString)
+	}
+	if value, ok := _u.mutation.ParentRunID(); ok {
+		_spec.SetField(run.FieldParentRunID, field.TypeString, value)
+	}
+	if _u.mutation.ParentRunIDCleared() {
+		_spec.ClearField(run.FieldParentRunID, field.TypeString)
+	}
+	if value, ok := _u.mutation.InvokingStepKey(); ok {
+		_spec.SetField(run.FieldInvokingStepKey, field.TypeString, value)
+	}
+	if _u.mutation.InvokingStepKeyCleared() {
+		_spec.ClearField(run.FieldInvokingStepKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.State(); ok {
+		_spec.SetField(run.FieldState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CurrentStepKey(); ok {
+		_spec.SetField(run.FieldCurrentStepKey, field.TypeString, value)
+	}
+	if _u.mutation.CurrentStepKeyCleared() {
+		_spec.ClearField(run.FieldCurrentStepKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.OrchestrationReference(); ok {
+		_spec.SetField(run.FieldOrchestrationReference, field.TypeString, value)
+	}
+	if _u.mutation.OrchestrationReferenceCleared() {
+		_spec.ClearField(run.FieldOrchestrationReference, field.TypeString)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(run.FieldCreatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.CreatedAtCleared() {
 		_spec.ClearField(run.FieldCreatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(run.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.UpdatedAtCleared() {
+		_spec.ClearField(run.FieldUpdatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.EndedAt(); ok {
+		_spec.SetField(run.FieldEndedAt, field.TypeTime, value)
+	}
+	if _u.mutation.EndedAtCleared() {
+		_spec.ClearField(run.FieldEndedAt, field.TypeTime)
 	}
 	_node = &Run{config: _u.config}
 	_spec.Assign = _node.assignValues

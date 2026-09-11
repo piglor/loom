@@ -95,6 +95,29 @@ func TestOpenBaoConfigurationAndFailures(t *testing.T) {
 	}
 }
 
+func TestOpenBaoReportsInitializationAndAuthenticationSeparately(t *testing.T) {
+	initializing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
+	}))
+	defer initializing.Close()
+	store, err := NewOpenBao(OpenBaoConfig{Address: initializing.URL})
+	if err != nil || store.Status(context.Background()) != StatusInitializing {
+		t.Fatalf("expected initializing status: status=%s err=%v", store.Status(context.Background()), err)
+	}
+	authentication := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/sys/health" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer authentication.Close()
+	store, err = NewOpenBao(OpenBaoConfig{Address: authentication.URL, RoleID: "role", SecretID: "secret"})
+	if err != nil || store.Status(context.Background()) != StatusAuthentication {
+		t.Fatalf("expected authentication status: status=%s err=%v", store.Status(context.Background()), err)
+	}
+}
+
 func TestOpenBaoReloadsCredentialFiles(t *testing.T) {
 	roleFile := filepath.Join(t.TempDir(), "role_id")
 	secretFile := filepath.Join(filepath.Dir(roleFile), "secret_id")

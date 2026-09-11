@@ -17,6 +17,7 @@ import {
   type Plugin,
 } from "@piglor/loom-client";
 import { PluginSetup } from "./PluginSetup";
+import { WorkflowEditor, WorkflowList } from "./Workflows";
 import "./style.css";
 
 type Client = ReturnType<typeof createClient>;
@@ -229,7 +230,7 @@ function Home({
             <p>
               {github?.state === "connected"
                 ? `${github.connection_count} GitHub connection${github.connection_count === 1 ? "" : "s"} ready`
-                : "Start with GitHub to let trusted repository events wake your Goals."}
+                : "Start with GitHub as a verified event source for your workflows."}
             </p>
             <Link className="button-link" to="/plugins/github">
               {loading
@@ -264,7 +265,7 @@ function Home({
         <div>
           <span>3</span>
           <p>
-            <strong>A plugin wakes it</strong>
+            <strong>A workflow receives evidence</strong>
             <br />
             After a verified event
           </p>
@@ -316,8 +317,8 @@ function PluginStore({
           <p className="eyebrow">EXTEND LOOM</p>
           <h1>Plugin store</h1>
           <p className="page-intro">
-            Add trusted event sources that can wake work already waiting in
-            Loom.
+            Add trusted event sources. Workflows decide whether an event starts
+            or continues work.
           </p>
         </div>
       </header>
@@ -588,7 +589,7 @@ function GoalDetail({
           ["Lifetime", duration(goal.metrics.lifetime_seconds)],
           ["Execution recorded", duration(goal.metrics.execution_seconds)],
           ["Suspended", duration(goal.metrics.suspended_seconds)],
-          ["Wake-ups", goal.metrics.wake_ups],
+          ["Continuations", goal.metrics.wake_ups],
         ].map(([label, value]) => (
           <div className="stat" key={label}>
             <span>{label}</span>
@@ -603,12 +604,50 @@ function GoalDetail({
         Execution includes reported finished attempts. Tokens and provider cost
         are unavailable; no savings estimate is claimed.
       </p>
+      {goal.run.workflow_version_id && (
+        <section className="panel workflow-progress">
+          <div className="section-heading">
+            <div>
+              <p className="step-kicker">LOOM WORKFLOW</p>
+              <h2>Current workflow relationship</h2>
+            </div>
+            <span className="muted">
+              {
+                (goal.workflow_steps ?? []).filter(
+                  (step) => step.state === "succeeded",
+                ).length
+              }
+              /{(goal.workflow_steps ?? []).length} steps complete
+            </span>
+          </div>
+          <div className="relationship-map" aria-label="Workflow progress">
+            {(goal.workflow_steps ?? []).map((step, index, steps) => (
+              <div className="relationship-item" key={step.id}>
+                <div
+                  className={`relationship-node node-${step.step_type} progress-${step.state}`}
+                >
+                  <span>{index + 1}</span>
+                  <div>
+                    <small>{step.state}</small>
+                    <strong>{step.step_key.replaceAll("_", " ")}</strong>
+                  </div>
+                </div>
+                {index < steps.length - 1 && <i aria-hidden="true">→</i>}
+              </div>
+            ))}
+          </div>
+          <p className="muted">
+            Loom owns this relationship map. Scheduler references remain an
+            implementation detail.
+          </p>
+        </section>
+      )}
       <div className="detail-grid">
         <section className="panel">
           <div className="section-heading">
             <h2>
               {goal.state === "WAITING"
-                ? "What wakes this Goal?"
+                ? "What evidence continues this workflow?"
                 : "Wait contract"}
             </h2>
             <span className="muted">Generation {goal.wait.generation}</span>
@@ -735,6 +774,9 @@ function App() {
           <NavLink to="/goals">
             <span aria-hidden="true">◎</span> Goals
           </NavLink>
+          <NavLink to="/workflows">
+            <span aria-hidden="true">⌘</span> Workflows
+          </NavLink>
           <NavLink to="/needs-you">
             <span aria-hidden="true">◈</span> Needs you
           </NavLink>
@@ -781,6 +823,14 @@ function App() {
           <Route
             path="/goals/:id"
             element={<GoalDetail client={client} onUnauthorized={logout} />}
+          />
+          <Route
+            path="/workflows"
+            element={<WorkflowList client={client} onUnauthorized={logout} />}
+          />
+          <Route
+            path="/workflows/:id"
+            element={<WorkflowEditor client={client} onUnauthorized={logout} />}
           />
           <Route
             path="/plugins"

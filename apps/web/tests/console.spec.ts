@@ -75,12 +75,13 @@ const goal = {
 const githubPlugin = {
   id: "github",
   name: "GitHub",
-  description: "Connect repositories and wake Goals from GitHub events.",
+  description:
+    "Connect repositories as a verified event source for Loom workflows.",
   category: "Source control",
   state: "ready_to_connect",
   setup_title: "Set up GitHub",
   setup_summary:
-    "Let verified pull request and Actions events wake the right Goal at the right version.",
+    "Let published workflows receive verified pull request and Actions events at the right version.",
   estimated_time: "About 2 minutes",
   steps: [
     {
@@ -216,8 +217,7 @@ test("bundled OpenBao setup gives an actionable next step", async ({
               id: "secret_storage",
               label: "OpenBao secret storage",
               status: "missing",
-              detail:
-                "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy",
+              detail: "Bundled OpenBao is creating Loom's AppRole credentials",
               required: true,
             },
           ],
@@ -227,7 +227,7 @@ test("bundled OpenBao setup gives an actionable next step", async ({
   );
   await login(page, "/plugins/github");
   await expect(
-    page.getByText("Finish secure storage setup", { exact: true }),
+    page.getByText("Secure storage is starting", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("OpenBao is bundled with this Loom deployment."),
@@ -239,6 +239,84 @@ test("bundled OpenBao setup gives an actionable next step", async ({
   await expect(
     page.getByRole("link", { name: "Open setup guide ↗" }),
   ).toHaveAttribute("href", /deploy\/openbao\/README\.md$/);
+});
+
+test("operator builds and publishes a Loom-owned workflow", async ({
+  page,
+}, info) => {
+  await mockAPI(page);
+  let workflow = {
+    id: "d2222222-2222-4222-8222-222222222222",
+    name: "Review pull request",
+    description: "Review the requested change",
+    state: "draft",
+    latest_version: 0,
+    created_at: "2026-09-12T01:00:00Z",
+    updated_at: "2026-09-12T01:00:00Z",
+    draft_spec: {
+      schema_version: 1,
+      triggers: [{ type: "manual" }],
+      steps: [
+        {
+          key: "agent",
+          name: "Agent works",
+          type: "agent",
+          config: { runtime: "demo" },
+        },
+        {
+          key: "complete",
+          name: "Complete goal",
+          type: "complete",
+          config: {},
+        },
+      ],
+      edges: [{ from: "agent", to: "complete", outcome: "success" }],
+    },
+  };
+  await page.route("**/v1/workflows**", async (route) => {
+    const request = route.request();
+    if (request.url().endsWith("/publish")) {
+      workflow = { ...workflow, state: "published", latest_version: 1 };
+      await route.fulfill({
+        status: 201,
+        json: {
+          definition_id: workflow.id,
+          version_id: "e2222222-2222-4222-8222-222222222222",
+          version: 1,
+          digest: "digest",
+          spec: workflow.draft_spec,
+        },
+      });
+    } else if (request.method() === "PATCH") {
+      const body = request.postDataJSON();
+      workflow = { ...workflow, ...body, draft_spec: body.spec };
+      await route.fulfill({ json: workflow });
+    } else if (request.method() === "POST") {
+      await route.fulfill({ status: 201, json: workflow });
+    } else if (request.url().endsWith(`/v1/workflows/${workflow.id}`)) {
+      await route.fulfill({ json: workflow });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+  await login(page, "/workflows");
+  await expect(
+    page.getByRole("heading", { name: "Decide how work moves" }),
+  ).toBeVisible();
+  await page.getByLabel("Workflow name").fill(workflow.name);
+  await page
+    .getByLabel("Goal created by this workflow")
+    .fill(workflow.description);
+  await page.getByRole("button", { name: "Create workflow" }).click();
+  await expect(page.getByText("How Loom sees this workflow")).toBeVisible();
+  await expect(page.getByText("Agent works", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("workflow-editor.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Publish new version" }).click();
+  await expect(page.getByText(/Published version 1/)).toBeVisible();
+  await expect(page.getByText("published · v1")).toBeVisible();
 });
 
 test("advanced GitHub credentials are submitted once and cleared", async ({
@@ -465,7 +543,9 @@ test("navigate real-shaped generic Goal and inspect wait evidence", async ({
   await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
   await page.getByRole("link", { name: /Investigate deployment/ }).click();
   await expect(
-    page.getByRole("heading", { name: "What wakes this Goal?" }),
+    page.getByRole("heading", {
+      name: "What evidence continues this workflow?",
+    }),
   ).toBeVisible();
   await expect(
     page.getByText("rollout.completed", { exact: true }),

@@ -139,7 +139,7 @@ services:
     environment:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
-      LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:-https://loom.piglor.com}
+      LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:?required}
       # The bundled service is the zero-configuration default. Operators using
       # the advanced external topology override this with a verified HTTPS URL.
       # OpenBao remains optional at process startup while it is sealed or before

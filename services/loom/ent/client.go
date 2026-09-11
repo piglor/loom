@@ -30,6 +30,10 @@ import (
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/waithistory"
 	"github.com/piglor/loom/services/loom/ent/worker"
+	"github.com/piglor/loom/services/loom/ent/workflowdefinition"
+	"github.com/piglor/loom/services/loom/ent/workflowsteprun"
+	"github.com/piglor/loom/services/loom/ent/workflowtriggerbinding"
+	"github.com/piglor/loom/services/loom/ent/workflowversion"
 )
 
 // Client is the client that holds all ent builders.
@@ -69,6 +73,14 @@ type Client struct {
 	WaitHistory *WaitHistoryClient
 	// Worker is the client for interacting with the Worker builders.
 	Worker *WorkerClient
+	// WorkflowDefinition is the client for interacting with the WorkflowDefinition builders.
+	WorkflowDefinition *WorkflowDefinitionClient
+	// WorkflowStepRun is the client for interacting with the WorkflowStepRun builders.
+	WorkflowStepRun *WorkflowStepRunClient
+	// WorkflowTriggerBinding is the client for interacting with the WorkflowTriggerBinding builders.
+	WorkflowTriggerBinding *WorkflowTriggerBindingClient
+	// WorkflowVersion is the client for interacting with the WorkflowVersion builders.
+	WorkflowVersion *WorkflowVersionClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -96,6 +108,10 @@ func (c *Client) init() {
 	c.Wait = NewWaitClient(c.config)
 	c.WaitHistory = NewWaitHistoryClient(c.config)
 	c.Worker = NewWorkerClient(c.config)
+	c.WorkflowDefinition = NewWorkflowDefinitionClient(c.config)
+	c.WorkflowStepRun = NewWorkflowStepRunClient(c.config)
+	c.WorkflowTriggerBinding = NewWorkflowTriggerBindingClient(c.config)
+	c.WorkflowVersion = NewWorkflowVersionClient(c.config)
 }
 
 type (
@@ -204,6 +220,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Wait:                    NewWaitClient(cfg),
 		WaitHistory:             NewWaitHistoryClient(cfg),
 		Worker:                  NewWorkerClient(cfg),
+		WorkflowDefinition:      NewWorkflowDefinitionClient(cfg),
+		WorkflowStepRun:         NewWorkflowStepRunClient(cfg),
+		WorkflowTriggerBinding:  NewWorkflowTriggerBindingClient(cfg),
+		WorkflowVersion:         NewWorkflowVersionClient(cfg),
 	}, nil
 }
 
@@ -239,6 +259,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Wait:                    NewWaitClient(cfg),
 		WaitHistory:             NewWaitHistoryClient(cfg),
 		Worker:                  NewWorkerClient(cfg),
+		WorkflowDefinition:      NewWorkflowDefinitionClient(cfg),
+		WorkflowStepRun:         NewWorkflowStepRunClient(cfg),
+		WorkflowTriggerBinding:  NewWorkflowTriggerBindingClient(cfg),
+		WorkflowVersion:         NewWorkflowVersionClient(cfg),
 	}, nil
 }
 
@@ -271,7 +295,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Attempt, c.Audit, c.Command, c.Event, c.Goal, c.IntegrationBinding,
 		c.IntegrationCredential, c.IntegrationDelivery, c.IntegrationInstance,
 		c.IntegrationSetupSession, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
-		c.Worker,
+		c.Worker, c.WorkflowDefinition, c.WorkflowStepRun, c.WorkflowTriggerBinding,
+		c.WorkflowVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -284,7 +309,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Attempt, c.Audit, c.Command, c.Event, c.Goal, c.IntegrationBinding,
 		c.IntegrationCredential, c.IntegrationDelivery, c.IntegrationInstance,
 		c.IntegrationSetupSession, c.Outbox, c.Run, c.Session, c.Wait, c.WaitHistory,
-		c.Worker,
+		c.Worker, c.WorkflowDefinition, c.WorkflowStepRun, c.WorkflowTriggerBinding,
+		c.WorkflowVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -325,6 +351,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.WaitHistory.mutate(ctx, m)
 	case *WorkerMutation:
 		return c.Worker.mutate(ctx, m)
+	case *WorkflowDefinitionMutation:
+		return c.WorkflowDefinition.mutate(ctx, m)
+	case *WorkflowStepRunMutation:
+		return c.WorkflowStepRun.mutate(ctx, m)
+	case *WorkflowTriggerBindingMutation:
+		return c.WorkflowTriggerBinding.mutate(ctx, m)
+	case *WorkflowVersionMutation:
+		return c.WorkflowVersion.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -2458,16 +2492,550 @@ func (c *WorkerClient) mutate(ctx context.Context, m *WorkerMutation) (Value, er
 	}
 }
 
+// WorkflowDefinitionClient is a client for the WorkflowDefinition schema.
+type WorkflowDefinitionClient struct {
+	config
+}
+
+// NewWorkflowDefinitionClient returns a client for the WorkflowDefinition from the given config.
+func NewWorkflowDefinitionClient(c config) *WorkflowDefinitionClient {
+	return &WorkflowDefinitionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowdefinition.Hooks(f(g(h())))`.
+func (c *WorkflowDefinitionClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowDefinition = append(c.hooks.WorkflowDefinition, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowdefinition.Intercept(f(g(h())))`.
+func (c *WorkflowDefinitionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowDefinition = append(c.inters.WorkflowDefinition, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowDefinition entity.
+func (c *WorkflowDefinitionClient) Create() *WorkflowDefinitionCreate {
+	mutation := newWorkflowDefinitionMutation(c.config, OpCreate)
+	return &WorkflowDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowDefinition entities.
+func (c *WorkflowDefinitionClient) CreateBulk(builders ...*WorkflowDefinitionCreate) *WorkflowDefinitionCreateBulk {
+	return &WorkflowDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowDefinitionClient) MapCreateBulk(slice any, setFunc func(*WorkflowDefinitionCreate, int)) *WorkflowDefinitionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowDefinitionCreateBulk{err: fmt.Errorf("calling to WorkflowDefinitionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowDefinitionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Update() *WorkflowDefinitionUpdate {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdate)
+	return &WorkflowDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowDefinitionClient) UpdateOne(_m *WorkflowDefinition) *WorkflowDefinitionUpdateOne {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdateOne, withWorkflowDefinition(_m))
+	return &WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowDefinitionClient) UpdateOneID(id string) *WorkflowDefinitionUpdateOne {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdateOne, withWorkflowDefinitionID(id))
+	return &WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Delete() *WorkflowDefinitionDelete {
+	mutation := newWorkflowDefinitionMutation(c.config, OpDelete)
+	return &WorkflowDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowDefinitionClient) DeleteOne(_m *WorkflowDefinition) *WorkflowDefinitionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowDefinitionClient) DeleteOneID(id string) *WorkflowDefinitionDeleteOne {
+	builder := c.Delete().Where(workflowdefinition.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowDefinitionDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Query() *WorkflowDefinitionQuery {
+	return &WorkflowDefinitionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowDefinition},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowDefinition entity by its id.
+func (c *WorkflowDefinitionClient) Get(ctx context.Context, id string) (*WorkflowDefinition, error) {
+	return c.Query().Where(workflowdefinition.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowDefinitionClient) GetX(ctx context.Context, id string) *WorkflowDefinition {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowDefinitionClient) Hooks() []Hook {
+	return c.hooks.WorkflowDefinition
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowDefinitionClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowDefinition
+}
+
+func (c *WorkflowDefinitionClient) mutate(ctx context.Context, m *WorkflowDefinitionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowDefinition mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowStepRunClient is a client for the WorkflowStepRun schema.
+type WorkflowStepRunClient struct {
+	config
+}
+
+// NewWorkflowStepRunClient returns a client for the WorkflowStepRun from the given config.
+func NewWorkflowStepRunClient(c config) *WorkflowStepRunClient {
+	return &WorkflowStepRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowsteprun.Hooks(f(g(h())))`.
+func (c *WorkflowStepRunClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowStepRun = append(c.hooks.WorkflowStepRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowsteprun.Intercept(f(g(h())))`.
+func (c *WorkflowStepRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowStepRun = append(c.inters.WorkflowStepRun, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowStepRun entity.
+func (c *WorkflowStepRunClient) Create() *WorkflowStepRunCreate {
+	mutation := newWorkflowStepRunMutation(c.config, OpCreate)
+	return &WorkflowStepRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowStepRun entities.
+func (c *WorkflowStepRunClient) CreateBulk(builders ...*WorkflowStepRunCreate) *WorkflowStepRunCreateBulk {
+	return &WorkflowStepRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowStepRunClient) MapCreateBulk(slice any, setFunc func(*WorkflowStepRunCreate, int)) *WorkflowStepRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowStepRunCreateBulk{err: fmt.Errorf("calling to WorkflowStepRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowStepRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowStepRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowStepRun.
+func (c *WorkflowStepRunClient) Update() *WorkflowStepRunUpdate {
+	mutation := newWorkflowStepRunMutation(c.config, OpUpdate)
+	return &WorkflowStepRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowStepRunClient) UpdateOne(_m *WorkflowStepRun) *WorkflowStepRunUpdateOne {
+	mutation := newWorkflowStepRunMutation(c.config, OpUpdateOne, withWorkflowStepRun(_m))
+	return &WorkflowStepRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowStepRunClient) UpdateOneID(id string) *WorkflowStepRunUpdateOne {
+	mutation := newWorkflowStepRunMutation(c.config, OpUpdateOne, withWorkflowStepRunID(id))
+	return &WorkflowStepRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowStepRun.
+func (c *WorkflowStepRunClient) Delete() *WorkflowStepRunDelete {
+	mutation := newWorkflowStepRunMutation(c.config, OpDelete)
+	return &WorkflowStepRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowStepRunClient) DeleteOne(_m *WorkflowStepRun) *WorkflowStepRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowStepRunClient) DeleteOneID(id string) *WorkflowStepRunDeleteOne {
+	builder := c.Delete().Where(workflowsteprun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowStepRunDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowStepRun.
+func (c *WorkflowStepRunClient) Query() *WorkflowStepRunQuery {
+	return &WorkflowStepRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowStepRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowStepRun entity by its id.
+func (c *WorkflowStepRunClient) Get(ctx context.Context, id string) (*WorkflowStepRun, error) {
+	return c.Query().Where(workflowsteprun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowStepRunClient) GetX(ctx context.Context, id string) *WorkflowStepRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowStepRunClient) Hooks() []Hook {
+	return c.hooks.WorkflowStepRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowStepRunClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowStepRun
+}
+
+func (c *WorkflowStepRunClient) mutate(ctx context.Context, m *WorkflowStepRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowStepRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowStepRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowStepRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowStepRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowStepRun mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowTriggerBindingClient is a client for the WorkflowTriggerBinding schema.
+type WorkflowTriggerBindingClient struct {
+	config
+}
+
+// NewWorkflowTriggerBindingClient returns a client for the WorkflowTriggerBinding from the given config.
+func NewWorkflowTriggerBindingClient(c config) *WorkflowTriggerBindingClient {
+	return &WorkflowTriggerBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowtriggerbinding.Hooks(f(g(h())))`.
+func (c *WorkflowTriggerBindingClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowTriggerBinding = append(c.hooks.WorkflowTriggerBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowtriggerbinding.Intercept(f(g(h())))`.
+func (c *WorkflowTriggerBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowTriggerBinding = append(c.inters.WorkflowTriggerBinding, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowTriggerBinding entity.
+func (c *WorkflowTriggerBindingClient) Create() *WorkflowTriggerBindingCreate {
+	mutation := newWorkflowTriggerBindingMutation(c.config, OpCreate)
+	return &WorkflowTriggerBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowTriggerBinding entities.
+func (c *WorkflowTriggerBindingClient) CreateBulk(builders ...*WorkflowTriggerBindingCreate) *WorkflowTriggerBindingCreateBulk {
+	return &WorkflowTriggerBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowTriggerBindingClient) MapCreateBulk(slice any, setFunc func(*WorkflowTriggerBindingCreate, int)) *WorkflowTriggerBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowTriggerBindingCreateBulk{err: fmt.Errorf("calling to WorkflowTriggerBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowTriggerBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowTriggerBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowTriggerBinding.
+func (c *WorkflowTriggerBindingClient) Update() *WorkflowTriggerBindingUpdate {
+	mutation := newWorkflowTriggerBindingMutation(c.config, OpUpdate)
+	return &WorkflowTriggerBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowTriggerBindingClient) UpdateOne(_m *WorkflowTriggerBinding) *WorkflowTriggerBindingUpdateOne {
+	mutation := newWorkflowTriggerBindingMutation(c.config, OpUpdateOne, withWorkflowTriggerBinding(_m))
+	return &WorkflowTriggerBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowTriggerBindingClient) UpdateOneID(id string) *WorkflowTriggerBindingUpdateOne {
+	mutation := newWorkflowTriggerBindingMutation(c.config, OpUpdateOne, withWorkflowTriggerBindingID(id))
+	return &WorkflowTriggerBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowTriggerBinding.
+func (c *WorkflowTriggerBindingClient) Delete() *WorkflowTriggerBindingDelete {
+	mutation := newWorkflowTriggerBindingMutation(c.config, OpDelete)
+	return &WorkflowTriggerBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowTriggerBindingClient) DeleteOne(_m *WorkflowTriggerBinding) *WorkflowTriggerBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowTriggerBindingClient) DeleteOneID(id string) *WorkflowTriggerBindingDeleteOne {
+	builder := c.Delete().Where(workflowtriggerbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowTriggerBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowTriggerBinding.
+func (c *WorkflowTriggerBindingClient) Query() *WorkflowTriggerBindingQuery {
+	return &WorkflowTriggerBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowTriggerBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowTriggerBinding entity by its id.
+func (c *WorkflowTriggerBindingClient) Get(ctx context.Context, id string) (*WorkflowTriggerBinding, error) {
+	return c.Query().Where(workflowtriggerbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowTriggerBindingClient) GetX(ctx context.Context, id string) *WorkflowTriggerBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowTriggerBindingClient) Hooks() []Hook {
+	return c.hooks.WorkflowTriggerBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowTriggerBindingClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowTriggerBinding
+}
+
+func (c *WorkflowTriggerBindingClient) mutate(ctx context.Context, m *WorkflowTriggerBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowTriggerBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowTriggerBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowTriggerBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowTriggerBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowTriggerBinding mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowVersionClient is a client for the WorkflowVersion schema.
+type WorkflowVersionClient struct {
+	config
+}
+
+// NewWorkflowVersionClient returns a client for the WorkflowVersion from the given config.
+func NewWorkflowVersionClient(c config) *WorkflowVersionClient {
+	return &WorkflowVersionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowversion.Hooks(f(g(h())))`.
+func (c *WorkflowVersionClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowVersion = append(c.hooks.WorkflowVersion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowversion.Intercept(f(g(h())))`.
+func (c *WorkflowVersionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowVersion = append(c.inters.WorkflowVersion, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowVersion entity.
+func (c *WorkflowVersionClient) Create() *WorkflowVersionCreate {
+	mutation := newWorkflowVersionMutation(c.config, OpCreate)
+	return &WorkflowVersionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowVersion entities.
+func (c *WorkflowVersionClient) CreateBulk(builders ...*WorkflowVersionCreate) *WorkflowVersionCreateBulk {
+	return &WorkflowVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowVersionClient) MapCreateBulk(slice any, setFunc func(*WorkflowVersionCreate, int)) *WorkflowVersionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowVersionCreateBulk{err: fmt.Errorf("calling to WorkflowVersionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowVersionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowVersion.
+func (c *WorkflowVersionClient) Update() *WorkflowVersionUpdate {
+	mutation := newWorkflowVersionMutation(c.config, OpUpdate)
+	return &WorkflowVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowVersionClient) UpdateOne(_m *WorkflowVersion) *WorkflowVersionUpdateOne {
+	mutation := newWorkflowVersionMutation(c.config, OpUpdateOne, withWorkflowVersion(_m))
+	return &WorkflowVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowVersionClient) UpdateOneID(id string) *WorkflowVersionUpdateOne {
+	mutation := newWorkflowVersionMutation(c.config, OpUpdateOne, withWorkflowVersionID(id))
+	return &WorkflowVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowVersion.
+func (c *WorkflowVersionClient) Delete() *WorkflowVersionDelete {
+	mutation := newWorkflowVersionMutation(c.config, OpDelete)
+	return &WorkflowVersionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowVersionClient) DeleteOne(_m *WorkflowVersion) *WorkflowVersionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowVersionClient) DeleteOneID(id string) *WorkflowVersionDeleteOne {
+	builder := c.Delete().Where(workflowversion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowVersionDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowVersion.
+func (c *WorkflowVersionClient) Query() *WorkflowVersionQuery {
+	return &WorkflowVersionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowVersion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowVersion entity by its id.
+func (c *WorkflowVersionClient) Get(ctx context.Context, id string) (*WorkflowVersion, error) {
+	return c.Query().Where(workflowversion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowVersionClient) GetX(ctx context.Context, id string) *WorkflowVersion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowVersionClient) Hooks() []Hook {
+	return c.hooks.WorkflowVersion
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowVersionClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowVersion
+}
+
+func (c *WorkflowVersionClient) mutate(ctx context.Context, m *WorkflowVersionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowVersionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowVersion mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationCredential,
 		IntegrationDelivery, IntegrationInstance, IntegrationSetupSession, Outbox, Run,
-		Session, Wait, WaitHistory, Worker []ent.Hook
+		Session, Wait, WaitHistory, Worker, WorkflowDefinition, WorkflowStepRun,
+		WorkflowTriggerBinding, WorkflowVersion []ent.Hook
 	}
 	inters struct {
 		Attempt, Audit, Command, Event, Goal, IntegrationBinding, IntegrationCredential,
 		IntegrationDelivery, IntegrationInstance, IntegrationSetupSession, Outbox, Run,
-		Session, Wait, WaitHistory, Worker []ent.Interceptor
+		Session, Wait, WaitHistory, Worker, WorkflowDefinition, WorkflowStepRun,
+		WorkflowTriggerBinding, WorkflowVersion []ent.Interceptor
 	}
 )

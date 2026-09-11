@@ -17,8 +17,26 @@ const (
 	FieldPolicy = "policy"
 	// FieldWorkflowID holds the string denoting the workflow_id field in the database.
 	FieldWorkflowID = "workflow_id"
+	// FieldWorkflowDefinitionID holds the string denoting the workflow_definition_id field in the database.
+	FieldWorkflowDefinitionID = "workflow_definition_id"
+	// FieldWorkflowVersionID holds the string denoting the workflow_version_id field in the database.
+	FieldWorkflowVersionID = "workflow_version_id"
+	// FieldParentRunID holds the string denoting the parent_run_id field in the database.
+	FieldParentRunID = "parent_run_id"
+	// FieldInvokingStepKey holds the string denoting the invoking_step_key field in the database.
+	FieldInvokingStepKey = "invoking_step_key"
+	// FieldState holds the string denoting the state field in the database.
+	FieldState = "state"
+	// FieldCurrentStepKey holds the string denoting the current_step_key field in the database.
+	FieldCurrentStepKey = "current_step_key"
+	// FieldOrchestrationReference holds the string denoting the orchestration_reference field in the database.
+	FieldOrchestrationReference = "orchestration_reference"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
+	FieldUpdatedAt = "updated_at"
+	// FieldEndedAt holds the string denoting the ended_at field in the database.
+	FieldEndedAt = "ended_at"
 	// Table holds the table name of the run in the database.
 	Table = "runs"
 )
@@ -29,7 +47,16 @@ var Columns = []string{
 	FieldGoalID,
 	FieldPolicy,
 	FieldWorkflowID,
+	FieldWorkflowDefinitionID,
+	FieldWorkflowVersionID,
+	FieldParentRunID,
+	FieldInvokingStepKey,
+	FieldState,
+	FieldCurrentStepKey,
+	FieldOrchestrationReference,
 	FieldCreatedAt,
+	FieldUpdatedAt,
+	FieldEndedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -43,6 +70,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultState holds the default value on creation for the "state" field.
+	DefaultState string
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 )
@@ -65,7 +94,52 @@ func ByWorkflowID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldWorkflowID, opts...).ToFunc()
 }
 
+// ByWorkflowDefinitionID orders the results by the workflow_definition_id field.
+func ByWorkflowDefinitionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWorkflowDefinitionID, opts...).ToFunc()
+}
+
+// ByWorkflowVersionID orders the results by the workflow_version_id field.
+func ByWorkflowVersionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWorkflowVersionID, opts...).ToFunc()
+}
+
+// ByParentRunID orders the results by the parent_run_id field.
+func ByParentRunID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldParentRunID, opts...).ToFunc()
+}
+
+// ByInvokingStepKey orders the results by the invoking_step_key field.
+func ByInvokingStepKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvokingStepKey, opts...).ToFunc()
+}
+
+// ByState orders the results by the state field.
+func ByState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldState, opts...).ToFunc()
+}
+
+// ByCurrentStepKey orders the results by the current_step_key field.
+func ByCurrentStepKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCurrentStepKey, opts...).ToFunc()
+}
+
+// ByOrchestrationReference orders the results by the orchestration_reference field.
+func ByOrchestrationReference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOrchestrationReference, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByUpdatedAt orders the results by the updated_at field.
+func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByEndedAt orders the results by the ended_at field.
+func ByEndedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEndedAt, opts...).ToFunc()
 }

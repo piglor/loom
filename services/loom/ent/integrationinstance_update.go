@@ -84,6 +84,20 @@ func (_u *IntegrationInstanceUpdate) SetNillableExternalInstanceID(v *string) *I
 	return _u
 }
 
+// SetRoutingIdentity sets the "routing_identity" field.
+func (_u *IntegrationInstanceUpdate) SetRoutingIdentity(v string) *IntegrationInstanceUpdate {
+	_u.mutation.SetRoutingIdentity(v)
+	return _u
+}
+
+// SetNillableRoutingIdentity sets the "routing_identity" field if the given value is not nil.
+func (_u *IntegrationInstanceUpdate) SetNillableRoutingIdentity(v *string) *IntegrationInstanceUpdate {
+	if v != nil {
+		_u.SetRoutingIdentity(*v)
+	}
+	return _u
+}
+
 // SetAccountID sets the "account_id" field.
 func (_u *IntegrationInstanceUpdate) SetAccountID(v string) *IntegrationInstanceUpdate {
 	_u.mutation.SetAccountID(v)
@@ -265,6 +279,9 @@ func (_u *IntegrationInstanceUpdate) sqlSave(ctx context.Context) (_node int, er
 	if value, ok := _u.mutation.ExternalInstanceID(); ok {
 		_spec.SetField(integrationinstance.FieldExternalInstanceID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RoutingIdentity(); ok {
+		_spec.SetField(integrationinstance.FieldRoutingIdentity, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.AccountID(); ok {
 		_spec.SetField(integrationinstance.FieldAccountID, field.TypeString, value)
 	}
@@ -373,6 +390,20 @@ func (_u *IntegrationInstanceUpdateOne) SetExternalInstanceID(v string) *Integra
 func (_u *IntegrationInstanceUpdateOne) SetNillableExternalInstanceID(v *string) *IntegrationInstanceUpdateOne {
 	if v != nil {
 		_u.SetExternalInstanceID(*v)
+	}
+	return _u
+}
+
+// SetRoutingIdentity sets the "routing_identity" field.
+func (_u *IntegrationInstanceUpdateOne) SetRoutingIdentity(v string) *IntegrationInstanceUpdateOne {
+	_u.mutation.SetRoutingIdentity(v)
+	return _u
+}
+
+// SetNillableRoutingIdentity sets the "routing_identity" field if the given value is not nil.
+func (_u *IntegrationInstanceUpdateOne) SetNillableRoutingIdentity(v *string) *IntegrationInstanceUpdateOne {
+	if v != nil {
+		_u.SetRoutingIdentity(*v)
 	}
 	return _u
 }
@@ -587,6 +618,9 @@ func (_u *IntegrationInstanceUpdateOne) sqlSave(ctx context.Context) (_node *Int
 	}
 	if value, ok := _u.mutation.ExternalInstanceID(); ok {
 		_spec.SetField(integrationinstance.FieldExternalInstanceID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RoutingIdentity(); ok {
+		_spec.SetField(integrationinstance.FieldRoutingIdentity, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.AccountID(); ok {
 		_spec.SetField(integrationinstance.FieldAccountID, field.TypeString, value)

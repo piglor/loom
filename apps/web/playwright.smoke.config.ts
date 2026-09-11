@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Read-only public deployment smoke checks. No operator token, traces or
-// failure injection against production; the 72-case CI suite owns those cases.
+// failure injection against production; the browser CI suite owns those cases.
 export default defineConfig({
   testDir: "./smoke",
   workers: 1,

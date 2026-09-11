@@ -49,6 +49,104 @@ func (_c *RunCreate) SetNillableWorkflowID(v *string) *RunCreate {
 	return _c
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (_c *RunCreate) SetWorkflowDefinitionID(v string) *RunCreate {
+	_c.mutation.SetWorkflowDefinitionID(v)
+	return _c
+}
+
+// SetNillableWorkflowDefinitionID sets the "workflow_definition_id" field if the given value is not nil.
+func (_c *RunCreate) SetNillableWorkflowDefinitionID(v *string) *RunCreate {
+	if v != nil {
+		_c.SetWorkflowDefinitionID(*v)
+	}
+	return _c
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (_c *RunCreate) SetWorkflowVersionID(v string) *RunCreate {
+	_c.mutation.SetWorkflowVersionID(v)
+	return _c
+}
+
+// SetNillableWorkflowVersionID sets the "workflow_version_id" field if the given value is not nil.
+func (_c *RunCreate) SetNillableWorkflowVersionID(v *string) *RunCreate {
+	if v != nil {
+		_c.SetWorkflowVersionID(*v)
+	}
+	return _c
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (_c *RunCreate) SetParentRunID(v string) *RunCreate {
+	_c.mutation.SetParentRunID(v)
+	return _c
+}
+
+// SetNillableParentRunID sets the "parent_run_id" field if the given value is not nil.
+func (_c *RunCreate) SetNillableParentRunID(v *string) *RunCreate {
+	if v != nil {
+		_c.SetParentRunID(*v)
+	}
+	return _c
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (_c *RunCreate) SetInvokingStepKey(v string) *RunCreate {
+	_c.mutation.SetInvokingStepKey(v)
+	return _c
+}
+
+// SetNillableInvokingStepKey sets the "invoking_step_key" field if the given value is not nil.
+func (_c *RunCreate) SetNillableInvokingStepKey(v *string) *RunCreate {
+	if v != nil {
+		_c.SetInvokingStepKey(*v)
+	}
+	return _c
+}
+
+// SetState sets the "state" field.
+func (_c *RunCreate) SetState(v string) *RunCreate {
+	_c.mutation.SetState(v)
+	return _c
+}
+
+// SetNillableState sets the "state" field if the given value is not nil.
+func (_c *RunCreate) SetNillableState(v *string) *RunCreate {
+	if v != nil {
+		_c.SetState(*v)
+	}
+	return _c
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (_c *RunCreate) SetCurrentStepKey(v string) *RunCreate {
+	_c.mutation.SetCurrentStepKey(v)
+	return _c
+}
+
+// SetNillableCurrentStepKey sets the "current_step_key" field if the given value is not nil.
+func (_c *RunCreate) SetNillableCurrentStepKey(v *string) *RunCreate {
+	if v != nil {
+		_c.SetCurrentStepKey(*v)
+	}
+	return _c
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (_c *RunCreate) SetOrchestrationReference(v string) *RunCreate {
+	_c.mutation.SetOrchestrationReference(v)
+	return _c
+}
+
+// SetNillableOrchestrationReference sets the "orchestration_reference" field if the given value is not nil.
+func (_c *RunCreate) SetNillableOrchestrationReference(v *string) *RunCreate {
+	if v != nil {
+		_c.SetOrchestrationReference(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RunCreate) SetCreatedAt(v time.Time) *RunCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -59,6 +157,34 @@ func (_c *RunCreate) SetCreatedAt(v time.Time) *RunCreate {
 func (_c *RunCreate) SetNillableCreatedAt(v *time.Time) *RunCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *RunCreate) SetUpdatedAt(v time.Time) *RunCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *RunCreate) SetNillableUpdatedAt(v *time.Time) *RunCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (_c *RunCreate) SetEndedAt(v time.Time) *RunCreate {
+	_c.mutation.SetEndedAt(v)
+	return _c
+}
+
+// SetNillableEndedAt sets the "ended_at" field if the given value is not nil.
+func (_c *RunCreate) SetNillableEndedAt(v *time.Time) *RunCreate {
+	if v != nil {
+		_c.SetEndedAt(*v)
 	}
 	return _c
 }
@@ -112,6 +238,10 @@ func (_c *RunCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *RunCreate) defaults() {
+	if _, ok := _c.mutation.State(); !ok {
+		v := run.DefaultState
+		_c.mutation.SetState(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := run.DefaultID()
 		_c.mutation.SetID(v)
@@ -125,6 +255,9 @@ func (_c *RunCreate) check() error {
 	}
 	if _, ok := _c.mutation.Policy(); !ok {
 		return &ValidationError{Name: "policy", err: errors.New(`ent: missing required field "Run.policy"`)}
+	}
+	if _, ok := _c.mutation.State(); !ok {
+		return &ValidationError{Name: "state", err: errors.New(`ent: missing required field "Run.state"`)}
 	}
 	return nil
 }
@@ -174,9 +307,45 @@ func (_c *RunCreate) createSpec() (*Run, *sqlgraph.CreateSpec) {
 		_spec.SetField(run.FieldWorkflowID, field.TypeString, value)
 		_node.WorkflowID = &value
 	}
+	if value, ok := _c.mutation.WorkflowDefinitionID(); ok {
+		_spec.SetField(run.FieldWorkflowDefinitionID, field.TypeString, value)
+		_node.WorkflowDefinitionID = &value
+	}
+	if value, ok := _c.mutation.WorkflowVersionID(); ok {
+		_spec.SetField(run.FieldWorkflowVersionID, field.TypeString, value)
+		_node.WorkflowVersionID = &value
+	}
+	if value, ok := _c.mutation.ParentRunID(); ok {
+		_spec.SetField(run.FieldParentRunID, field.TypeString, value)
+		_node.ParentRunID = &value
+	}
+	if value, ok := _c.mutation.InvokingStepKey(); ok {
+		_spec.SetField(run.FieldInvokingStepKey, field.TypeString, value)
+		_node.InvokingStepKey = &value
+	}
+	if value, ok := _c.mutation.State(); ok {
+		_spec.SetField(run.FieldState, field.TypeString, value)
+		_node.State = value
+	}
+	if value, ok := _c.mutation.CurrentStepKey(); ok {
+		_spec.SetField(run.FieldCurrentStepKey, field.TypeString, value)
+		_node.CurrentStepKey = &value
+	}
+	if value, ok := _c.mutation.OrchestrationReference(); ok {
+		_spec.SetField(run.FieldOrchestrationReference, field.TypeString, value)
+		_node.OrchestrationReference = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(run.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(run.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.EndedAt(); ok {
+		_spec.SetField(run.FieldEndedAt, field.TypeTime, value)
+		_node.EndedAt = &value
 	}
 	return _node, _spec
 }
@@ -272,6 +441,126 @@ func (u *RunUpsert) ClearWorkflowID() *RunUpsert {
 	return u
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (u *RunUpsert) SetWorkflowDefinitionID(v string) *RunUpsert {
+	u.Set(run.FieldWorkflowDefinitionID, v)
+	return u
+}
+
+// UpdateWorkflowDefinitionID sets the "workflow_definition_id" field to the value that was provided on create.
+func (u *RunUpsert) UpdateWorkflowDefinitionID() *RunUpsert {
+	u.SetExcluded(run.FieldWorkflowDefinitionID)
+	return u
+}
+
+// ClearWorkflowDefinitionID clears the value of the "workflow_definition_id" field.
+func (u *RunUpsert) ClearWorkflowDefinitionID() *RunUpsert {
+	u.SetNull(run.FieldWorkflowDefinitionID)
+	return u
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (u *RunUpsert) SetWorkflowVersionID(v string) *RunUpsert {
+	u.Set(run.FieldWorkflowVersionID, v)
+	return u
+}
+
+// UpdateWorkflowVersionID sets the "workflow_version_id" field to the value that was provided on create.
+func (u *RunUpsert) UpdateWorkflowVersionID() *RunUpsert {
+	u.SetExcluded(run.FieldWorkflowVersionID)
+	return u
+}
+
+// ClearWorkflowVersionID clears the value of the "workflow_version_id" field.
+func (u *RunUpsert) ClearWorkflowVersionID() *RunUpsert {
+	u.SetNull(run.FieldWorkflowVersionID)
+	return u
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (u *RunUpsert) SetParentRunID(v string) *RunUpsert {
+	u.Set(run.FieldParentRunID, v)
+	return u
+}
+
+// UpdateParentRunID sets the "parent_run_id" field to the value that was provided on create.
+func (u *RunUpsert) UpdateParentRunID() *RunUpsert {
+	u.SetExcluded(run.FieldParentRunID)
+	return u
+}
+
+// ClearParentRunID clears the value of the "parent_run_id" field.
+func (u *RunUpsert) ClearParentRunID() *RunUpsert {
+	u.SetNull(run.FieldParentRunID)
+	return u
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (u *RunUpsert) SetInvokingStepKey(v string) *RunUpsert {
+	u.Set(run.FieldInvokingStepKey, v)
+	return u
+}
+
+// UpdateInvokingStepKey sets the "invoking_step_key" field to the value that was provided on create.
+func (u *RunUpsert) UpdateInvokingStepKey() *RunUpsert {
+	u.SetExcluded(run.FieldInvokingStepKey)
+	return u
+}
+
+// ClearInvokingStepKey clears the value of the "invoking_step_key" field.
+func (u *RunUpsert) ClearInvokingStepKey() *RunUpsert {
+	u.SetNull(run.FieldInvokingStepKey)
+	return u
+}
+
+// SetState sets the "state" field.
+func (u *RunUpsert) SetState(v string) *RunUpsert {
+	u.Set(run.FieldState, v)
+	return u
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *RunUpsert) UpdateState() *RunUpsert {
+	u.SetExcluded(run.FieldState)
+	return u
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (u *RunUpsert) SetCurrentStepKey(v string) *RunUpsert {
+	u.Set(run.FieldCurrentStepKey, v)
+	return u
+}
+
+// UpdateCurrentStepKey sets the "current_step_key" field to the value that was provided on create.
+func (u *RunUpsert) UpdateCurrentStepKey() *RunUpsert {
+	u.SetExcluded(run.FieldCurrentStepKey)
+	return u
+}
+
+// ClearCurrentStepKey clears the value of the "current_step_key" field.
+func (u *RunUpsert) ClearCurrentStepKey() *RunUpsert {
+	u.SetNull(run.FieldCurrentStepKey)
+	return u
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (u *RunUpsert) SetOrchestrationReference(v string) *RunUpsert {
+	u.Set(run.FieldOrchestrationReference, v)
+	return u
+}
+
+// UpdateOrchestrationReference sets the "orchestration_reference" field to the value that was provided on create.
+func (u *RunUpsert) UpdateOrchestrationReference() *RunUpsert {
+	u.SetExcluded(run.FieldOrchestrationReference)
+	return u
+}
+
+// ClearOrchestrationReference clears the value of the "orchestration_reference" field.
+func (u *RunUpsert) ClearOrchestrationReference() *RunUpsert {
+	u.SetNull(run.FieldOrchestrationReference)
+	return u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (u *RunUpsert) SetCreatedAt(v time.Time) *RunUpsert {
 	u.Set(run.FieldCreatedAt, v)
@@ -287,6 +576,42 @@ func (u *RunUpsert) UpdateCreatedAt() *RunUpsert {
 // ClearCreatedAt clears the value of the "created_at" field.
 func (u *RunUpsert) ClearCreatedAt() *RunUpsert {
 	u.SetNull(run.FieldCreatedAt)
+	return u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *RunUpsert) SetUpdatedAt(v time.Time) *RunUpsert {
+	u.Set(run.FieldUpdatedAt, v)
+	return u
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *RunUpsert) UpdateUpdatedAt() *RunUpsert {
+	u.SetExcluded(run.FieldUpdatedAt)
+	return u
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (u *RunUpsert) ClearUpdatedAt() *RunUpsert {
+	u.SetNull(run.FieldUpdatedAt)
+	return u
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *RunUpsert) SetEndedAt(v time.Time) *RunUpsert {
+	u.Set(run.FieldEndedAt, v)
+	return u
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *RunUpsert) UpdateEndedAt() *RunUpsert {
+	u.SetExcluded(run.FieldEndedAt)
+	return u
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *RunUpsert) ClearEndedAt() *RunUpsert {
+	u.SetNull(run.FieldEndedAt)
 	return u
 }
 
@@ -387,6 +712,146 @@ func (u *RunUpsertOne) ClearWorkflowID() *RunUpsertOne {
 	})
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (u *RunUpsertOne) SetWorkflowDefinitionID(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetWorkflowDefinitionID(v)
+	})
+}
+
+// UpdateWorkflowDefinitionID sets the "workflow_definition_id" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateWorkflowDefinitionID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateWorkflowDefinitionID()
+	})
+}
+
+// ClearWorkflowDefinitionID clears the value of the "workflow_definition_id" field.
+func (u *RunUpsertOne) ClearWorkflowDefinitionID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearWorkflowDefinitionID()
+	})
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (u *RunUpsertOne) SetWorkflowVersionID(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetWorkflowVersionID(v)
+	})
+}
+
+// UpdateWorkflowVersionID sets the "workflow_version_id" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateWorkflowVersionID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateWorkflowVersionID()
+	})
+}
+
+// ClearWorkflowVersionID clears the value of the "workflow_version_id" field.
+func (u *RunUpsertOne) ClearWorkflowVersionID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearWorkflowVersionID()
+	})
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (u *RunUpsertOne) SetParentRunID(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetParentRunID(v)
+	})
+}
+
+// UpdateParentRunID sets the "parent_run_id" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateParentRunID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateParentRunID()
+	})
+}
+
+// ClearParentRunID clears the value of the "parent_run_id" field.
+func (u *RunUpsertOne) ClearParentRunID() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearParentRunID()
+	})
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (u *RunUpsertOne) SetInvokingStepKey(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetInvokingStepKey(v)
+	})
+}
+
+// UpdateInvokingStepKey sets the "invoking_step_key" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateInvokingStepKey() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateInvokingStepKey()
+	})
+}
+
+// ClearInvokingStepKey clears the value of the "invoking_step_key" field.
+func (u *RunUpsertOne) ClearInvokingStepKey() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearInvokingStepKey()
+	})
+}
+
+// SetState sets the "state" field.
+func (u *RunUpsertOne) SetState(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetState(v)
+	})
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateState() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateState()
+	})
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (u *RunUpsertOne) SetCurrentStepKey(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetCurrentStepKey(v)
+	})
+}
+
+// UpdateCurrentStepKey sets the "current_step_key" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateCurrentStepKey() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateCurrentStepKey()
+	})
+}
+
+// ClearCurrentStepKey clears the value of the "current_step_key" field.
+func (u *RunUpsertOne) ClearCurrentStepKey() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearCurrentStepKey()
+	})
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (u *RunUpsertOne) SetOrchestrationReference(v string) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetOrchestrationReference(v)
+	})
+}
+
+// UpdateOrchestrationReference sets the "orchestration_reference" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateOrchestrationReference() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateOrchestrationReference()
+	})
+}
+
+// ClearOrchestrationReference clears the value of the "orchestration_reference" field.
+func (u *RunUpsertOne) ClearOrchestrationReference() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearOrchestrationReference()
+	})
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (u *RunUpsertOne) SetCreatedAt(v time.Time) *RunUpsertOne {
 	return u.Update(func(s *RunUpsert) {
@@ -405,6 +870,48 @@ func (u *RunUpsertOne) UpdateCreatedAt() *RunUpsertOne {
 func (u *RunUpsertOne) ClearCreatedAt() *RunUpsertOne {
 	return u.Update(func(s *RunUpsert) {
 		s.ClearCreatedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *RunUpsertOne) SetUpdatedAt(v time.Time) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateUpdatedAt() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (u *RunUpsertOne) ClearUpdatedAt() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearUpdatedAt()
+	})
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *RunUpsertOne) SetEndedAt(v time.Time) *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.SetEndedAt(v)
+	})
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *RunUpsertOne) UpdateEndedAt() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateEndedAt()
+	})
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *RunUpsertOne) ClearEndedAt() *RunUpsertOne {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearEndedAt()
 	})
 }
 
@@ -672,6 +1179,146 @@ func (u *RunUpsertBulk) ClearWorkflowID() *RunUpsertBulk {
 	})
 }
 
+// SetWorkflowDefinitionID sets the "workflow_definition_id" field.
+func (u *RunUpsertBulk) SetWorkflowDefinitionID(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetWorkflowDefinitionID(v)
+	})
+}
+
+// UpdateWorkflowDefinitionID sets the "workflow_definition_id" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateWorkflowDefinitionID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateWorkflowDefinitionID()
+	})
+}
+
+// ClearWorkflowDefinitionID clears the value of the "workflow_definition_id" field.
+func (u *RunUpsertBulk) ClearWorkflowDefinitionID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearWorkflowDefinitionID()
+	})
+}
+
+// SetWorkflowVersionID sets the "workflow_version_id" field.
+func (u *RunUpsertBulk) SetWorkflowVersionID(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetWorkflowVersionID(v)
+	})
+}
+
+// UpdateWorkflowVersionID sets the "workflow_version_id" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateWorkflowVersionID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateWorkflowVersionID()
+	})
+}
+
+// ClearWorkflowVersionID clears the value of the "workflow_version_id" field.
+func (u *RunUpsertBulk) ClearWorkflowVersionID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearWorkflowVersionID()
+	})
+}
+
+// SetParentRunID sets the "parent_run_id" field.
+func (u *RunUpsertBulk) SetParentRunID(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetParentRunID(v)
+	})
+}
+
+// UpdateParentRunID sets the "parent_run_id" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateParentRunID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateParentRunID()
+	})
+}
+
+// ClearParentRunID clears the value of the "parent_run_id" field.
+func (u *RunUpsertBulk) ClearParentRunID() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearParentRunID()
+	})
+}
+
+// SetInvokingStepKey sets the "invoking_step_key" field.
+func (u *RunUpsertBulk) SetInvokingStepKey(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetInvokingStepKey(v)
+	})
+}
+
+// UpdateInvokingStepKey sets the "invoking_step_key" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateInvokingStepKey() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateInvokingStepKey()
+	})
+}
+
+// ClearInvokingStepKey clears the value of the "invoking_step_key" field.
+func (u *RunUpsertBulk) ClearInvokingStepKey() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearInvokingStepKey()
+	})
+}
+
+// SetState sets the "state" field.
+func (u *RunUpsertBulk) SetState(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetState(v)
+	})
+}
+
+// UpdateState sets the "state" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateState() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateState()
+	})
+}
+
+// SetCurrentStepKey sets the "current_step_key" field.
+func (u *RunUpsertBulk) SetCurrentStepKey(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetCurrentStepKey(v)
+	})
+}
+
+// UpdateCurrentStepKey sets the "current_step_key" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateCurrentStepKey() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateCurrentStepKey()
+	})
+}
+
+// ClearCurrentStepKey clears the value of the "current_step_key" field.
+func (u *RunUpsertBulk) ClearCurrentStepKey() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearCurrentStepKey()
+	})
+}
+
+// SetOrchestrationReference sets the "orchestration_reference" field.
+func (u *RunUpsertBulk) SetOrchestrationReference(v string) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetOrchestrationReference(v)
+	})
+}
+
+// UpdateOrchestrationReference sets the "orchestration_reference" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateOrchestrationReference() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateOrchestrationReference()
+	})
+}
+
+// ClearOrchestrationReference clears the value of the "orchestration_reference" field.
+func (u *RunUpsertBulk) ClearOrchestrationReference() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearOrchestrationReference()
+	})
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (u *RunUpsertBulk) SetCreatedAt(v time.Time) *RunUpsertBulk {
 	return u.Update(func(s *RunUpsert) {
@@ -690,6 +1337,48 @@ func (u *RunUpsertBulk) UpdateCreatedAt() *RunUpsertBulk {
 func (u *RunUpsertBulk) ClearCreatedAt() *RunUpsertBulk {
 	return u.Update(func(s *RunUpsert) {
 		s.ClearCreatedAt()
+	})
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (u *RunUpsertBulk) SetUpdatedAt(v time.Time) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetUpdatedAt(v)
+	})
+}
+
+// UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateUpdatedAt() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateUpdatedAt()
+	})
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (u *RunUpsertBulk) ClearUpdatedAt() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearUpdatedAt()
+	})
+}
+
+// SetEndedAt sets the "ended_at" field.
+func (u *RunUpsertBulk) SetEndedAt(v time.Time) *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.SetEndedAt(v)
+	})
+}
+
+// UpdateEndedAt sets the "ended_at" field to the value that was provided on create.
+func (u *RunUpsertBulk) UpdateEndedAt() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.UpdateEndedAt()
+	})
+}
+
+// ClearEndedAt clears the value of the "ended_at" field.
+func (u *RunUpsertBulk) ClearEndedAt() *RunUpsertBulk {
+	return u.Update(func(s *RunUpsert) {
+		s.ClearEndedAt()
 	})
 }
 

@@ -47,6 +47,12 @@ func (_c *IntegrationInstanceCreate) SetExternalInstanceID(v string) *Integratio
 	return _c
 }
 
+// SetRoutingIdentity sets the "routing_identity" field.
+func (_c *IntegrationInstanceCreate) SetRoutingIdentity(v string) *IntegrationInstanceCreate {
+	_c.mutation.SetRoutingIdentity(v)
+	return _c
+}
+
 // SetAccountID sets the "account_id" field.
 func (_c *IntegrationInstanceCreate) SetAccountID(v string) *IntegrationInstanceCreate {
 	_c.mutation.SetAccountID(v)
@@ -188,6 +194,9 @@ func (_c *IntegrationInstanceCreate) check() error {
 	if _, ok := _c.mutation.ExternalInstanceID(); !ok {
 		return &ValidationError{Name: "external_instance_id", err: errors.New(`ent: missing required field "IntegrationInstance.external_instance_id"`)}
 	}
+	if _, ok := _c.mutation.RoutingIdentity(); !ok {
+		return &ValidationError{Name: "routing_identity", err: errors.New(`ent: missing required field "IntegrationInstance.routing_identity"`)}
+	}
 	if _, ok := _c.mutation.AccountID(); !ok {
 		return &ValidationError{Name: "account_id", err: errors.New(`ent: missing required field "IntegrationInstance.account_id"`)}
 	}
@@ -251,6 +260,10 @@ func (_c *IntegrationInstanceCreate) createSpec() (*IntegrationInstance, *sqlgra
 	if value, ok := _c.mutation.ExternalInstanceID(); ok {
 		_spec.SetField(integrationinstance.FieldExternalInstanceID, field.TypeString, value)
 		_node.ExternalInstanceID = value
+	}
+	if value, ok := _c.mutation.RoutingIdentity(); ok {
+		_spec.SetField(integrationinstance.FieldRoutingIdentity, field.TypeString, value)
+		_node.RoutingIdentity = value
 	}
 	if value, ok := _c.mutation.AccountID(); ok {
 		_spec.SetField(integrationinstance.FieldAccountID, field.TypeString, value)
@@ -381,6 +394,18 @@ func (u *IntegrationInstanceUpsert) SetExternalInstanceID(v string) *Integration
 // UpdateExternalInstanceID sets the "external_instance_id" field to the value that was provided on create.
 func (u *IntegrationInstanceUpsert) UpdateExternalInstanceID() *IntegrationInstanceUpsert {
 	u.SetExcluded(integrationinstance.FieldExternalInstanceID)
+	return u
+}
+
+// SetRoutingIdentity sets the "routing_identity" field.
+func (u *IntegrationInstanceUpsert) SetRoutingIdentity(v string) *IntegrationInstanceUpsert {
+	u.Set(integrationinstance.FieldRoutingIdentity, v)
+	return u
+}
+
+// UpdateRoutingIdentity sets the "routing_identity" field to the value that was provided on create.
+func (u *IntegrationInstanceUpsert) UpdateRoutingIdentity() *IntegrationInstanceUpsert {
+	u.SetExcluded(integrationinstance.FieldRoutingIdentity)
 	return u
 }
 
@@ -605,6 +630,20 @@ func (u *IntegrationInstanceUpsertOne) SetExternalInstanceID(v string) *Integrat
 func (u *IntegrationInstanceUpsertOne) UpdateExternalInstanceID() *IntegrationInstanceUpsertOne {
 	return u.Update(func(s *IntegrationInstanceUpsert) {
 		s.UpdateExternalInstanceID()
+	})
+}
+
+// SetRoutingIdentity sets the "routing_identity" field.
+func (u *IntegrationInstanceUpsertOne) SetRoutingIdentity(v string) *IntegrationInstanceUpsertOne {
+	return u.Update(func(s *IntegrationInstanceUpsert) {
+		s.SetRoutingIdentity(v)
+	})
+}
+
+// UpdateRoutingIdentity sets the "routing_identity" field to the value that was provided on create.
+func (u *IntegrationInstanceUpsertOne) UpdateRoutingIdentity() *IntegrationInstanceUpsertOne {
+	return u.Update(func(s *IntegrationInstanceUpsert) {
+		s.UpdateRoutingIdentity()
 	})
 }
 
@@ -1016,6 +1055,20 @@ func (u *IntegrationInstanceUpsertBulk) SetExternalInstanceID(v string) *Integra
 func (u *IntegrationInstanceUpsertBulk) UpdateExternalInstanceID() *IntegrationInstanceUpsertBulk {
 	return u.Update(func(s *IntegrationInstanceUpsert) {
 		s.UpdateExternalInstanceID()
+	})
+}
+
+// SetRoutingIdentity sets the "routing_identity" field.
+func (u *IntegrationInstanceUpsertBulk) SetRoutingIdentity(v string) *IntegrationInstanceUpsertBulk {
+	return u.Update(func(s *IntegrationInstanceUpsert) {
+		s.SetRoutingIdentity(v)
+	})
+}
+
+// UpdateRoutingIdentity sets the "routing_identity" field to the value that was provided on create.
+func (u *IntegrationInstanceUpsertBulk) UpdateRoutingIdentity() *IntegrationInstanceUpsertBulk {
+	return u.Update(func(s *IntegrationInstanceUpsert) {
+		s.UpdateRoutingIdentity()
 	})
 }
 

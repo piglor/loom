@@ -95,7 +95,7 @@ func (s *Store) goalRow(ctx context.Context, t *transaction, id string) (*ent.Go
 	return g, err
 }
 func runRow(ctx context.Context, t *transaction, id string) (*ent.Run, error) {
-	return t.client.Run.Query().Where(run.GoalIDEQ(id)).Only(ctx)
+	return t.client.Run.Query().Where(run.GoalIDEQ(id), run.ParentRunIDIsNil()).Only(ctx)
 }
 func waitRow(ctx context.Context, t *transaction, id string) (*ent.Wait, error) {
 	return t.client.Wait.Query().Where(wait.GoalIDEQ(id)).Only(ctx)
@@ -214,6 +214,9 @@ func (s *Store) dispatchDemo(ctx context.Context, t *transaction, g *ent.Goal, r
 	}
 	if err = audit(ctx, t, g.ID, "runtime_stopped", map[string]any{"attempt_id": a.ID}); err != nil {
 		return err
+	}
+	if p.Lifecycle == "workflow-v1" {
+		return s.advanceWorkflowAfterAgent(ctx, t, g.ID, r, true)
 	}
 	if g.Phase == 0 {
 		if err = t.client.Wait.UpdateOneID(w.ID).SetArmedAt(t.now).Exec(ctx); err != nil {
@@ -508,7 +511,8 @@ func (s *Store) Report(ctx context.Context, token, id string, r Stop) (map[strin
 			return conflict("Successful Codex execution requires provider binding")
 		}
 		repeat := a.policy.Lifecycle == "event-driven-v1"
-		if !repeat && r.Outcome != nil {
+		workflowRun := a.policy.Lifecycle == "workflow-v1"
+		if !repeat && !workflowRun && r.Outcome != nil {
 			return conflict("Legacy outcome cannot change")
 		}
 		outcome := "runtime_failure"
@@ -528,7 +532,13 @@ func (s *Store) Report(ctx context.Context, token, id string, r Stop) (map[strin
 		if err = audit(ctx, t, a.goal.ID, "runtime_stopped", map[string]any{"attempt_id": a.attempt.ID}); err != nil {
 			return err
 		}
-		if !r.Success {
+		if workflowRun {
+			workflow, runErr := runRow(ctx, t, a.goal.ID)
+			if runErr != nil {
+				return runErr
+			}
+			err = s.advanceWorkflowAfterAgent(ctx, t, a.goal.ID, workflow, r.Success)
+		} else if !r.Success {
 			err = transition(ctx, t, a.goal.ID, "FAILED")
 		} else {
 			w, e := waitRow(ctx, t, a.goal.ID)
@@ -578,6 +588,9 @@ func (s *Store) Report(ctx context.Context, token, id string, r Stop) (map[strin
 		}
 		if err = t.client.Command.UpdateOneID(id).SetState("STOPPED").SetReportDigest(digest).SetStoppedAt(t.now).Exec(ctx); err != nil {
 			return err
+		}
+		if workflowRun {
+			return nil
 		}
 		return enqueue(ctx, t, a.goal.ID, "wake")
 	})

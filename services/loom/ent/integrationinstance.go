@@ -26,6 +26,8 @@ type IntegrationInstance struct {
 	PluginID string `json:"plugin_id,omitempty"`
 	// ExternalInstanceID holds the value of the "external_instance_id" field.
 	ExternalInstanceID string `json:"external_instance_id,omitempty"`
+	// RoutingIdentity holds the value of the "routing_identity" field.
+	RoutingIdentity string `json:"routing_identity,omitempty"`
 	// AccountID holds the value of the "account_id" field.
 	AccountID string `json:"account_id,omitempty"`
 	// AccountLabel holds the value of the "account_label" field.
@@ -52,7 +54,7 @@ func (*IntegrationInstance) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case integrationinstance.FieldMetadata:
 			values[i] = new([]byte)
-		case integrationinstance.FieldID, integrationinstance.FieldOrganization, integrationinstance.FieldCredentialID, integrationinstance.FieldPluginID, integrationinstance.FieldExternalInstanceID, integrationinstance.FieldAccountID, integrationinstance.FieldAccountLabel, integrationinstance.FieldRepositorySelection, integrationinstance.FieldState:
+		case integrationinstance.FieldID, integrationinstance.FieldOrganization, integrationinstance.FieldCredentialID, integrationinstance.FieldPluginID, integrationinstance.FieldExternalInstanceID, integrationinstance.FieldRoutingIdentity, integrationinstance.FieldAccountID, integrationinstance.FieldAccountLabel, integrationinstance.FieldRepositorySelection, integrationinstance.FieldState:
 			values[i] = new(sql.NullString)
 		case integrationinstance.FieldLastVerifiedAt, integrationinstance.FieldCreatedAt, integrationinstance.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -100,6 +102,12 @@ func (_m *IntegrationInstance) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field external_instance_id", values[i])
 			} else if value.Valid {
 				_m.ExternalInstanceID = value.String
+			}
+		case integrationinstance.FieldRoutingIdentity:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field routing_identity", values[i])
+			} else if value.Valid {
+				_m.RoutingIdentity = value.String
 			}
 		case integrationinstance.FieldAccountID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -199,6 +207,9 @@ func (_m *IntegrationInstance) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("external_instance_id=")
 	builder.WriteString(_m.ExternalInstanceID)
+	builder.WriteString(", ")
+	builder.WriteString("routing_identity=")
+	builder.WriteString(_m.RoutingIdentity)
 	builder.WriteString(", ")
 	builder.WriteString("account_id=")
 	builder.WriteString(_m.AccountID)

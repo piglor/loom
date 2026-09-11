@@ -12,10 +12,10 @@ func Descriptor(installURL, webhookSecret, apiToken string) catalog.Plugin {
 		ID:            "github",
 		Name:          "GitHub",
 		Category:      "Source control",
-		Description:   "Connect repositories and wake Goals from trusted GitHub events.",
+		Description:   "Connect repositories as a verified event source for Loom workflows.",
 		State:         catalog.NeedsConfiguration,
 		SetupTitle:    "Set up GitHub",
-		SetupSummary:  "Let verified pull request and Actions events wake the right Goal at the right version.",
+		SetupSummary:  "Let published workflows receive verified pull request and Actions events at the right version.",
 		EstimatedTime: "About 2 minutes",
 		Steps: []catalog.Step{
 			{Title: "Install the Loom GitHub App", Description: "GitHub opens in a new tab. Choose the organization you want to connect."},

@@ -167,7 +167,7 @@ func TestPluginReportsOpenBaoAndConnections(t *testing.T) {
 	}
 	vault.status = secrets.StatusNeedsCredentials
 	plugin = setupHandlerForTest(t, records, vault).Plugin(context.Background())
-	if plugin.State != "needs_configuration" || plugin.Checks[0].Detail != "Add LOOM_OPENBAO_ROLE_ID and LOOM_OPENBAO_SECRET_ID, then redeploy" {
+	if plugin.State != "needs_configuration" || plugin.Checks[0].Detail != "Bundled OpenBao is creating Loom's AppRole credentials" {
 		t.Fatalf("unexpected credential setup plugin: %#v", plugin)
 	}
 }

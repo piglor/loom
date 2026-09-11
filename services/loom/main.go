@@ -43,7 +43,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=14").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=15").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
@@ -55,6 +55,8 @@ func (p postgresReader) inspect(ctx context.Context, id string) (json.RawMessage
 	var result json.RawMessage
 	err := p.pool.QueryRow(ctx, `SELECT to_jsonb(g) || jsonb_build_object(
 		'run',to_jsonb(r),'session',to_jsonb(s),'wait',to_jsonb(w),
+		'workflow_runs',COALESCE((SELECT jsonb_agg(to_jsonb(wr) ORDER BY wr.created_at,wr.id) FROM runs wr WHERE wr.goal_id=g.id),'[]'::jsonb),
+		'workflow_steps',COALESCE((SELECT jsonb_agg(to_jsonb(ws) ORDER BY wr.created_at,ws.position) FROM workflow_step_runs ws JOIN runs wr ON wr.id=ws.run_id WHERE wr.goal_id=g.id),'[]'::jsonb),
 		'wait_history',COALESCE((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.generation) FROM wait_history h WHERE h.goal_id=g.id),'[]'::jsonb),
 		'attempts',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.phase) FROM attempts a WHERE a.goal_id=g.id),'[]'::jsonb),
 		'audit',COALESCE((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.sequence) FROM audit a WHERE a.goal_id=g.id),'[]'::jsonb),
@@ -65,7 +67,7 @@ func (p postgresReader) inspect(ctx context.Context, id string) (json.RawMessage
 		'attempts',(SELECT count(*) FROM attempts WHERE goal_id=g.id),
 		'wake_ups',(SELECT count(*) FROM attempts WHERE goal_id=g.id AND phase>0 AND state<>'QUEUED' AND outcome IS DISTINCT FROM 'cancelled_unclaimed'),
 		'tokens',NULL,'provider_cost',NULL))
-		FROM goals g JOIN runs r ON r.goal_id=g.id JOIN sessions s ON s.run_id=r.id
+		FROM goals g JOIN runs r ON r.goal_id=g.id AND r.parent_run_id IS NULL JOIN sessions s ON s.run_id=r.id
 		JOIN waits w ON w.goal_id=g.id WHERE g.id=$1::uuid AND g.organization=$2`, id, p.organization).Scan(&result)
 	return result, err
 }
@@ -170,7 +172,8 @@ func newHandler(data reader, token string, api http.Handler, assets fs.FS, plugi
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if r.URL.Path != "/" && r.URL.Path != "/goals" && !strings.HasPrefix(r.URL.Path, "/goals/") && r.URL.Path != "/needs-you" && r.URL.Path != "/plugins" && !strings.HasPrefix(r.URL.Path, "/plugins/") {
+		knownConsoleRoute := r.URL.Path == "/" || r.URL.Path == "/goals" || strings.HasPrefix(r.URL.Path, "/goals/") || r.URL.Path == "/needs-you" || r.URL.Path == "/plugins" || strings.HasPrefix(r.URL.Path, "/plugins/") || r.URL.Path == "/workflows" || strings.HasPrefix(r.URL.Path, "/workflows/")
+		if !knownConsoleRoute {
 			if !strings.HasPrefix(r.URL.Path, "/assets/") {
 				// Browser navigation gets the recovery UI with a real 404. API,
 				// asset and file-like requests retain their resource error behavior.
