@@ -27,10 +27,13 @@ jobs:
           envs=$(curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/envs")
           printf '%s' "$envs" | jq '[.[] | {key, is_preview, is_literal, configured: (((.real_value // .value // "") | length) > 0)}]'
 
-          for sub_service in loom-server loom-migrate loom-worker openbao openbao-bootstrap openbao-unseal loom-db; do
-            echo "--- logs: $sub_service ---"
-            curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/logs?sub_service_name=$sub_service&lines=120&show_timestamps=true" \
+          while IFS=$'\t' read -r sub_uuid sub_service; do
+            echo "--- logs: $sub_service ($sub_uuid) ---"
+            curl --fail-with-body --silent --show-error "${headers[@]}" "$api/services/$uuid/applications/$sub_uuid/logs?lines=120&show_timestamps=true" \
               | jq -r '.logs // .message // "(no logs)"' || true
+          done <<EOF
+$(printf '%s' "$service" | jq -r '.applications[]? | [.uuid,.name] | @tsv')
+EOF
           done
 
           echo "--- active deployments ---"
