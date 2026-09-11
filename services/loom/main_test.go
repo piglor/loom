@@ -28,7 +28,11 @@ func (f fakeReader) inspect(context.Context, string) (json.RawMessage, error) {
 	return json.RawMessage(`{"id":"` + goalID + `"}`), f.err
 }
 func handlerForTest(data reader) http.Handler {
-	return newHandler(data, testToken, http.NotFoundHandler(), fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Loom</title>")}, "assets/app.js": {Data: []byte("console.log('loom')")}}, func(context.Context) []catalog.Plugin {
+	return handlerForAssets(data, fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Loom</title>")}, "assets/app.js": {Data: []byte("console.log('loom')")}})
+}
+
+func handlerForAssets(data reader, assets fstest.MapFS) http.Handler {
+	return newHandler(data, testToken, http.NotFoundHandler(), assets, func(context.Context) []catalog.Plugin {
 		return []catalog.Plugin{{ID: "github", Name: "GitHub", State: "ready_to_connect"}}
 	})
 }
@@ -63,6 +67,19 @@ func TestRoutesAndAuthentication(t *testing.T) {
 				t.Fatal("credential leaked")
 			}
 		})
+	}
+}
+
+func TestHealthRevisionMarker(t *testing.T) {
+	const revision = "0123456789abcdef"
+	const sourceRevision = "fedcba9876543210"
+	w := httptest.NewRecorder()
+	handlerForAssets(fakeReader{}, fstest.MapFS{
+		"index.html":          {Data: []byte("<!doctype html><title>Loom</title>")},
+		"build-manifest.json": {Data: []byte(`{"build_sha":"` + revision + `","source_sha":"` + sourceRevision + `"}`)},
+	}).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if w.Code != http.StatusOK || w.Header().Get("X-Loom-Build-SHA") != revision || !strings.Contains(w.Body.String(), `"build_sha":"`+revision+`"`) || !strings.Contains(w.Body.String(), `"source_sha":"`+sourceRevision+`"`) {
+		t.Fatalf("health revision marker missing: status=%d header=%q body=%s", w.Code, w.Header().Get("X-Loom-Build-SHA"), w.Body.String())
 	}
 }
 

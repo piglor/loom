@@ -76,8 +76,25 @@ func jsonResponse(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
+type buildManifest struct {
+	BuildSHA  string `json:"build_sha"`
+	SourceSHA string `json:"source_sha"`
+}
+
+func readBuildManifest(assets fs.FS) buildManifest {
+	manifest := buildManifest{BuildSHA: "development"}
+	body, err := fs.ReadFile(assets, "build-manifest.json")
+	if err != nil || json.Unmarshal(body, &manifest) != nil || strings.TrimSpace(manifest.BuildSHA) == "" {
+		return buildManifest{BuildSHA: "development"}
+	}
+	manifest.BuildSHA = strings.TrimSpace(manifest.BuildSHA)
+	manifest.SourceSHA = strings.TrimSpace(manifest.SourceSHA)
+	return manifest
+}
+
 func newHandler(data reader, token string, api http.Handler, assets fs.FS, plugins func(context.Context) []catalog.Plugin) http.Handler {
 	mux := http.NewServeMux()
+	manifest := readBuildManifest(assets)
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
@@ -95,7 +112,10 @@ func newHandler(data reader, token string, api http.Handler, assets fs.FS, plugi
 		slog.Warn("read_model_unavailable")
 		jsonResponse(w, 503, map[string]string{"detail": "Goal data temporarily unavailable"})
 	}
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { jsonResponse(w, 200, map[string]string{"status": "ok"}) })
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Loom-Build-SHA", manifest.BuildSHA)
+		jsonResponse(w, 200, map[string]string{"status": "ok", "build_sha": manifest.BuildSHA, "source_sha": manifest.SourceSHA})
+	})
 	mux.HandleFunc("GET /v1/goals", auth(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()

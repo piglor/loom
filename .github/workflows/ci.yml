@@ -47,20 +47,32 @@ jobs:
       - name: Generic Goal wait and exact Session lifecycle against PostgreSQL
         working-directory: services/loom
         run: go test -race ./internal/control -count=1
+      - name: Calculate source fingerprint
+        id: source-fingerprint
+        run: echo "sha=$(sh scripts/source_fingerprint.sh)" >> "$GITHUB_OUTPUT"
       - name: Build Go console container
-        run: docker build -f services/loom/Dockerfile -t piglor-loom-console:local .
+        run: docker build --build-arg LOOM_BUILD_SHA=${GITHUB_SHA:-development} -f services/loom/Dockerfile -t piglor-loom-console:local .
       - name: Run image, signed ingress, and backup/restore acceptance
+        env:
+          EXPECTED_BUILD_SHA: ${{ github.sha }}
+          EXPECTED_SOURCE_SHA: ${{ steps.source-fingerprint.outputs.sha }}
         run: ./scripts/verify_image.sh piglor-loom-console:local
   publish-image:
     needs: [durable-core, console]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    concurrency:
+      group: loom-production
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Calculate source fingerprint
+        id: source-fingerprint
+        run: echo "sha=$(sh scripts/source_fingerprint.sh)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -76,7 +88,7 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/piglor/loom:sha-${{ github.sha }}
-          build-args: VITE_BUILD_SHA=${{ github.sha }}
+          build-args: LOOM_BUILD_SHA=${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/piglor/loom
             org.opencontainers.image.licenses=MIT
@@ -92,14 +104,47 @@ jobs:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
         run: |
           if [ -z "$COOLIFY_API_TOKEN" ]; then
-            echo "::warning::COOLIFY_API_TOKEN is not configured; production deployment was not requested."
-            exit 0
+            echo "::error::COOLIFY_API_TOKEN is not configured; refusing to report production success."
+            exit 1
           fi
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X PATCH \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            --data "{\"data\":[{\"key\":\"LOOM_BUILD_SHA\",\"value\":\"$GITHUB_SHA\",\"is_preview\":false,\"is_literal\":true}]}" \
+            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/envs/bulk"
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X POST \
             -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
             -H "Accept: application/json" \
           "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/restart?latest=true"
+      - name: Verify public production revision
+        env:
+          EXPECTED_BUILD_SHA: ${{ github.sha }}
+          EXPECTED_SOURCE_SHA: ${{ steps.source-fingerprint.outputs.sha }}
+        run: |
+          deadline=$((SECONDS + 600))
+          attempt=0
+          while :; do
+            remaining=$((deadline - SECONDS))
+            (( remaining > 0 )) || break
+            request_timeout=$(( remaining < 10 ? remaining : 10 ))
+            attempt=$((attempt + 1))
+            if response=$(curl --fail --silent --show-error --max-time "$request_timeout" https://loom.piglor.com/healthz); then
+              if printf '%s' "$response" | grep -Fq "\"build_sha\":\"$EXPECTED_BUILD_SHA\"" && printf '%s' "$response" | grep -Fq "\"source_sha\":\"$EXPECTED_SOURCE_SHA\""; then
+                echo "Public production is serving $EXPECTED_BUILD_SHA."
+                exit 0
+              fi
+              echo "Waiting for public production to serve $EXPECTED_BUILD_SHA (attempt $attempt): $response"
+            else
+              echo "Waiting for public production health (attempt $attempt)."
+            fi
+            remaining=$((deadline - SECONDS))
+            if (( remaining > 10 )); then sleep 10; elif (( remaining > 0 )); then sleep "$remaining"; fi
+          done
+          echo "::error::Public production did not serve $EXPECTED_BUILD_SHA within 10 minutes."
+          exit 1
   console:
     runs-on: ubuntu-latest
     timeout-minutes: 15

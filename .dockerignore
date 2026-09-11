@@ -1,6 +1,7 @@
 *
 !package.json
 !package-lock.json
+!.dockerignore
 !apps/
 !apps/web/
 !apps/web/package.json
@@ -18,6 +19,8 @@
 !services/loom/**
 !services/loom/go.mod
 !services/loom/go.sum
+!scripts/
+!scripts/source_fingerprint.sh
 **/node_modules/
 **/__pycache__/
 apps/web/dist/

@@ -46,6 +46,19 @@ until curl -fsS "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1; do
   [ "$attempt" -lt 30 ] || { docker logs "$server"; exit 1; }
   sleep 1
 done
+health=$(curl -fsS "http://127.0.0.1:${port}/healthz")
+if [ -n "${EXPECTED_BUILD_SHA:-}" ]; then
+  printf '%s' "$health" | grep -Fq "\"build_sha\":\"${EXPECTED_BUILD_SHA}\"" || {
+    echo "Unexpected image build revision: $health" >&2
+    exit 1
+  }
+fi
+if [ -n "${EXPECTED_SOURCE_SHA:-}" ]; then
+  printf '%s' "$health" | grep -Fq "\"source_sha\":\"${EXPECTED_SOURCE_SHA}\"" || {
+    echo "Unexpected image source fingerprint: $health" >&2
+    exit 1
+  }
+fi
 
 [ "$(docker inspect "$server" --format '{{.Config.User}}')" = '65532:65532' ]
 [ "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/readyz")" = 401 ]
