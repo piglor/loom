@@ -1,9 +1,7 @@
-# Overlay for a single-host Loom Lite deployment. Compose's include keeps the
-# OpenBao subsystem self-contained while this file only wires the application
-# to its internal address.
-include:
-  - ../openbao/compose.yaml
-
+# Overlay for a single-host Loom Lite deployment. The standard Coolify Compose
+# descriptor already contains the bundled OpenBao service; this overlay only
+# makes the internal connection explicit for Lite and keeps the file useful for
+# operators composing their own overrides.
 services:
   loom-server:
     environment:

@@ -2,9 +2,25 @@
 
 This is the self-contained OpenBao module for Loom integration credentials. It
 uses a pinned OpenBao image, integrated Raft storage and private networking. It
-does not expose port 8200 to the host or to the public proxy. The production
-Coolify resource is [a separate descriptor](../coolify/openbao.compose.yaml),
-so Coolify does not copy Loom's application environment into the secret server.
+does not expose port 8200 to the host or to the public proxy. The default Loom
+installation includes the same service in
+[`deploy/coolify/compose.yaml`](../coolify/compose.yaml), so a first-time
+Coolify or Lite setup is one Compose project. Use this file directly for the
+advanced topology where OpenBao runs as a separate project or host.
+
+Easy bundled setup (Coolify or a local Compose project):
+
+```sh
+docker compose -f deploy/coolify/compose.yaml up -d
+docker compose -f deploy/coolify/compose.yaml exec openbao bao operator init
+docker compose -f deploy/coolify/compose.yaml exec openbao bao operator unseal
+```
+
+The bundled service is private at `http://openbao:8200`; it has persistent Raft
+and audit volumes and starts sealed. Loom does not hard-depend on OpenBao health,
+so the console remains available while an operator completes bootstrap.
+
+Advanced standalone setup:
 
 ```sh
 docker compose -f deploy/openbao/compose.yaml up -d
@@ -125,14 +141,9 @@ Keep the audit volume in the deployment backup plan as well. Rotate
 archive the file to protected storage, then re-enable it) and alert on disk
 usage; never truncate it while the audit device is active.
 
-For a separate OpenBao host, terminate verified HTTPS (or configure OpenBao
-TLS directly) and set `LOOM_OPENBAO_ADDR` to that URL. The application does not
-depend on a Docker service named `openbao`; only the local Lite overlay uses
-that internal DNS name. The Coolify descriptor intentionally publishes the
-OpenBao API through a dedicated HTTPS domain and has no host port.
-
-The production Coolify descriptor is a separate resource because the installed
-Coolify 4.1.2 Compose parser reads declared services and injects each resource's
-environment file into every service. Create/update that resource from
-`deploy/coolify/openbao.compose.yaml`; set its HTTPS domain to the same value
-used by `OPENBAO_API_ADDR`, and set Loom's `LOOM_OPENBAO_ADDR` to that URL.
+For a separate OpenBao host, terminate verified HTTPS (or configure OpenBao TLS
+directly) and set `LOOM_OPENBAO_ADDR` to that URL. The application has no hard
+dependency on a Docker service named `openbao`; the bundled Compose simply makes
+that name available for the easy path. For a separate Coolify resource, use
+this standalone descriptor (or a managed OpenBao), keep its API private to the
+Loom network where possible, and set `LOOM_OPENBAO_CA_CERT` when needed.

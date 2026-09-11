@@ -4,46 +4,36 @@ This Compose file packages the currently implemented finite-runtime control plan
 It is **not** a production-ready privileged Codex deployment. See the release gates
 before using developer credentials or public-repository workloads.
 
-Use a new Coolify Compose resource from this repository with the root build
-context and `deploy/coolify/compose.yaml`. The multi-stage image builds the React
-console and static Go binary, then runs as the distroless non-root user with a
-read-only root filesystem and no Linux capabilities.
+Use one Coolify Compose resource from this repository with the root build
+context and `deploy/coolify/compose.yaml`. The resource contains the database,
+migration job, Loom server, worker, and a persistent single-node OpenBao. A
+first-time installation is therefore one resource and one deploy; OpenBao has
+no host port or public proxy route and Loom reaches it at the internal default
+`http://openbao:8200`.
 
-OpenBao is a separate Coolify resource, defined by
-[`openbao.compose.yaml`](openbao.compose.yaml). Keeping it separate matters:
+OpenBao starts sealed and uninitialized. Bootstrap it from the OpenBao service
+terminal after the first deploy, then put only the generated AppRole ID and
+SecretID into Coolify and redeploy Loom. See
+[`deploy/openbao/README.md`](../openbao/README.md) for bootstrap, backup and
+restore commands.
+
 Coolify 4.1.2 injects a resource's `.env` file into every service in that
-resource, so embedding OpenBao beside Loom would expose unrelated application
-credentials to the secret server. The dedicated resource has persistent Raft
-and audit volumes, no host port, and an explicit HTTPS proxy route. It starts
-sealed; Loom does not depend on its health or require OpenBao credentials at
-process startup. See [`deploy/openbao/README.md`](../openbao/README.md) for
-bootstrap and recovery commands.
+resource. The bundled path is optimized for simple setup, so OpenBao will see
+the resource environment (it ignores variables it does not use). If your
+threat model requires strict environment isolation, use the advanced
+standalone OpenBao deployment described below instead.
 
 Supply these in Coolify's secret/environment settings, not in the Compose file:
 
 - `LOOM_POSTGRES_PASSWORD`: fresh random URL-safe password (hex is simplest).
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
 - `LOOM_PUBLIC_URL`: canonical HTTPS origin used for GitHub setup callbacks.
-- `LOOM_OPENBAO_ADDR`, `LOOM_OPENBAO_MOUNT`, `LOOM_OPENBAO_ROLE_ID` and
-  `LOOM_OPENBAO_SECRET_ID`: use the dedicated OpenBao HTTPS domain after it is
-  initialized, unsealed and given the least-privilege AppRole. For an
-  independently hosted OpenBao, use its verified HTTPS URL and set
-  `LOOM_OPENBAO_CA_CERT` for a private CA.
-- `COOLIFY_OPENBAO_DOMAIN` (GitHub Actions variable/secret): the HTTPS hostname
-  assigned to the dedicated OpenBao resource (default `openbao.piglor.com`).
-  Point DNS at Coolify before enabling plugin writes.
-- `COOLIFY_OPENBAO_SERVICE_UUID` (optional): pin an already-created dedicated
-  OpenBao resource. If omitted, the deployment workflow discovers `loom-openbao`
-  or creates it in the same Coolify project/environment as Loom.
-- `COOLIFY_PROJECT_UUID` and `COOLIFY_ENVIRONMENT_UUID` (optional placement
-  overrides): when omitted, the workflow resolves the project and environment
-  from Loom's numeric placement IDs through Coolify's project APIs.
-- `COOLIFY_SERVER_UUID` (required): Coolify 4.1.2 hides the server numeric ID
-  in its documented response and exposes no supported ID-to-UUID mapping, so
-  the workflow refuses to guess the host.
-- `COOLIFY_DESTINATION_UUID` (optional): omit this when the selected server has
-  one destination (Coolify selects it), and set it when the server has multiple
-  destinations.
+- `LOOM_OPENBAO_MOUNT`, `LOOM_OPENBAO_ROLE_ID` and
+  `LOOM_OPENBAO_SECRET_ID`: the bundled address is already the default, so no
+  address is required for the easy path. Set the role values after bootstrap.
+  For the advanced topology, set `LOOM_OPENBAO_ADDR` to a verified HTTPS URL
+  and set `LOOM_OPENBAO_CA_CERT` when the private CA is not in the system trust
+  store.
 - `LOOM_GITHUB_APP_INSTALL_URL`: HTTPS installation page for the GitHub App shown
   in the console plugin store.
 - `LOOM_GITHUB_WEBHOOK_SECRET`: GitHub App webhook secret, at least 32 characters.
@@ -88,8 +78,8 @@ live yield/restart/wake acceptance on Piglor production using a commit-pinned
 public Git build context. See [rollout status](../../docs/production-rollout.md)
 for the exact deployed revision, image visibility and remaining release gates.
 
-The first Coolify deployment of OpenBao requires an operator bootstrap from the
-OpenBao resource terminal: initialize once, retain the unseal/recovery material
+The first Coolify deployment requires an operator bootstrap from the bundled
+OpenBao service terminal: initialize once, retain the unseal/recovery material
 off-host, unseal, enable and tune the `loom` KV v2 mount, write the policy and
 AppRole, enable the file audit device, then copy only the AppRole ID/secret into
 Loom's Coolify environment variables. Redeploy Loom after setting those values.
@@ -98,10 +88,12 @@ Compose file or GitHub Actions.
 
 Coolify 4.1.2 uses `docker compose up ... --build` for custom services. Its parser
 adds declared top-level networks to services and injects the service environment
-file into containers. The separate OpenBao resource avoids cross-resource
-environment leakage; inspect the generated Compose and proxy route in Coolify
-before enabling writes. No host database or OpenBao port is published by these
-descriptors.
+file into containers. The bundled OpenBao service is intentionally private and
+shares the Compose lifecycle with Loom. No host database or OpenBao port is
+published by this descriptor. For strict isolation or an HA cluster, deploy
+[`deploy/openbao/compose.yaml`](../openbao/compose.yaml) (or an equivalent
+managed OpenBao) separately and set `LOOM_OPENBAO_ADDR` to its HTTPS endpoint;
+the Loom image and plugin configuration do not otherwise change.
 
 Before rollout: rotate credentials pasted into chat; take and restore-test Loom,
 Hatchet and OpenBao backups; preserve Hatchet config/secrets and worker journals;

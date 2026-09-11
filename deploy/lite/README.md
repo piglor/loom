@@ -1,11 +1,11 @@
 # Loom Lite secret storage
 
-The Lite overlay adds a persistent single-node OpenBao service to the standard
-Compose deployment. It is not OpenBao development mode and it is not an HA
-Server topology.
+The standard Compose deployment already contains a persistent single-node
+OpenBao service. This Lite overlay only makes Loom's internal address explicit;
+it is not OpenBao development mode and it is not an HA Server topology.
 
 ```sh
-docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml up -d openbao
+docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml up -d
 docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml exec openbao bao operator init
 docker compose -f ../coolify/compose.yaml -f openbao.compose.yaml exec openbao bao operator unseal
 ```

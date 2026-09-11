@@ -1,5 +1,6 @@
-# Standalone OpenBao module. It has no public port and can be included in an
-# all-in-one Compose project or deployed as its own Coolify service.
+# Advanced standalone OpenBao module. The easy Loom/Coolify Compose includes
+# the equivalent service directly; use this descriptor when OpenBao should run
+# as a separate Compose project or on a separate host.
 services:
   openbao:
     build:

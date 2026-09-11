@@ -53,11 +53,15 @@ must never give the application a root token; the root token in the local dev
 Compose profile is explicitly disposable. Secret responses are never exposed
 through browser APIs.
 
-Lite includes a pinned OpenBao service with persistent integrated storage on a
-private network. It is initialized and unsealed explicitly; development mode is
-not an acceptable Lite or production configuration. Server connects to an
-externally operated OpenBao deployment. Integrated storage supports persistent
-and HA operation without another storage product. [S5]
+Lite and the default Coolify Compose installation include a pinned OpenBao
+service with persistent integrated storage on a private network. They are
+initialized and unsealed explicitly; development mode is not an acceptable Lite
+or production configuration. Server and advanced operators may connect to an
+externally operated OpenBao deployment by setting `LOOM_OPENBAO_ADDR`. Coolify's
+single-resource path favors setup simplicity and consequently makes the
+resource environment visible to the OpenBao container; strict environment
+isolation or HA should use the standalone topology. Integrated storage supports
+persistent and HA operation without another storage product. [S5]
 
 Credential identity is generic: organization, plugin ID, credential-set ID,
 version, and status. Provider installations are separate generic integration
@@ -71,6 +75,10 @@ the GitHub adapter.
   Goal reads and durable waits remain available.
 - Lite operators must back up the OpenBao volume and retain unseal/recovery
   material separately. Server operators own HA, TLS, unseal, and backup policy.
+- The bundled Coolify path shares the Compose environment with OpenBao because
+  Coolify injects one resource's environment into every service. OpenBao ignores
+  unknown variables, but deployments requiring strict secret-process isolation
+  must use the advanced standalone topology.
 - KV v2 retains old versions by default; rotation policy must bound retained
   versions and permanent destruction remains an explicit administrative action.
 - PostgreSQL and OpenBao cannot commit atomically. Loom writes the secret first,

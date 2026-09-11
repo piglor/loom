@@ -1,5 +1,8 @@
 # Go control plane with an official Hatchet Go SDK worker. Remote machine Agents
-# still connect outbound to loom-server over HTTPS.
+# still connect outbound to loom-server over HTTPS. OpenBao is intentionally
+# bundled in this descriptor so a first-time install is one Coolify resource
+# and one Compose deployment. Advanced operators can point LOOM_OPENBAO_ADDR at
+# a separately operated OpenBao instead (see deploy/openbao/README.md).
 x-loom: &loom
   build:
     context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
@@ -18,6 +21,43 @@ x-loom: &loom
     LOOM_ORGANIZATION: ${LOOM_ORGANIZATION:-local}
 
 services:
+  # Persistent, single-node OpenBao for the easy/self-hosted path. It has no
+  # host port or public proxy route: Loom reaches it over the private
+  # openbao network and operators bootstrap it from the Coolify terminal.
+  openbao:
+    build:
+      context: https://github.com/piglor/loom.git#${LOOM_SOURCE_REF:-main}
+      dockerfile: deploy/openbao/Dockerfile
+    image: piglor-loom-openbao:local
+    command: ["server"]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+      SKIP_CHOWN: "1"
+    volumes:
+      - openbao-data:/openbao/data
+      - openbao-audit:/openbao/logs
+    expose: [8200]
+    networks: [openbao]
+    labels:
+      traefik.enable: "false"
+    healthcheck:
+      # /sys/health reports sealed (503) and uninitialized (501) as reachable
+      # states. Bootstrap is an operator action and must not look dead.
+      test:
+        - CMD-SHELL
+        - >-
+          code=$$(wget -q -O /dev/null --server-response
+          http://127.0.0.1:8200/v1/sys/health 2>&1 |
+          awk '/^ *HTTP\// { code=$$2 } END { print code }');
+          test "$$code" = 200 -o "$$code" = 429 -o "$$code" = 501 -o "$$code" = 503
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   loom-db:
     image: postgres:17.6
     restart: unless-stopped
@@ -48,10 +88,11 @@ services:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
       LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:-https://loom.piglor.com}
-      # OpenBao is intentionally optional at process startup. The plugin store
-      # reports an actionable configuration state until an operator supplies a
-      # reachable address and AppRole credentials.
-      LOOM_OPENBAO_ADDR: ${LOOM_OPENBAO_ADDR:-}
+      # The bundled service is the zero-configuration default. Operators using
+      # the advanced external topology override this with a verified HTTPS URL.
+      # OpenBao remains optional at process startup while it is sealed or before
+      # AppRole credentials have been entered in Coolify.
+      LOOM_OPENBAO_ADDR: ${LOOM_OPENBAO_ADDR:-http://openbao:8200}
       LOOM_OPENBAO_MOUNT: ${LOOM_OPENBAO_MOUNT:-loom}
       LOOM_OPENBAO_ROLE_ID: ${LOOM_OPENBAO_ROLE_ID:-}
       LOOM_OPENBAO_SECRET_ID: ${LOOM_OPENBAO_SECRET_ID:-}
@@ -60,7 +101,7 @@ services:
       LOOM_GITHUB_APP_INSTALL_URL: ${LOOM_GITHUB_APP_INSTALL_URL:-}
       LOOM_GITHUB_API_TOKEN: ${LOOM_GITHUB_API_TOKEN:-}
     expose: [8080]
-    networks: [private, egress]
+    networks: [private, egress, openbao]
     labels:
       # The server has multiple Docker networks. Without this label Traefik may
       # select the private or egress network and return a gateway timeout even
@@ -93,9 +134,13 @@ services:
 
 volumes:
   loom-data:
+  openbao-data:
+  openbao-audit:
 
 networks:
   private:
+    internal: true
+  openbao:
     internal: true
   egress:
   hatchet-existing:
