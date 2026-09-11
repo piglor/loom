@@ -107,6 +107,14 @@ jobs:
             echo "::error::COOLIFY_API_TOKEN is not configured; refusing to report production success."
             exit 1
           fi
+          compose_b64=$(base64 --wrap=0 deploy/coolify/compose.yaml)
+          curl --fail-with-body --retry 3 --retry-delay 5 \
+            -X PATCH \
+            -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            --data "{\"docker_compose_raw\":\"$compose_b64\"}" \
+            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w"
           curl --fail-with-body --retry 3 --retry-delay 5 \
             -X PATCH \
             -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
