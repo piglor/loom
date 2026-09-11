@@ -99,7 +99,7 @@ jobs:
             -X POST \
             -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
             -H "Accept: application/json" \
-            "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/start"
+          "https://coolify.piglor.com/api/v1/services/yidv3el41pezd8qp22s6el2w/restart?latest=true"
   console:
     runs-on: ubuntu-latest
     timeout-minutes: 15
