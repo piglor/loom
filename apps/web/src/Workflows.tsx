@@ -309,7 +309,9 @@ function RelationshipMap({
             <span>{index + 1}</span>
             <div>
               <small>{step.type.replaceAll("_", " ")}</small>
-              <strong>{step.name}</strong>
+              <strong>
+                Step {index + 1}: {step.name}
+              </strong>
             </div>
           </div>
           {edges.filter((edge) => edge.from === step.key).length > 0 && (
