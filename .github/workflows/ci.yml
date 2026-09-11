@@ -163,14 +163,12 @@ jobs:
             echo "::error::Could not resolve Loom's Coolify project/environment placement. Set COOLIFY_PROJECT_UUID and COOLIFY_ENVIRONMENT_UUID."
             exit 1
           fi
+          # Coolify 4.1.2 intentionally hides server numeric IDs in the
+          # documented API response, so there is no supported numeric-ID to
+          # UUID mapping. Require the explicit UUID rather than guessing a
+          # host; project/environment can still be resolved above.
           if [ -z "$server_uuid" ]; then
-            servers=$(curl --fail-with-body --retry 3 --retry-delay 5 --silent --show-error \
-              "${auth_headers[@]}" "$coolify_api/servers")
-            server_uuid=$(printf '%s' "$servers" | jq -r --arg id "$server_id" \
-              '[.[] | select((.id | tostring) == $id)][0].uuid // empty')
-          fi
-          if [ -z "$server_uuid" ]; then
-            echo "::error::Could not resolve Loom's Coolify server placement. Set COOLIFY_SERVER_UUID."
+            echo "::error::COOLIFY_SERVER_UUID is required because Coolify 4.1.2 does not expose a server ID mapping."
             exit 1
           fi
           # Coolify 4.1.2 exposes a service's numeric destination_id but does
