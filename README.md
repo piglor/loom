@@ -59,30 +59,22 @@ The local Hatchet stack is development-only. Your production Hatchet deployment 
 
 The [outbound Rust worker](docs/remote-worker.md) now supports the finite remote
 runtime with scoped credentials and restart-safe delivery. Remaining release
-requirements are tracked in [production readiness](docs/production-readiness.md).
-See the [Codex conformance evidence](docs/codex-adapter.md) and
-[GitHub ingress scope](docs/github-ingress.md) before enabling integrations.
+requirements are tracked in the [Redmine design wiki](https://redmine.piglor.com/projects/loom/wiki/Design-production-readiness).
+See the [Codex conformance evidence](https://redmine.piglor.com/projects/loom/wiki/Design-codex-adapter)
+and [GitHub ingress guide](docs/github-ingress.md) before enabling integrations.
 
 GitHub and GitLab are optional integration plugins, not core dependencies. They
 authenticate and normalize evidence; a published Loom workflow decides whether
 that evidence starts or continues work. Plugins never directly resume an agent.
-See [integration plugins](docs/integration-plugins.md) for the contract and
-current limitations. Repeatable outbound execution is opt-in through [worker
-protocol 2](docs/repeatable-worker.md).
+See the [integration plugin contract](https://redmine.piglor.com/projects/loom/wiki/Design-integration-plugins)
+for current limitations. Repeatable outbound execution is opt-in through
+[worker protocol 2](docs/repeatable-worker.md).
 
 ## Design
 
-- [Concepts and invariants](docs/concepts.md)
-- [Architecture and recovery](docs/architecture.md)
-- [State machine](docs/state-machine.md)
-- [Data model](docs/data-model.md)
-- [Worker and runtime protocol](docs/protocol.md)
-- [Security](docs/security.md)
-- [Usage and cost](docs/cost-model.md)
-- [Reference workflows](docs/workflows.md)
-- [Architecture decisions](ADRs/README.md)
-- [Validation and live connection status](docs/validation.md)
-- Upstream research: [Hatchet](docs/research/hatchet.md), [Codex](docs/research/codex.md), [GitHub](docs/research/github.md)
+Design and decision records now live in the [Loom Redmine wiki](https://redmine.piglor.com/projects/loom/wiki/Design).
+Architecture decisions are indexed under [ADR](https://redmine.piglor.com/projects/loom/wiki/ADR),
+and supporting research is indexed under [Research](https://redmine.piglor.com/projects/loom/wiki/Research).
 
 The monorepo uses React web/future React Native clients, a Go control plane,
 PostgreSQL/Hatchet, and a Rust Loom Agent. No second backend stack is maintained.
@@ -90,9 +82,9 @@ Hatchet remains an implementation dependency; users interact with Loom concepts.
 
 ## Contributing
 
-Start with the acceptance evidence in the implementation plan. Each phase must produce reproducible tests before claiming its capability. In particular, an in-memory test cannot establish restart durability, a fake runtime cannot establish real Codex resumption, and elapsed waiting time cannot establish tokens or dollars saved.
+Start with the acceptance evidence in the [implementation plan](https://redmine.piglor.com/projects/loom/wiki/Design-implementation-plan). Each phase must produce reproducible tests before claiming its capability. In particular, an in-memory test cannot establish restart durability, a fake runtime cannot establish real Codex resumption, and elapsed waiting time cannot establish tokens or dollars saved.
 
-ADRs are local to this standalone project. Proposed decisions are design recommendations, not claims of user approval. Hatchet, PostgreSQL, outbound workers, generic Goal semantics and the no-model-waiting requirement are requirements supplied in the product brief.
+Proposed decisions are design recommendations, not claims of user approval. Hatchet, PostgreSQL, outbound workers, generic Goal semantics and the no-model-waiting requirement are requirements supplied in the product brief.
 
 Secrets belong in a deployment secret store or local ignored environment configuration. Never include provider credentials, Hatchet tokens or session transcripts in commits or test fixtures.
 

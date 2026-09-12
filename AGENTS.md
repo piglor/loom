@@ -37,8 +37,9 @@ Goal completion. Preserve existing provider data during migration, and test
 non-code workflows as well as CI before claiming integration independence.
 
 The Loom-building session is a reference acceptance case, not proof that the
-running conversation has been handed over to Loom. See
-`docs/session-case-study.md` and `docs/research/current-session-adoption.md`.
+running conversation has been handed over to Loom. See the corresponding
+[Redmine design record](https://redmine.piglor.com/projects/loom/wiki/Design-session-case-study)
+and [research record](https://redmine.piglor.com/projects/loom/wiki/Research-current-session-adoption).
 
 <!-- hatchet-skills:start -->
 ## Hatchet Agent Skills
