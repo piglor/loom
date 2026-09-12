@@ -437,6 +437,12 @@ type AuthConfig struct {
 	Providers                []AuthProvider
 }
 
+// DefaultAdminPassword is the convenience password used when a loopback
+// self-hosted installation does not provide LOOM_ADMIN_PASSWORD. Operators
+// should set an explicit password before exposing the console beyond a trusted
+// network.
+const DefaultAdminPassword = "loom-admin-1234"
+
 type loginWindow struct {
 	started time.Time
 	count   int
@@ -448,6 +454,7 @@ type Authenticator struct {
 	organization             string
 	adminEmail               string
 	publicURL                string
+	loopbackPublicURL        bool
 	disableEmailRegistration bool
 	providers                map[string]AuthProvider
 	secureCookies            bool
@@ -461,6 +468,9 @@ type Authenticator struct {
 func NewAuthenticator(store *Store, config AuthConfig) (*Authenticator, error) {
 	if store == nil || strings.TrimSpace(config.Organization) == "" || config.Organization != store.Organization {
 		return nil, errors.New("invalid authentication configuration")
+	}
+	if config.LegacyToken != "" && len(config.LegacyToken) < 32 {
+		return nil, errors.New("LOOM_API_TOKEN must contain at least 32 characters")
 	}
 	adminEmail, err := normalizeEmail(config.AdminEmail)
 	if err != nil {
@@ -499,7 +509,7 @@ func NewAuthenticator(store *Store, config AuthConfig) (*Authenticator, error) {
 		}
 		providers[id] = provider
 	}
-	return &Authenticator{store: store, legacyToken: config.LegacyToken, organization: config.Organization, adminEmail: adminEmail, publicURL: publicURL.String(), disableEmailRegistration: config.DisableEmailRegistration, providers: providers, secureCookies: publicURL.Scheme == "https", oauthKey: oauthKey, limiter: struct {
+	return &Authenticator{store: store, legacyToken: config.LegacyToken, organization: config.Organization, adminEmail: adminEmail, publicURL: publicURL.String(), loopbackPublicURL: isLoopbackHost(publicURL.Hostname()), disableEmailRegistration: config.DisableEmailRegistration, providers: providers, secureCookies: publicURL.Scheme == "https", oauthKey: oauthKey, limiter: struct {
 		mu      sync.Mutex
 		entries map[string]loginWindow
 	}{entries: map[string]loginWindow{}}}, nil
@@ -515,7 +525,14 @@ func isLoopbackHost(host string) bool {
 
 func (a *Authenticator) Bootstrap(ctx context.Context, password string) error {
 	if password == "" {
-		password = a.legacyToken
+		if a.loopbackPublicURL {
+			password = DefaultAdminPassword
+		} else {
+			password = a.legacyToken
+		}
+	}
+	if password == "" {
+		return errors.New("LOOM_ADMIN_PASSWORD is required outside local development")
 	}
 	if err := validatePassword(password); err != nil {
 		return errors.New("LOOM_ADMIN_PASSWORD must contain at least 12 characters")

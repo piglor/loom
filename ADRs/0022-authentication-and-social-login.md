@@ -31,10 +31,12 @@ for existing workers and deployment health checks.
   and S256 PKCE parameters for its web flow [S2].
 - Hash passwords with Argon2id and a unique salt; OWASP recommends Argon2id and
   rejects plaintext or fast hashes for password storage [S3].
-- Keep setup simple: `LOOM_ADMIN_EMAIL` defaults to `admin@example.com` and
-  `LOOM_ADMIN_PASSWORD` is optional; when absent, the existing randomly
-  generated `LOOM_API_TOKEN` is used only as the initial password source. The
-  stored value is always a password hash.
+- Keep self-hosted setup simple: `LOOM_ADMIN_EMAIL` defaults to
+  `admin@example.com`. Loopback installs may omit `LOOM_ADMIN_PASSWORD` and use
+  the documented `loom-admin-1234` convenience password; non-loopback installs
+  use the random API-token compatibility fallback unless an explicit password
+  is provided. Operators should set a private value before exposing the
+  console publicly. The stored value is always a password hash.
 
 ## Evidence and alternatives
 

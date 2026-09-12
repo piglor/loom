@@ -18,9 +18,10 @@ make console-serve
 
 Open `http://127.0.0.1:8080` and sign in with the bootstrap administrator.
 `LOOM_ADMIN_EMAIL` defaults to `admin@example.com`; set
-`LOOM_ADMIN_PASSWORD` to choose a separate password. If it is omitted, the
-initial password is the existing random `LOOM_API_TOKEN` value. Loom stores
-only an Argon2id password hash and uses a revocable HttpOnly browser session.
+`LOOM_ADMIN_PASSWORD` to choose a separate password. For this loopback setup,
+if it is omitted, a fresh install uses `loom-admin-1234`. Set a private value
+before exposing the console publicly. Loom stores only an Argon2id password
+hash and uses a revocable HttpOnly browser session.
 Set `LOOM_AUTH_EMAIL_REGISTRATION=false` to require social-provider sign-in.
 GitHub registration appears when `LOOM_AUTH_GITHUB_CLIENT_ID` and
 `LOOM_AUTH_GITHUB_CLIENT_SECRET` are configured.

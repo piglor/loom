@@ -140,9 +140,9 @@ services:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
       LOOM_ADMIN_EMAIL: ${LOOM_ADMIN_EMAIL:-admin@example.com}
-      # If omitted, the first admin password is derived from the existing
-      # randomly generated LOOM_API_TOKEN. Operators can set a separate
-      # password without changing the compatibility token.
+      # Loopback installs use the documented convenience password when this is
+      # empty. Public deployments should set a separate secret; otherwise the
+      # existing random LOOM_API_TOKEN compatibility fallback is used.
       LOOM_ADMIN_PASSWORD: ${LOOM_ADMIN_PASSWORD:-}
       LOOM_AUTH_GITHUB_CLIENT_ID: ${LOOM_AUTH_GITHUB_CLIENT_ID:-}
       LOOM_AUTH_GITHUB_CLIENT_SECRET: ${LOOM_AUTH_GITHUB_CLIENT_SECRET:-}

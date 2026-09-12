@@ -28,13 +28,16 @@ standalone OpenBao deployment described below instead.
 Supply these in Coolify's secret/environment settings, not in the Compose file:
 
 - `LOOM_POSTGRES_PASSWORD`: fresh random URL-safe password (hex is simplest).
-- `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
+- `LOOM_API_TOKEN`: fresh random machine/API compatibility credential, at least
+  32 characters. It is not the browser password when `LOOM_ADMIN_PASSWORD` is
+  set.
 - `LOOM_ADMIN_EMAIL`: browser administrator email (defaults to
   `admin@example.com`).
-- `LOOM_ADMIN_PASSWORD`: optional browser administrator password. When omitted,
-  the first browser password is derived from the already-required random
-  `LOOM_API_TOKEN`; the database stores only an Argon2id hash. Set this to a
-  separate secret when handing the console to another operator.
+- `LOOM_ADMIN_PASSWORD`: browser administrator password. Loopback installs may
+  omit it and use `loom-admin-1234`; public deployments should set a separate
+  secret. If omitted outside local development, Loom falls back to the random
+  `LOOM_API_TOKEN` for compatibility. The database stores only an Argon2id
+  hash.
 - `LOOM_AUTH_GITHUB_CLIENT_ID` and `LOOM_AUTH_GITHUB_CLIENT_SECRET`: optional
   GitHub OAuth App credentials. Register
   `${LOOM_PUBLIC_URL}/v1/auth/github/callback` as the exact callback URL.

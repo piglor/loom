@@ -35,6 +35,97 @@ func TestPasswordHashRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAuthenticatorBootstrapUsesConveniencePassword(t *testing.T) {
+	store := testStore(t, true)
+	auth, err := NewAuthenticator(store, AuthConfig{
+		LegacyToken:  adminTestToken,
+		Organization: store.Organization,
+		AdminEmail:   "admin@example.com",
+		PublicURL:    "http://127.0.0.1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Bootstrap(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	admin, err := store.SignInPassword(context.Background(), "admin@example.com", DefaultAdminPassword)
+	if err != nil || admin.Role != "admin" {
+		t.Fatalf("default admin sign in: user=%+v err=%v", admin, err)
+	}
+}
+
+func TestAuthenticatorBootstrapRequiresPasswordOutsideLocalDevelopment(t *testing.T) {
+	store := testStore(t, true)
+	auth, err := NewAuthenticator(store, AuthConfig{
+		Organization: store.Organization,
+		AdminEmail:   "admin@example.com",
+		PublicURL:    "https://loom.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Bootstrap(context.Background(), ""); err == nil {
+		t.Fatal("public bootstrap accepted an implicit password")
+	}
+}
+
+func TestAuthenticatorRejectsWeakLegacyToken(t *testing.T) {
+	store := testStore(t, true)
+	if _, err := NewAuthenticator(store, AuthConfig{
+		LegacyToken:  "too-short",
+		Organization: store.Organization,
+		AdminEmail:   "admin@example.com",
+		PublicURL:    "https://loom.example.com",
+	}); err == nil {
+		t.Fatal("weak legacy token was accepted")
+	}
+}
+
+func TestAuthenticatorBootstrapUsesLegacyTokenOutsideLocalDevelopment(t *testing.T) {
+	store := testStore(t, true)
+	auth, err := NewAuthenticator(store, AuthConfig{
+		LegacyToken:  adminTestToken,
+		Organization: store.Organization,
+		AdminEmail:   "admin@example.com",
+		PublicURL:    "https://loom.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Bootstrap(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SignInPassword(context.Background(), "admin@example.com", adminTestToken); err != nil {
+		t.Fatalf("legacy token fallback sign in: %v", err)
+	}
+}
+
+func TestAuthenticatorBootstrapPreservesExistingPassword(t *testing.T) {
+	store := testStore(t, true)
+	ctx := context.Background()
+	if err := store.BootstrapAdmin(ctx, "admin@example.com", "existing-admin-password"); err != nil {
+		t.Fatal(err)
+	}
+	auth, err := NewAuthenticator(store, AuthConfig{
+		Organization: store.Organization,
+		AdminEmail:   "admin@example.com",
+		PublicURL:    "http://127.0.0.1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Bootstrap(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SignInPassword(ctx, "admin@example.com", "existing-admin-password"); err != nil {
+		t.Fatalf("existing password was replaced: %v", err)
+	}
+	if _, err := store.SignInPassword(ctx, "admin@example.com", DefaultAdminPassword); err == nil {
+		t.Fatal("convenience password replaced the existing password")
+	}
+}
+
 func TestAuthStoreLifecycle(t *testing.T) {
 	store := testStore(t, true)
 	ctx := context.Background()
