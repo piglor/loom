@@ -179,6 +179,20 @@ func TestAuthStoreLifecycle(t *testing.T) {
 	}
 }
 
+func TestAuthStoreRequiresProviderAuthorityBeforeEmailLinking(t *testing.T) {
+	store := testStore(t, true)
+	ctx := context.Background()
+	if _, err := store.SignInExternal(ctx, ExternalIdentity{Provider: "google", Subject: "google-1", Email: "person@example.com", EmailVerified: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SignInExternal(ctx, ExternalIdentity{Provider: "github", Subject: "github-1", Email: "person@example.com", EmailVerified: true}); err == nil {
+		t.Fatal("untrusted provider email was silently linked")
+	}
+	if _, err := store.SignInExternal(ctx, ExternalIdentity{Provider: "google", Subject: "google-2", Email: "person@example.com", EmailVerified: true, EmailLinkingAllowed: true}); err != nil {
+		t.Fatalf("trusted provider email was not linked: %v", err)
+	}
+}
+
 func TestAuthHTTPLoginAndCSRF(t *testing.T) {
 	store := testStore(t, true)
 	ctx := context.Background()
@@ -272,11 +286,11 @@ type testAuthProvider struct{}
 func (testAuthProvider) ID() string    { return "test" }
 func (testAuthProvider) Name() string  { return "Test provider" }
 func (testAuthProvider) Enabled() bool { return true }
-func (testAuthProvider) AuthorizationURL(redirectURI, state, challenge string) (string, error) {
-	return "https://provider.example/authorize?" + url.Values{"redirect_uri": {redirectURI}, "state": {state}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}.Encode(), nil
+func (testAuthProvider) AuthorizationURL(redirectURI, state, challenge, nonce string) (string, error) {
+	return "https://provider.example/authorize?" + url.Values{"redirect_uri": {redirectURI}, "state": {state}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}, "nonce": {nonce}}.Encode(), nil
 }
-func (testAuthProvider) Authenticate(_ context.Context, code, verifier, redirectURI string) (ExternalIdentity, error) {
-	if code != "test-code" || verifier == "" || redirectURI == "" {
+func (testAuthProvider) Authenticate(_ context.Context, code, verifier, redirectURI, nonce string) (ExternalIdentity, error) {
+	if code != "test-code" || verifier == "" || redirectURI == "" || nonce == "" {
 		return ExternalIdentity{}, fmt.Errorf("invalid test OAuth exchange")
 	}
 	return ExternalIdentity{Provider: "test", Subject: "subject-42", Email: "social@example.com", EmailVerified: true, DisplayName: "Social User"}, nil
@@ -398,14 +412,14 @@ func TestOAuthStateRejectsTamperingAndExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	encoded, err := auth.sealOAuthState(oauthState{Provider: "test", State: "state", Verifier: "verifier", ExpiresAt: now.Add(time.Minute).Unix()})
+	encoded, err := auth.sealOAuthState(oauthState{Provider: "test", State: "state", Verifier: "verifier", Nonce: "nonce", ExpiresAt: now.Add(time.Minute).Unix()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := auth.verifyOAuthState(encoded+"tampered", now); ok {
 		t.Fatal("tampered OAuth state was accepted")
 	}
-	expired, err := auth.sealOAuthState(oauthState{Provider: "test", State: "state", Verifier: "verifier", ExpiresAt: now.Add(-time.Minute).Unix()})
+	expired, err := auth.sealOAuthState(oauthState{Provider: "test", State: "state", Verifier: "verifier", Nonce: "nonce", ExpiresAt: now.Add(-time.Minute).Unix()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,6 +25,12 @@ hash and uses a revocable HttpOnly browser session.
 Set `LOOM_AUTH_EMAIL_REGISTRATION=false` to require social-provider sign-in.
 GitHub registration appears when `LOOM_AUTH_GITHUB_CLIENT_ID` and
 `LOOM_AUTH_GITHUB_CLIENT_SECRET` are configured.
+Google registration appears when `LOOM_AUTH_GOOGLE_CLIENT_ID` and
+`LOOM_AUTH_GOOGLE_CLIENT_SECRET` are configured; register
+`<LOOM_PUBLIC_URL>/v1/auth/google/callback` in the Google Cloud OAuth client.
+Google can create a new account for any verified address, but Loom only
+merges Google sign-in into an existing passwordless account for Gmail or a
+signed Workspace domain.
 For multiple server replicas, set the same random 32+ character
 `LOOM_AUTH_STATE_KEY` on each instance so an OAuth callback can complete on a
 different replica.

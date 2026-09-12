@@ -55,8 +55,8 @@ type AuthProvider interface {
 	ID() string
 	Name() string
 	Enabled() bool
-	AuthorizationURL(redirectURI, state, challenge string) (string, error)
-	Authenticate(ctx context.Context, code, verifier, redirectURI string) (ExternalIdentity, error)
+	AuthorizationURL(redirectURI, state, challenge, nonce string) (string, error)
+	Authenticate(ctx context.Context, code, verifier, redirectURI, nonce string) (ExternalIdentity, error)
 }
 
 type ExternalIdentity struct {
@@ -64,7 +64,12 @@ type ExternalIdentity struct {
 	Subject       string
 	Email         string
 	EmailVerified bool
-	DisplayName   string
+	// EmailLinkingAllowed is provider-specific authority to merge this
+	// identity into an existing passwordless account with the same email.
+	// A verified email alone is not sufficient for providers where addresses
+	// can be reclaimed or are not controlled by the provider.
+	EmailLinkingAllowed bool
+	DisplayName         string
 }
 
 type AuthProviderInfo struct {
@@ -297,17 +302,20 @@ func (s *Store) SignInExternal(ctx context.Context, identity ExternalIdentity) (
 			return identityErr
 		}
 		value, userErr := t.client.User.Query().Where(user.OrganizationEQ(s.Organization), user.EmailEQ(normalized), user.DisabledAtIsNil()).Only(ctx)
+		created := false
 		if ent.IsNotFound(userErr) {
 			value, userErr = t.client.User.Create().SetID(ID()).SetOrganization(s.Organization).SetEmail(normalized).SetDisplayName(strings.TrimSpace(identity.DisplayName)).SetRole("member").SetCreatedAt(t.now).SetUpdatedAt(t.now).Save(ctx)
+			created = userErr == nil
 		}
 		if userErr != nil {
 			return userErr
 		}
 		// Do not silently merge an external identity into an existing password
 		// account. Email registration is intentionally not email-verified yet;
-		// automatic merging here would let an unverified address claim another
-		// account. An explicit authenticated linking flow can be added later.
-		if value.PasswordHash != nil {
+		// automatic merging here would let an address claim another account. A
+		// provider must explicitly attest that its address is stable enough for
+		// linking (for example, Gmail or a signed Google Workspace domain).
+		if !created && (value.PasswordHash != nil || !identity.EmailLinkingAllowed) {
 			return conflict("An account with that email already exists; sign in with email")
 		}
 		if _, createErr := t.client.AuthIdentity.Create().SetID(ID()).SetOrganization(s.Organization).SetUserID(value.ID).SetProvider(provider).SetSubject(identity.Subject).SetEmail(normalized).SetCreatedAt(t.now).Save(ctx); createErr != nil {
@@ -804,6 +812,7 @@ type oauthState struct {
 	Provider  string `json:"provider"`
 	State     string `json:"state"`
 	Verifier  string `json:"verifier"`
+	Nonce     string `json:"nonce"`
 	ExpiresAt int64  `json:"expires_at"`
 }
 
@@ -835,7 +844,7 @@ func (a *Authenticator) verifyOAuthState(value string, now time.Time) (oauthStat
 		return oauthState{}, false
 	}
 	var state oauthState
-	if err := json.Unmarshal(payload, &state); err != nil || state.Provider == "" || state.State == "" || state.Verifier == "" || state.ExpiresAt <= now.Unix() {
+	if err := json.Unmarshal(payload, &state); err != nil || state.Provider == "" || state.State == "" || state.Verifier == "" || state.Nonce == "" || state.ExpiresAt <= now.Unix() {
 		return oauthState{}, false
 	}
 	return state, true
@@ -861,10 +870,15 @@ func (a *Authenticator) socialStart(w http.ResponseWriter, r *http.Request, prov
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "Could not start sign-in"})
 		return
 	}
+	nonce, err := randomSecret(32)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "Could not start sign-in"})
+		return
+	}
 	challengeDigest := sha256.Sum256([]byte(verifier))
 	challenge := base64.RawURLEncoding.EncodeToString(challengeDigest[:])
 	expiresAt := time.Now().Add(oauthLifetime)
-	encoded, err := a.sealOAuthState(oauthState{Provider: providerID, State: state, Verifier: verifier, ExpiresAt: expiresAt.Unix()})
+	encoded, err := a.sealOAuthState(oauthState{Provider: providerID, State: state, Verifier: verifier, Nonce: nonce, ExpiresAt: expiresAt.Unix()})
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "Could not start sign-in"})
 		return
@@ -875,7 +889,7 @@ func (a *Authenticator) socialStart(w http.ResponseWriter, r *http.Request, prov
 	}
 	http.SetCookie(w, &http.Cookie{Name: oauthCookie, Value: encoded, Path: "/v1/auth", MaxAge: int(oauthLifetime.Seconds()), HttpOnly: true, Secure: a.secureCookies, SameSite: http.SameSiteLaxMode})
 	callback := strings.TrimSuffix(a.publicURL, "/") + "/v1/auth/" + providerID + "/callback"
-	location, err := provider.AuthorizationURL(callback, state, challenge)
+	location, err := provider.AuthorizationURL(callback, state, challenge, nonce)
 	if err != nil {
 		a.clearOAuthCookie(w)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "Could not start sign-in"})
@@ -913,7 +927,7 @@ func (a *Authenticator) socialCallback(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 	state := r.URL.Query().Get("state")
-	if saved.Provider != providerID || saved.State == "" || saved.Verifier == "" || state == "" || !subtleConstantTimeEqual([]byte(saved.State), []byte(state)) {
+	if saved.Provider != providerID || saved.State == "" || saved.Verifier == "" || saved.Nonce == "" || state == "" || !subtleConstantTimeEqual([]byte(saved.State), []byte(state)) {
 		a.clearOAuthCookie(w)
 		a.socialError(w, r)
 		return
@@ -930,7 +944,7 @@ func (a *Authenticator) socialCallback(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 	callback := strings.TrimSuffix(a.publicURL, "/") + "/v1/auth/" + providerID + "/callback"
-	identity, err := provider.Authenticate(r.Context(), code, saved.Verifier, callback)
+	identity, err := provider.Authenticate(r.Context(), code, saved.Verifier, callback, saved.Nonce)
 	if err != nil {
 		a.socialError(w, r)
 		return

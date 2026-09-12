@@ -39,8 +39,8 @@ func (p *OAuthProvider) Enabled() bool {
 	return p != nil && p.clientID != "" && p.secret != "" && p.client != nil
 }
 
-func (p *OAuthProvider) AuthorizationURL(redirectURI, state, challenge string) (string, error) {
-	if !p.Enabled() || redirectURI == "" || state == "" || challenge == "" {
+func (p *OAuthProvider) AuthorizationURL(redirectURI, state, challenge, nonce string) (string, error) {
+	if !p.Enabled() || redirectURI == "" || state == "" || challenge == "" || nonce == "" {
 		return "", errors.New("GitHub OAuth is not configured")
 	}
 	query := url.Values{
@@ -54,8 +54,8 @@ func (p *OAuthProvider) AuthorizationURL(redirectURI, state, challenge string) (
 	return "https://github.com/login/oauth/authorize?" + query.Encode(), nil
 }
 
-func (p *OAuthProvider) Authenticate(ctx context.Context, code, verifier, redirectURI string) (control.ExternalIdentity, error) {
-	if !p.Enabled() || code == "" || verifier == "" || redirectURI == "" {
+func (p *OAuthProvider) Authenticate(ctx context.Context, code, verifier, redirectURI, nonce string) (control.ExternalIdentity, error) {
+	if !p.Enabled() || code == "" || verifier == "" || redirectURI == "" || nonce == "" {
 		return control.ExternalIdentity{}, errors.New("GitHub OAuth is not configured")
 	}
 	form := url.Values{"client_id": {p.clientID}, "client_secret": {p.secret}, "code": {code}, "redirect_uri": {redirectURI}, "code_verifier": {verifier}}
@@ -129,7 +129,7 @@ func (p *OAuthProvider) identity(ctx context.Context, token string) (control.Ext
 	}
 	for _, candidate := range emails {
 		if candidate.Primary && candidate.Verified {
-			return control.ExternalIdentity{Provider: p.ID(), Subject: fmt.Sprintf("%d", profile.ID), Email: candidate.Email, EmailVerified: true, DisplayName: firstNonEmpty(profile.Name, profile.Login)}, nil
+			return control.ExternalIdentity{Provider: p.ID(), Subject: fmt.Sprintf("%d", profile.ID), Email: candidate.Email, EmailVerified: true, EmailLinkingAllowed: true, DisplayName: firstNonEmpty(profile.Name, profile.Login)}, nil
 		}
 	}
 	return control.ExternalIdentity{}, errors.New("GitHub did not provide a verified primary email")

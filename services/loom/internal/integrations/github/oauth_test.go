@@ -44,7 +44,7 @@ func TestOAuthProviderOwnsGitHubProtocol(t *testing.T) {
 	if !provider.Enabled() || provider.ID() != "github" || provider.Name() != "GitHub" {
 		t.Fatalf("provider metadata is not configured: %+v", provider)
 	}
-	authorization, err := provider.AuthorizationURL("https://loom.example/callback", "state", "challenge")
+	authorization, err := provider.AuthorizationURL("https://loom.example/callback", "state", "challenge", "nonce")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestOAuthProviderOwnsGitHubProtocol(t *testing.T) {
 	if err != nil || query.Query().Get("client_id") != "client-id" || query.Query().Get("code_challenge_method") != "S256" {
 		t.Fatalf("authorization URL missing OAuth parameters: %s", authorization)
 	}
-	identity, err := provider.Authenticate(t.Context(), "code", "verifier", "https://loom.example/callback")
+	identity, err := provider.Authenticate(t.Context(), "code", "verifier", "https://loom.example/callback", "nonce")
 	if err != nil {
 		t.Fatal(err)
 	}

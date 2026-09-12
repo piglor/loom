@@ -43,6 +43,12 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
   `${LOOM_PUBLIC_URL}/v1/auth/github/callback` as the exact callback URL.
   These configure the GitHub authentication plugin itself; per-account GitHub
   App credentials entered in Plugin Store continue to be stored in OpenBao.
+- `LOOM_AUTH_GOOGLE_CLIENT_ID` and `LOOM_AUTH_GOOGLE_CLIENT_SECRET`: optional
+  Google OAuth web-client credentials. Register
+  `${LOOM_PUBLIC_URL}/v1/auth/google/callback` as the exact callback URL. This
+  enables “Continue with Google” using a signed Google ID token. Loom permits
+  email-based merging with existing passwordless accounts only for Gmail or a
+  signed Workspace domain; other verified addresses can still create accounts.
 - `LOOM_AUTH_EMAIL_REGISTRATION`: leave `true` for the simple email signup
   path, or set `false` when every account must come from an installed social
   provider.

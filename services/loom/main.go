@@ -25,6 +25,7 @@ import (
 	"github.com/piglor/loom/services/loom/internal/control"
 	"github.com/piglor/loom/services/loom/internal/integrations/catalog"
 	githubintegration "github.com/piglor/loom/services/loom/internal/integrations/github"
+	googleintegration "github.com/piglor/loom/services/loom/internal/integrations/google"
 	"github.com/piglor/loom/services/loom/internal/orchestration"
 	"github.com/piglor/loom/services/loom/internal/secrets"
 )
@@ -390,6 +391,7 @@ func run() error {
 		DisableEmailRegistration: strings.EqualFold(os.Getenv("LOOM_AUTH_EMAIL_REGISTRATION"), "false"),
 		Providers: []control.AuthProvider{
 			githubintegration.NewOAuthProvider(os.Getenv("LOOM_AUTH_GITHUB_CLIENT_ID"), os.Getenv("LOOM_AUTH_GITHUB_CLIENT_SECRET")),
+			googleintegration.NewOAuthProvider(os.Getenv("LOOM_AUTH_GOOGLE_CLIENT_ID"), os.Getenv("LOOM_AUTH_GOOGLE_CLIENT_SECRET")),
 		},
 	})
 	if err != nil {
