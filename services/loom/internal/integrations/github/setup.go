@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -108,13 +109,14 @@ func secretStatusDetail(status secrets.Status) string {
 }
 
 type SetupHandler struct {
-	store         SetupStore
-	secrets       secrets.Store
-	operatorToken string
-	organization  string
-	publicURL     string
-	githubAPI     string
-	httpClient    *http.Client
+	store          SetupStore
+	secrets        secrets.Store
+	authorize      func(*http.Request) bool
+	adminAuthorize func(*http.Request) bool
+	organization   string
+	publicURL      string
+	githubAPI      string
+	httpClient     *http.Client
 }
 
 type setupStartRequest struct {
@@ -171,16 +173,48 @@ type installation struct {
 }
 
 func NewSetupHandler(store SetupStore, secretStore secrets.Store, operatorToken, organization, publicURL string) (*SetupHandler, error) {
+	authorize := func(r *http.Request) bool {
+		value := r.Header.Get("Authorization")
+		return subtle.ConstantTimeCompare([]byte(value), []byte("Bearer "+operatorToken)) == 1
+	}
+	return newSetupHandler(store, secretStore, authorize, authorize, organization, publicURL)
+}
+
+// NewSetupHandlerWithAuthorizer shares Loom's browser session authorizer with
+// integration setup routes. Callback routes remain public and continue to use
+// their own short-lived setup cookie.
+func NewSetupHandlerWithAuthorizer(store SetupStore, secretStore secrets.Store, authorize func(*http.Request) bool, organization, publicURL string) (*SetupHandler, error) {
+	return newSetupHandler(store, secretStore, authorize, authorize, organization, publicURL)
+}
+
+// NewSetupHandlerWithAuthorizers lets members inspect connections while only
+// administrators can create, modify or disable plugin credentials.
+func NewSetupHandlerWithAuthorizers(store SetupStore, secretStore secrets.Store, authorize, adminAuthorize func(*http.Request) bool, organization, publicURL string) (*SetupHandler, error) {
+	return newSetupHandler(store, secretStore, authorize, adminAuthorize, organization, publicURL)
+}
+
+func newSetupHandler(store SetupStore, secretStore secrets.Store, authorize, adminAuthorize func(*http.Request) bool, organization, publicURL string) (*SetupHandler, error) {
 	parsed, err := url.Parse(publicURL)
 	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return nil, errors.New("LOOM_PUBLIC_URL must be an absolute HTTP or HTTPS URL")
 	}
+	if parsed.Scheme == "http" && !loopbackHost(parsed.Hostname()) {
+		return nil, errors.New("LOOM_PUBLIC_URL must use HTTPS outside local development")
+	}
 	parsed.Path = strings.TrimSuffix(parsed.Path, "/")
 	return &SetupHandler{
-		store: store, secrets: secretStore, operatorToken: operatorToken,
+		store: store, secrets: secretStore, authorize: authorize, adminAuthorize: adminAuthorize,
 		organization: organization, publicURL: parsed.String(), githubAPI: "https://api.github.com",
 		httpClient: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}, nil
+}
+
+func loopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (h *SetupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -188,11 +222,11 @@ func (h *SetupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/integration-instances":
 		h.auth(h.listInstances)(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/plugins/github/setup-sessions":
-		h.auth(h.startSetup)(w, r)
+		h.adminAuth(h.startSetup)(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/plugins/github/manual":
-		h.auth(h.manualSetup)(w, r)
+		h.adminAuth(h.manualSetup)(w, r)
 	case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/integration-instances/") && strings.HasSuffix(r.URL.Path, "/disable"):
-		h.auth(h.disableInstance)(w, r)
+		h.adminAuth(h.disableInstance)(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/plugins/github/manifest/callback":
 		h.manifestCallback(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/v1/plugins/github/install/callback":
@@ -206,8 +240,18 @@ func (h *SetupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *SetupHandler) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+h.operatorToken)) != 1 {
+		if h.authorize == nil || !h.authorize(r) {
 			writeSetupJSON(w, http.StatusUnauthorized, map[string]string{"detail": "Invalid authentication"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (h *SetupHandler) adminAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.adminAuthorize == nil || !h.adminAuthorize(r) {
+			writeSetupJSON(w, http.StatusUnauthorized, map[string]string{"detail": "Administrator authentication required"})
 			return
 		}
 		next(w, r)

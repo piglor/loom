@@ -29,5 +29,6 @@ publication is implied.
 | [0019](0019-generated-go-persistence.md) | Ent-generated generic persistence, PostgreSQL in both modes | Accepted |
 | [0020](0020-openbao-integration-secrets.md) | OpenBao for integration credentials | Accepted |
 | [0021](0021-loom-owned-workflow-spec.md) | Loom-owned workflow specification above orchestration adapters | Accepted |
+| [0022](0022-authentication-and-social-login.md) | Browser authentication and social login | Proposed |
 
 Use these alongside the [architecture](../docs/architecture.md) and [implementation gates](../docs/implementation-plan.md). Implement one proof phase at a time. Record acceptance or amendments explicitly; keep superseded decisions for history. Dependency pins and tested operational behavior are evidence produced by implementation, not guesses made in an architecture record.

@@ -43,7 +43,7 @@ type postgresReader struct {
 
 func (p postgresReader) ready(ctx context.Context) error {
 	var version int
-	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=20").Scan(&version)
+	return p.pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=22").Scan(&version)
 }
 
 func (p postgresReader) list(ctx context.Context) ([]json.RawMessage, error) {
@@ -95,11 +95,17 @@ func readBuildManifest(assets fs.FS) buildManifest {
 }
 
 func newHandler(data reader, token string, api http.Handler, assets fs.FS, plugins func(context.Context) []catalog.Plugin) http.Handler {
+	return newHandlerWithAuthorizer(data, func(r *http.Request) bool {
+		return subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) == 1
+	}, api, assets, plugins)
+}
+
+func newHandlerWithAuthorizer(data reader, authorize func(*http.Request) bool, api http.Handler, assets fs.FS, plugins func(context.Context) []catalog.Plugin) http.Handler {
 	mux := http.NewServeMux()
 	manifest := readBuildManifest(assets)
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
+			if authorize == nil || !authorize(r) {
 				jsonResponse(w, 401, map[string]string{"detail": "Invalid authentication"})
 				return
 			}
@@ -371,7 +377,33 @@ func run() error {
 	if publicURL == "" {
 		publicURL = "http://127.0.0.1:8080"
 	}
-	setup, err := githubintegration.NewSetupHandler(store, secretStore, token, org, publicURL)
+	adminEmail := os.Getenv("LOOM_ADMIN_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@example.com"
+	}
+	authenticator, err := control.NewAuthenticator(store, control.AuthConfig{
+		LegacyToken:              token,
+		Organization:             org,
+		AdminEmail:               adminEmail,
+		PublicURL:                publicURL,
+		OAuthStateKey:            os.Getenv("LOOM_AUTH_STATE_KEY"),
+		DisableEmailRegistration: strings.EqualFold(os.Getenv("LOOM_AUTH_EMAIL_REGISTRATION"), "false"),
+		Providers: []control.AuthProvider{
+			githubintegration.NewOAuthProvider(os.Getenv("LOOM_AUTH_GITHUB_CLIENT_ID"), os.Getenv("LOOM_AUTH_GITHUB_CLIENT_SECRET")),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if os.Getenv("LOOM_AUTH_BOOTSTRAP") != "false" {
+		bootstrapCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		err = authenticator.Bootstrap(bootstrapCtx, os.Getenv("LOOM_ADMIN_PASSWORD"))
+		cancel()
+		if err != nil {
+			return err
+		}
+	}
+	setup, err := githubintegration.NewSetupHandlerWithAuthorizers(store, secretStore, authenticator.Authorized, authenticator.AdminAuthorized, org, publicURL)
 	if err != nil {
 		return err
 	}
@@ -387,12 +419,13 @@ func run() error {
 		return values["webhook_secret"], nil
 	}
 	api := http.NewServeMux()
+	api.Handle("/v1/auth/", authenticator)
 	api.Handle("/v1/github/", githubintegration.NewManagedHandler(store, token, os.Getenv("LOOM_GITHUB_WEBHOOK_SECRET"), resolveWebhookSecret, githubintegration.NewManagedAPI(store, secretStore, os.Getenv("LOOM_GITHUB_API_TOKEN"))))
 	api.Handle("/v1/plugins/", setup)
 	api.Handle("/v1/integration-instances", setup)
 	api.Handle("/v1/integration-instances/", setup)
-	api.Handle("/v1/", control.NewAPIHandler(store, token))
-	server := &http.Server{Addr: addr, Handler: newHandler(postgresReader{pool, org, store}, token, api, os.DirFS(dir), func(ctx context.Context) []catalog.Plugin { return []catalog.Plugin{setup.Plugin(ctx)} }), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
+	api.Handle("/v1/", control.NewAPIHandlerWithAuthorizers(store, authenticator.Authorized, authenticator.AdminAuthorized))
+	server := &http.Server{Addr: addr, Handler: newHandlerWithAuthorizer(postgresReader{pool, org, store}, authenticator.Authorized, api, os.DirFS(dir), func(ctx context.Context) []catalog.Plugin { return []catalog.Plugin{setup.Plugin(ctx)} }), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 45 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

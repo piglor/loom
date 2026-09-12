@@ -48,6 +48,18 @@ export interface Plugin {
     | "sealed"
     | "unavailable";
 }
+export interface AuthUser {
+  id: string;
+  organization: string;
+  email: string;
+  display_name: string;
+  role: "admin" | "member";
+}
+export interface AuthConfig {
+  email_registration_enabled: boolean;
+  bootstrap_email: string;
+  social_providers: { id: string; name: string }[];
+}
 export interface IntegrationInstance {
   id: string;
   credential_id: string;
@@ -220,19 +232,32 @@ export class APIError extends Error {
   }
 }
 export function createClient(
-  token: string,
+  token = "",
   baseURL = "",
   transport: typeof fetch = fetch,
 ) {
+  function csrfToken() {
+    if (typeof document === "undefined") return "";
+    return (
+      document.cookie
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith("loom_csrf="))
+        ?.slice("loom_csrf=".length) ?? ""
+    );
+  }
   async function request<T>(
     path: string,
     signal?: AbortSignal,
     options: { method?: "GET" | "POST" | "PATCH"; body?: unknown } = {},
   ): Promise<T> {
+    const method = options.method ?? "GET";
+    const csrf = csrfToken();
     const response = await transport(`${baseURL}${path}`, {
-      method: options.method ?? "GET",
+      method,
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(method === "GET" || !csrf ? {} : { "X-Loom-CSRF": csrf }),
         ...(options.body === undefined
           ? {}
           : { "Content-Type": "application/json" }),
@@ -249,7 +274,9 @@ export function createClient(
       throw new APIError(
         response.status,
         response.status === 401
-          ? "Your operator token was rejected. Sign in again."
+          ? path === "/v1/auth/login"
+            ? "Invalid email or password."
+            : "Your Loom session expired. Sign in again."
           : response.status === 404
             ? "This Goal was not found."
             : response.status === 422
@@ -261,6 +288,31 @@ export function createClient(
     return response.json() as Promise<T>;
   }
   return {
+    authConfig: (signal?: AbortSignal) =>
+      request<AuthConfig>("/v1/auth/config", signal),
+    authSession: (signal?: AbortSignal) =>
+      request<{ user: AuthUser }>("/v1/auth/session", signal),
+    authLogin: (
+      input: { email: string; password: string },
+      signal?: AbortSignal,
+    ) =>
+      request<{ user: AuthUser }>("/v1/auth/login", signal, {
+        method: "POST",
+        body: input,
+      }),
+    authRegister: (
+      input: { email: string; password: string },
+      signal?: AbortSignal,
+    ) =>
+      request<{ user: AuthUser }>("/v1/auth/register", signal, {
+        method: "POST",
+        body: input,
+      }),
+    authLogout: (signal?: AbortSignal) =>
+      request<void>("/v1/auth/logout", signal, {
+        method: "POST",
+        body: {},
+      }),
     goals: (signal?: AbortSignal) =>
       request<GoalSummary[]>("/v1/goals", signal),
     goal: (id: string, signal?: AbortSignal) =>

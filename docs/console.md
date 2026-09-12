@@ -16,10 +16,17 @@ make migrate
 make console-serve
 ```
 
-Open `http://127.0.0.1:8080` and authenticate with `LOOM_API_TOKEN`. The browser
-keeps the token in memory and sends requests only to the same origin. A refresh
-or sign-out clears it. SSO and fine-grained browser authorization are release
-gates, so do not expose this operator credential to untrusted users.
+Open `http://127.0.0.1:8080` and sign in with the bootstrap administrator.
+`LOOM_ADMIN_EMAIL` defaults to `admin@example.com`; set
+`LOOM_ADMIN_PASSWORD` to choose a separate password. If it is omitted, the
+initial password is the existing random `LOOM_API_TOKEN` value. Loom stores
+only an Argon2id password hash and uses a revocable HttpOnly browser session.
+Set `LOOM_AUTH_EMAIL_REGISTRATION=false` to require social-provider sign-in.
+GitHub registration appears when `LOOM_AUTH_GITHUB_CLIENT_ID` and
+`LOOM_AUTH_GITHUB_CLIENT_SECRET` are configured.
+For multiple server replicas, set the same random 32+ character
+`LOOM_AUTH_STATE_KEY` on each instance so an OAuth callback can complete on a
+different replica.
 
 After sign-in, the guided home points operators to the next useful setup action.
 The plugin store exposes GitHub with persisted `not configured`, `ready to
@@ -31,10 +38,9 @@ OpenBao KV v2 and PostgreSQL retains only an opaque reference. Installation
 callbacks verify the App, the authorizing GitHub user, repository selection and
 permissions before the connection becomes active.
 
-The guided flow opens GitHub in a separate window because the operator token is
-intentionally memory-only. A short-lived HttpOnly, SameSite setup cookie binds
-the callback without persisting that operator token. Refreshing or signing out
-still clears console authority.
+The guided flow opens GitHub in a separate window. A short-lived HttpOnly,
+SameSite setup cookie binds the callback, while the browser account remains a
+revocable server-side session. Signing out revokes that session.
 
 The sidebar displays the image's source build SHA in published deployments, so
 an operator can confirm that a rollout is serving the expected console bundle.

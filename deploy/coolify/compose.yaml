@@ -139,6 +139,16 @@ services:
     environment:
       <<: *environment
       LOOM_API_TOKEN: ${LOOM_API_TOKEN:?required}
+      LOOM_ADMIN_EMAIL: ${LOOM_ADMIN_EMAIL:-admin@example.com}
+      # If omitted, the first admin password is derived from the existing
+      # randomly generated LOOM_API_TOKEN. Operators can set a separate
+      # password without changing the compatibility token.
+      LOOM_ADMIN_PASSWORD: ${LOOM_ADMIN_PASSWORD:-}
+      LOOM_AUTH_GITHUB_CLIENT_ID: ${LOOM_AUTH_GITHUB_CLIENT_ID:-}
+      LOOM_AUTH_GITHUB_CLIENT_SECRET: ${LOOM_AUTH_GITHUB_CLIENT_SECRET:-}
+      LOOM_AUTH_BOOTSTRAP: ${LOOM_AUTH_BOOTSTRAP:-true}
+      LOOM_AUTH_EMAIL_REGISTRATION: ${LOOM_AUTH_EMAIL_REGISTRATION:-true}
+      LOOM_AUTH_STATE_KEY: ${LOOM_AUTH_STATE_KEY:-}
       LOOM_PUBLIC_URL: ${LOOM_PUBLIC_URL:?required}
       # The bundled service is the zero-configuration default. Operators using
       # the advanced external topology override this with a verified HTTPS URL.

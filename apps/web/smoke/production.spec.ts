@@ -10,10 +10,8 @@ test("deployed console loads its browser assets and login", async ({
   expect(response?.headers()["content-security-policy"]).toContain(
     "frame-ancestors 'none'",
   );
-  await expect(page.getByLabel("Operator API token")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Connect to Loom" }),
-  ).toBeEnabled();
+  await expect(page.getByLabel("Email address")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
@@ -30,5 +28,5 @@ test("unknown page retains 404 while offering console sign-in", async ({
 }) => {
   const response = await page.goto("/production-smoke-missing-page");
   expect(response?.status()).toBe(404);
-  await expect(page.getByLabel("Operator API token")).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
 });

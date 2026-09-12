@@ -16,6 +16,12 @@ type Tx struct {
 	Attempt *AttemptClient
 	// Audit is the client for interacting with the Audit builders.
 	Audit *AuditClient
+	// AuthIdentity is the client for interacting with the AuthIdentity builders.
+	AuthIdentity *AuthIdentityClient
+	// AuthOAuthState is the client for interacting with the AuthOAuthState builders.
+	AuthOAuthState *AuthOAuthStateClient
+	// AuthSession is the client for interacting with the AuthSession builders.
+	AuthSession *AuthSessionClient
 	// Command is the client for interacting with the Command builders.
 	Command *CommandClient
 	// Event is the client for interacting with the Event builders.
@@ -38,6 +44,8 @@ type Tx struct {
 	Run *RunClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// User is the client for interacting with the User builders.
+	User *UserClient
 	// Wait is the client for interacting with the Wait builders.
 	Wait *WaitClient
 	// WaitHistory is the client for interacting with the WaitHistory builders.
@@ -185,6 +193,9 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Attempt = NewAttemptClient(tx.config)
 	tx.Audit = NewAuditClient(tx.config)
+	tx.AuthIdentity = NewAuthIdentityClient(tx.config)
+	tx.AuthOAuthState = NewAuthOAuthStateClient(tx.config)
+	tx.AuthSession = NewAuthSessionClient(tx.config)
 	tx.Command = NewCommandClient(tx.config)
 	tx.Event = NewEventClient(tx.config)
 	tx.Goal = NewGoalClient(tx.config)
@@ -196,6 +207,7 @@ func (tx *Tx) init() {
 	tx.Outbox = NewOutboxClient(tx.config)
 	tx.Run = NewRunClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
+	tx.User = NewUserClient(tx.config)
 	tx.Wait = NewWaitClient(tx.config)
 	tx.WaitHistory = NewWaitHistoryClient(tx.config)
 	tx.Worker = NewWorkerClient(tx.config)

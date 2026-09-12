@@ -15,6 +15,7 @@ export default defineConfig({
       LOOM_DATABASE_URL: "postgresql://unused@127.0.0.1:1/unused",
       LOOM_LISTEN_ADDR: "127.0.0.1:4173",
       LOOM_WEB_DIR: "dist",
+      LOOM_AUTH_BOOTSTRAP: "false",
     },
   },
   projects: [

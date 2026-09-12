@@ -14,7 +14,15 @@ const test = base.extend<{ checkPageErrors: void }>({
 });
 
 const id = "a2222222-2222-4222-8222-222222222222";
-const token = "browser-fixture-token-not-a-real-credential";
+const email = "admin@example.com";
+const password = "browser-fixture-password-that-is-long";
+const authUser = {
+  id: "admin-user",
+  organization: "test",
+  email,
+  display_name: "Administrator",
+  role: "admin",
+};
 const summary = {
   id,
   title: "Investigate deployment health",
@@ -112,21 +120,36 @@ const githubPlugin = {
   secret_backend: "ready",
 };
 async function mockAPI(page: Page) {
+  await page.route("**/v1/auth/config", (route) =>
+    route.fulfill({
+      json: {
+        email_registration_enabled: true,
+        bootstrap_email: email,
+        social_providers: [],
+      },
+    }),
+  );
+  await page.route("**/v1/auth/session", (route) =>
+    route.fulfill({ status: 401, json: { detail: "Sign in required" } }),
+  );
+  await page.route("**/v1/auth/login", (route) =>
+    route.fulfill({ status: 200, json: { user: authUser } }),
+  );
+  await page.route("**/v1/plugins", (route) => route.fulfill({ json: [] }));
   await page.route("**/v1/goals**", async (route) => {
-    expect(route.request().headers().authorization).toBe(`Bearer ${token}`);
     await route.fulfill({
       json: route.request().url().endsWith("/v1/goals") ? [summary] : goal,
     });
   });
   await page.route("**/v1/integration-instances**", async (route) => {
-    expect(route.request().headers().authorization).toBe(`Bearer ${token}`);
     await route.fulfill({ json: [] });
   });
 }
 async function login(page: Page, path = "/goals") {
   await page.goto(path);
-  await page.getByLabel("Operator API token").fill(token);
-  await page.getByRole("button", { name: "Connect to Loom" }).click();
+  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
 }
 test("sign-in leads to guided setup and a configurable GitHub plugin", async ({
   page,
@@ -138,8 +161,9 @@ test("sign-in leads to guided setup and a configurable GitHub plugin", async ({
     }),
   );
   await page.goto("/");
-  await page.getByLabel("Operator API token").fill(token);
-  await page.getByRole("button", { name: "Connect to Loom" }).click();
+  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(
     page.getByRole("heading", { name: "Let’s get Loom working for you" }),
   ).toBeVisible();
@@ -375,8 +399,9 @@ test("unknown browser route retains HTTP 404 and offers recovery", async ({
   await mockAPI(page);
   const response = await page.goto("/not-a-loom-page");
   expect(response?.status()).toBe(404);
-  await page.getByLabel("Operator API token").fill(token);
-  await page.getByRole("button", { name: "Connect to Loom" }).click();
+  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(
     page.getByRole("heading", { name: "Page not found" }),
   ).toBeVisible();
@@ -389,13 +414,15 @@ test("keyboard sign-in and skip navigation focus main content", async ({
   await mockAPI(page);
   await page.goto("/");
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Operator API token")).toBeFocused();
-  await page.keyboard.type(token);
+  await expect(page.getByLabel("Email address")).toBeFocused();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type(email);
   await page.keyboard.press("Tab");
-  await expect(
-    page.getByRole("button", { name: "Connect to Loom" }),
-  ).toBeFocused();
-  await page.keyboard.press("Enter");
+  await page.keyboard.type(password);
+  await expect(page.getByLabel("Password")).toHaveValue(password);
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeFocused();
+  await page.getByRole("button", { name: "Sign in" }).press("Enter");
   await expect(
     page.getByRole("heading", { name: "Let’s get Loom working for you" }),
   ).toBeVisible();
@@ -484,7 +511,7 @@ test("expired authority signs out on refresh", async ({ page }) => {
   ).toBeVisible();
   await page.route("**/v1/goals", (route) => route.fulfill({ status: 401 }));
   await page.getByRole("button", { name: "Refresh" }).click();
-  await expect(page.getByLabel("Operator API token")).toHaveValue("");
+  await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Investigate deployment/ }),
   ).toHaveCount(0);
@@ -530,7 +557,7 @@ test("sign out and browser back cannot restore authority", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.goBack();
-  await expect(page.getByLabel("Operator API token")).toHaveValue("");
+  await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your Goals" })).toHaveCount(
     0,
   );
@@ -579,7 +606,7 @@ test("deep links survive sign-in and logout clears authority", async ({
     })),
   ).toEqual({ local: 0, session: 0, cookies: "" });
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByLabel("Operator API token")).toHaveValue("");
+  await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Audit timeline" }),
   ).toHaveCount(0);
@@ -587,11 +614,14 @@ test("deep links survive sign-in and logout clears authority", async ({
 test("reject invalid credentials without displaying backend diagnostics", async ({
   page,
 }) => {
-  await page.route("**/v1/goals", (route) =>
+  await mockAPI(page);
+  await page.route("**/v1/auth/login", (route) =>
     route.fulfill({ status: 401, json: { detail: "secret internal error" } }),
   );
   await login(page);
-  await expect(page.getByRole("alert")).toContainText("rejected");
+  await expect(page.getByRole("alert")).toContainText(
+    "Invalid email or password",
+  );
   await expect(page.getByText("secret internal error")).toHaveCount(0);
 });
 test("filter Goals and display an empty attention queue", async ({ page }) => {
@@ -608,6 +638,7 @@ test("filter Goals and display an empty attention queue", async ({ page }) => {
   ).toBeVisible();
 });
 test("external HTML is rendered as text", async ({ page }) => {
+  await mockAPI(page);
   await page.route("**/v1/goals", (route) =>
     route.fulfill({
       json: [
@@ -644,7 +675,7 @@ test("refreshing browser removes in-memory credentials", async ({ page }) => {
   await login(page);
   await expect(page.getByRole("heading", { name: "Your Goals" })).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Operator API token")).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
 });
 
 test("accessible login, overview and detail with responsive screenshots", async ({

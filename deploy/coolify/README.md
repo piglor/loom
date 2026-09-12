@@ -29,6 +29,24 @@ Supply these in Coolify's secret/environment settings, not in the Compose file:
 
 - `LOOM_POSTGRES_PASSWORD`: fresh random URL-safe password (hex is simplest).
 - `LOOM_API_TOKEN`: fresh random administrator credential, at least 32 characters.
+- `LOOM_ADMIN_EMAIL`: browser administrator email (defaults to
+  `admin@example.com`).
+- `LOOM_ADMIN_PASSWORD`: optional browser administrator password. When omitted,
+  the first browser password is derived from the already-required random
+  `LOOM_API_TOKEN`; the database stores only an Argon2id hash. Set this to a
+  separate secret when handing the console to another operator.
+- `LOOM_AUTH_GITHUB_CLIENT_ID` and `LOOM_AUTH_GITHUB_CLIENT_SECRET`: optional
+  GitHub OAuth App credentials. Register
+  `${LOOM_PUBLIC_URL}/v1/auth/github/callback` as the exact callback URL.
+  These configure the GitHub authentication plugin itself; per-account GitHub
+  App credentials entered in Plugin Store continue to be stored in OpenBao.
+- `LOOM_AUTH_EMAIL_REGISTRATION`: leave `true` for the simple email signup
+  path, or set `false` when every account must come from an installed social
+  provider.
+- `LOOM_AUTH_STATE_KEY`: optional random value of at least 32 characters. Set
+  the same value on every replica so an OAuth flow can finish on any instance;
+  when omitted, Loom generates a process-local key and a restart invalidates
+  only in-flight OAuth callbacks.
 - `LOOM_PUBLIC_URL`: canonical HTTPS origin used for GitHub setup callbacks.
 - `LOOM_OPENBAO_MOUNT`: optional mount name (defaults to `loom`). The bundled
   address and AppRole files are already configured; no address or credential

@@ -12,6 +12,15 @@ type Attempt func(*sql.Selector)
 // Audit is the predicate function for audit builders.
 type Audit func(*sql.Selector)
 
+// AuthIdentity is the predicate function for authidentity builders.
+type AuthIdentity func(*sql.Selector)
+
+// AuthOAuthState is the predicate function for authoauthstate builders.
+type AuthOAuthState func(*sql.Selector)
+
+// AuthSession is the predicate function for authsession builders.
+type AuthSession func(*sql.Selector)
+
 // Command is the predicate function for command builders.
 type Command func(*sql.Selector)
 
@@ -44,6 +53,9 @@ type Run func(*sql.Selector)
 
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
+
+// User is the predicate function for user builders.
+type User func(*sql.Selector)
 
 // Wait is the predicate function for wait builders.
 type Wait func(*sql.Selector)

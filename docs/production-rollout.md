@@ -3,8 +3,10 @@
 ## Current deployment: Go control plane and native GitHub ingress
 
 The finite event-driven control plane is live at **https://loom.piglor.com**.
-Sign in with `LOOM_API_TOKEN` from this Loom service's Coolify environment, not a
-Coolify or Hatchet token.
+Open the console and sign in with the bootstrap administrator configured in
+Coolify (`LOOM_ADMIN_EMAIL`, default `admin@example.com`). The existing
+`LOOM_API_TOKEN` remains a machine/API compatibility credential; it is not a
+Coolify or Hatchet token and should not be shared between people.
 
 Production builds the public repository at the immutable source revision
 `e542ef25f062c8401f4b3e0cd6fa8d553ad2fd3f`. The original acceptance revision's

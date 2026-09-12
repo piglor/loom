@@ -1080,6 +1080,53 @@ summary {
 .login-card button {
   width: 100%;
 }
+.login-card .social-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  background: #f2f7ff;
+  color: #0b1f38;
+}
+.login-card .social-login:hover {
+  background: #dcecff;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+  color: #6e87a1;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #28496b;
+}
+.auth-switch {
+  margin: 20px 0 0;
+  color: #9db2c9;
+  font-size: 12px;
+  text-align: center;
+}
+.login-card .text-button {
+  display: inline;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #79b9ff;
+  font: inherit;
+}
+.login-card .text-button:hover {
+  color: #b9d9ff;
+}
 .token-note {
   margin: 15px 0 0;
   color: #6e87a1;

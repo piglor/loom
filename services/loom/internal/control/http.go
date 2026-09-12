@@ -15,12 +15,37 @@ const maxRequestBody = 1 << 20
 
 // NewAPIHandler exposes Loom's native mutation and outbound-worker protocol.
 // Integration-specific authentication stays in adapters layered above this
-// generic control-plane seam.
+// generic control-plane seam. The legacy constructor keeps tests and machine
+// clients on the operator bearer-token compatibility path.
 func NewAPIHandler(store *Store, adminToken string) http.Handler {
+	return NewAPIHandlerWithAuthorizer(store, func(r *http.Request) bool {
+		return bearerMatches(r, adminToken)
+	})
+}
+
+// NewAPIHandlerWithAuthorizer lets the browser use revocable account sessions
+// while preserving the same control-plane routes for workers and integrations.
+func NewAPIHandlerWithAuthorizer(store *Store, authorize func(*http.Request) bool) http.Handler {
+	return NewAPIHandlerWithAuthorizers(store, authorize, authorize)
+}
+
+// NewAPIHandlerWithAuthorizers separates ordinary signed-in reads from
+// administrator mutations. Machine-worker routes retain their own worker
+// credential checks below.
+func NewAPIHandlerWithAuthorizers(store *Store, authorize, adminAuthorize func(*http.Request) bool) http.Handler {
 	mux := http.NewServeMux()
 	admin := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			if !bearerMatches(r, adminToken) {
+			if adminAuthorize == nil || !adminAuthorize(r) {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"detail": "Invalid authentication"})
+				return
+			}
+			next(w, r)
+		}
+	}
+	read := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if authorize == nil || !authorize(r) {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"detail": "Invalid authentication"})
 				return
 			}
@@ -53,10 +78,10 @@ func NewAPIHandler(store *Store, adminToken string) http.Handler {
 			return map[string]string{"id": id}, err
 		})
 	}))
-	mux.HandleFunc("GET /v1/workflow-spec/schema", admin(func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /v1/workflow-spec/schema", read(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, WorkflowJSONSchema())
 	}))
-	mux.HandleFunc("GET /v1/workflows", admin(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /v1/workflows", read(func(w http.ResponseWriter, r *http.Request) {
 		call(w, r, http.StatusOK, func() (any, error) { return store.ListWorkflows(r.Context()) })
 	}))
 	mux.HandleFunc("POST /v1/workflows", admin(func(w http.ResponseWriter, r *http.Request) {
@@ -66,10 +91,10 @@ func NewAPIHandler(store *Store, adminToken string) http.Handler {
 		}
 		call(w, r, http.StatusCreated, func() (any, error) { return store.CreateWorkflow(r.Context(), request) })
 	}))
-	mux.HandleFunc("GET /v1/workflows/{id}", admin(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /v1/workflows/{id}", read(func(w http.ResponseWriter, r *http.Request) {
 		call(w, r, http.StatusOK, func() (any, error) { return store.Workflow(r.Context(), r.PathValue("id")) })
 	}))
-	mux.HandleFunc("GET /v1/workflow-versions/{id}", admin(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /v1/workflow-versions/{id}", read(func(w http.ResponseWriter, r *http.Request) {
 		call(w, r, http.StatusOK, func() (any, error) { return store.WorkflowVersion(r.Context(), r.PathValue("id")) })
 	}))
 	mux.HandleFunc("PATCH /v1/workflows/{id}", admin(func(w http.ResponseWriter, r *http.Request) {

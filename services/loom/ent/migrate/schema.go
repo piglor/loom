@@ -43,6 +43,61 @@ var (
 		Columns:    AuditColumns,
 		PrimaryKey: []*schema.Column{AuditColumns[0]},
 	}
+	// AuthIdentitiesColumns holds the columns for the "auth_identities" table.
+	AuthIdentitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "provider", Type: field.TypeString},
+		{Name: "subject", Type: field.TypeString},
+		{Name: "email", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AuthIdentitiesTable holds the schema information for the "auth_identities" table.
+	AuthIdentitiesTable = &schema.Table{
+		Name:       "auth_identities",
+		Columns:    AuthIdentitiesColumns,
+		PrimaryKey: []*schema.Column{AuthIdentitiesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "authidentity_organization_provider_subject",
+				Unique:  true,
+				Columns: []*schema.Column{AuthIdentitiesColumns[1], AuthIdentitiesColumns[3], AuthIdentitiesColumns[4]},
+			},
+		},
+	}
+	// AuthOauthStatesColumns holds the columns for the "auth_oauth_states" table.
+	AuthOauthStatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "state_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "consumed_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AuthOauthStatesTable holds the schema information for the "auth_oauth_states" table.
+	AuthOauthStatesTable = &schema.Table{
+		Name:       "auth_oauth_states",
+		Columns:    AuthOauthStatesColumns,
+		PrimaryKey: []*schema.Column{AuthOauthStatesColumns[0]},
+	}
+	// AuthSessionsColumns holds the columns for the "auth_sessions" table.
+	AuthSessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "user_id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "csrf_hash", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AuthSessionsTable holds the schema information for the "auth_sessions" table.
+	AuthSessionsTable = &schema.Table{
+		Name:       "auth_sessions",
+		Columns:    AuthSessionsColumns,
+		PrimaryKey: []*schema.Column{AuthSessionsColumns[0]},
+	}
 	// CommandsColumns holds the columns for the "commands" table.
 	CommandsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -270,6 +325,31 @@ var (
 		Columns:    SessionsColumns,
 		PrimaryKey: []*schema.Column{SessionsColumns[0]},
 	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "organization", Type: field.TypeString},
+		{Name: "email", Type: field.TypeString},
+		{Name: "display_name", Type: field.TypeString, Default: ""},
+		{Name: "role", Type: field.TypeString, Default: "member"},
+		{Name: "password_hash", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "disabled_at", Type: field.TypeTime, Nullable: true},
+	}
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "user_organization_email",
+				Unique:  true,
+				Columns: []*schema.Column{UsersColumns[1], UsersColumns[2]},
+			},
+		},
+	}
 	// WaitsColumns holds the columns for the "waits" table.
 	WaitsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, SchemaType: map[string]string{"postgres": "uuid"}},
@@ -433,6 +513,9 @@ var (
 	Tables = []*schema.Table{
 		AttemptsTable,
 		AuditTable,
+		AuthIdentitiesTable,
+		AuthOauthStatesTable,
+		AuthSessionsTable,
 		CommandsTable,
 		EventsTable,
 		GoalsTable,
@@ -444,6 +527,7 @@ var (
 		OutboxTable,
 		RunsTable,
 		SessionsTable,
+		UsersTable,
 		WaitsTable,
 		WaitHistoryTable,
 		WorkersTable,
@@ -460,6 +544,15 @@ func init() {
 	}
 	AuditTable.Annotation = &entsql.Annotation{
 		Table: "audit",
+	}
+	AuthIdentitiesTable.Annotation = &entsql.Annotation{
+		Table: "auth_identities",
+	}
+	AuthOauthStatesTable.Annotation = &entsql.Annotation{
+		Table: "auth_oauth_states",
+	}
+	AuthSessionsTable.Annotation = &entsql.Annotation{
+		Table: "auth_sessions",
 	}
 	CommandsTable.Annotation = &entsql.Annotation{
 		Table: "commands",
@@ -493,6 +586,9 @@ func init() {
 	}
 	SessionsTable.Annotation = &entsql.Annotation{
 		Table: "sessions",
+	}
+	UsersTable.Annotation = &entsql.Annotation{
+		Table: "users",
 	}
 	WaitsTable.Annotation = &entsql.Annotation{
 		Table: "waits",

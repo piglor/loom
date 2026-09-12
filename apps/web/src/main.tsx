@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -12,6 +12,7 @@ import {
 import {
   APIError,
   createClient,
+  type AuthUser,
   type Goal,
   type GoalSummary,
   type Plugin,
@@ -66,13 +67,66 @@ function pluginStateLabel(plugin: Plugin) {
   }
 }
 
-function Login({ onLogin }: { onLogin: (token: string) => void }) {
-  const [token, setToken] = useState("");
+function Login({ onLogin }: { onLogin: (user: AuthUser) => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "register">("signin");
+  const [socialProviders, setSocialProviders] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [emailRegistrationEnabled, setEmailRegistrationEnabled] =
+    useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     document.title = "Sign in · Loom";
-  }, []);
+    const client = createClient();
+    const abort = new AbortController();
+    client
+      .authConfig(abort.signal)
+      .then((config) => {
+        setSocialProviders(config.social_providers ?? []);
+        setEmailRegistrationEnabled(
+          config.email_registration_enabled !== false,
+        );
+        setEmail((current) => current || config.bootstrap_email || "");
+      })
+      .catch(() => undefined);
+    client
+      .authSession(abort.signal)
+      .then(({ user }) => onLogin(user))
+      .catch((e) => {
+        if (
+          !abort.signal.aborted &&
+          !(e instanceof APIError && e.status === 401)
+        ) {
+          setError(errorMessage(e));
+        }
+      });
+    const callbackError = new URLSearchParams(window.location.search).get(
+      "auth_error",
+    );
+    if (callbackError) setError("Social sign-in was not completed. Try again.");
+    return () => abort.abort();
+  }, [onLogin]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const client = createClient();
+      const response =
+        mode === "register"
+          ? await client.authRegister({ email, password })
+          : await client.authLogin({ email, password });
+      onLogin(response.user);
+      setPassword("");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <main className="login-shell">
       <section className="login-story">
@@ -99,53 +153,97 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
           <span>Resume</span>
         </div>
       </section>
-      <form
-        className="login-card"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          setError("");
-          try {
-            await createClient(token).goals();
-            onLogin(token);
-            setToken("");
-          } catch (e) {
-            setError(errorMessage(e));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
+      <section className="login-card" aria-labelledby="login-title">
         <p className="eyebrow">WELCOME BACK</p>
-        <h2>Sign in to your workspace</h2>
+        <h2 id="login-title">
+          {mode === "signin"
+            ? "Sign in to your workspace"
+            : "Create your account"}
+        </h2>
         <p className="login-intro">
-          Use the operator token from your Loom server.
+          {mode === "signin"
+            ? "Use your Loom account to pick up where work left off."
+            : "Create an account with your email, or use a configured sign-in provider."}
         </p>
-        <label htmlFor="token">Operator API token</label>
-        <input
-          id="token"
-          type="password"
-          autoComplete="off"
-          required
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-        />
-        <p className="muted">
-          Your token stays in this tab only. Refreshing or signing out removes
-          it from the browser.
-        </p>
-        {error && (
-          <p role="alert" className="error">
-            {error}
+        {socialProviders.length > 0 && (
+          <>
+            {socialProviders.map((provider) => (
+              <button
+                className="social-login"
+                type="button"
+                key={provider.id}
+                onClick={() =>
+                  window.location.assign(
+                    `/v1/auth/${encodeURIComponent(provider.id)}/start`,
+                  )
+                }
+              >
+                Continue with {provider.name}
+              </button>
+            ))}
+            <div className="login-divider">or use email</div>
+          </>
+        )}
+        <form onSubmit={submit}>
+          <label htmlFor="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
+            minLength={12}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          {mode === "register" && (
+            <p className="muted">Use at least 12 characters.</p>
+          )}
+          {error && (
+            <p role="alert" className="error">
+              {error}
+            </p>
+          )}
+          <button disabled={busy} type="submit">
+            {busy
+              ? mode === "signin"
+                ? "Signing in…"
+                : "Creating account…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
+          </button>
+        </form>
+        {emailRegistrationEnabled && (
+          <p className="auth-switch">
+            {mode === "signin" ? "New to Loom?" : "Already have an account?"}{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMode(mode === "signin" ? "register" : "signin");
+                setError("");
+              }}
+            >
+              {mode === "signin" ? "Create an account" : "Sign in"}
+            </button>
           </p>
         )}
-        <button disabled={busy}>
-          {busy ? "Signing in…" : "Connect to Loom →"}
-        </button>
         <p className="token-note">
-          Use a Loom operator token—not a GitHub, Hatchet, or worker token.
+          The initial administrator defaults to admin@example.com and can be
+          changed by your Loom operator.
         </p>
-      </form>
+      </section>
     </main>
   );
 }
@@ -180,9 +278,11 @@ function PluginGlyph({ plugin }: { plugin: Plugin }) {
 function Home({
   client,
   onUnauthorized,
+  canAdmin,
 }: {
   client: Client;
   onUnauthorized: () => void;
+  canAdmin: boolean;
 }) {
   const { plugins, loading } = usePlugins(client, onUnauthorized);
   const github = plugins.find((plugin) => plugin.id === "github");
@@ -237,7 +337,9 @@ function Home({
                 ? "Checking setup…"
                 : github?.state === "connected"
                   ? "Manage GitHub"
-                  : "Connect GitHub"}{" "}
+                  : canAdmin
+                    ? "Connect GitHub"
+                    : "View GitHub"}{" "}
               <span aria-hidden="true">→</span>
             </Link>
           </article>
@@ -807,10 +909,25 @@ function GoalDetail({
 
 function App() {
   const [client, setClient] = useState<Client | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   // Stable callback prevents request effects from restarting on every render.
-  const [logout] = useState(() => () => setClient(null));
+  const [logout] = useState(() => () => {
+    void createClient()
+      .authLogout()
+      .catch(() => undefined);
+    setClient(null);
+    setCurrentUser(null);
+  });
   if (!client)
-    return <Login onLogin={(token) => setClient(createClient(token))} />;
+    return (
+      <Login
+        onLogin={(user) => {
+          setCurrentUser(user);
+          setClient(createClient());
+        }}
+      />
+    );
+  const canAdmin = currentUser?.role === "admin";
   return (
     <div className="shell">
       <RouteEffects />
@@ -858,7 +975,13 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<Home client={client} onUnauthorized={logout} />}
+            element={
+              <Home
+                client={client}
+                onUnauthorized={logout}
+                canAdmin={canAdmin}
+              />
+            }
           />
           <Route
             path="/goals"
@@ -881,11 +1004,23 @@ function App() {
           />
           <Route
             path="/workflows"
-            element={<WorkflowList client={client} onUnauthorized={logout} />}
+            element={
+              <WorkflowList
+                client={client}
+                onUnauthorized={logout}
+                canAdmin={canAdmin}
+              />
+            }
           />
           <Route
             path="/workflows/:id"
-            element={<WorkflowEditor client={client} onUnauthorized={logout} />}
+            element={
+              <WorkflowEditor
+                client={client}
+                onUnauthorized={logout}
+                canAdmin={canAdmin}
+              />
+            }
           />
           <Route
             path="/plugins"
@@ -893,7 +1028,13 @@ function App() {
           />
           <Route
             path="/plugins/:id"
-            element={<PluginSetup client={client} onUnauthorized={logout} />}
+            element={
+              <PluginSetup
+                client={client}
+                onUnauthorized={logout}
+                canAdmin={canAdmin}
+              />
+            }
           />
           <Route
             path="*"

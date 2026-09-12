@@ -14,6 +14,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/piglor/loom/services/loom/ent/attempt"
 	"github.com/piglor/loom/services/loom/ent/audit"
+	"github.com/piglor/loom/services/loom/ent/authidentity"
+	"github.com/piglor/loom/services/loom/ent/authoauthstate"
+	"github.com/piglor/loom/services/loom/ent/authsession"
 	"github.com/piglor/loom/services/loom/ent/command"
 	"github.com/piglor/loom/services/loom/ent/event"
 	"github.com/piglor/loom/services/loom/ent/goal"
@@ -25,6 +28,7 @@ import (
 	"github.com/piglor/loom/services/loom/ent/outbox"
 	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/session"
+	"github.com/piglor/loom/services/loom/ent/user"
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/waithistory"
 	"github.com/piglor/loom/services/loom/ent/worker"
@@ -94,6 +98,9 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			attempt.Table:                 attempt.ValidColumn,
 			audit.Table:                   audit.ValidColumn,
+			authidentity.Table:            authidentity.ValidColumn,
+			authoauthstate.Table:          authoauthstate.ValidColumn,
+			authsession.Table:             authsession.ValidColumn,
 			command.Table:                 command.ValidColumn,
 			event.Table:                   event.ValidColumn,
 			goal.Table:                    goal.ValidColumn,
@@ -105,6 +112,7 @@ func checkColumn(t, c string) error {
 			outbox.Table:                  outbox.ValidColumn,
 			run.Table:                     run.ValidColumn,
 			session.Table:                 session.ValidColumn,
+			user.Table:                    user.ValidColumn,
 			wait.Table:                    wait.ValidColumn,
 			waithistory.Table:             waithistory.ValidColumn,
 			worker.Table:                  worker.ValidColumn,

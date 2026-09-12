@@ -4,6 +4,9 @@ package ent
 
 import (
 	"github.com/piglor/loom/services/loom/ent/attempt"
+	"github.com/piglor/loom/services/loom/ent/authidentity"
+	"github.com/piglor/loom/services/loom/ent/authoauthstate"
+	"github.com/piglor/loom/services/loom/ent/authsession"
 	"github.com/piglor/loom/services/loom/ent/command"
 	"github.com/piglor/loom/services/loom/ent/event"
 	"github.com/piglor/loom/services/loom/ent/goal"
@@ -16,6 +19,7 @@ import (
 	"github.com/piglor/loom/services/loom/ent/run"
 	"github.com/piglor/loom/services/loom/ent/schema"
 	"github.com/piglor/loom/services/loom/ent/session"
+	"github.com/piglor/loom/services/loom/ent/user"
 	"github.com/piglor/loom/services/loom/ent/wait"
 	"github.com/piglor/loom/services/loom/ent/waithistory"
 	"github.com/piglor/loom/services/loom/ent/worker"
@@ -35,6 +39,24 @@ func init() {
 	attemptDescID := attemptFields[0].Descriptor()
 	// attempt.DefaultID holds the default value on creation for the id field.
 	attempt.DefaultID = attemptDescID.Default.(func() string)
+	authidentityFields := schema.AuthIdentity{}.Fields()
+	_ = authidentityFields
+	// authidentityDescID is the schema descriptor for id field.
+	authidentityDescID := authidentityFields[0].Descriptor()
+	// authidentity.DefaultID holds the default value on creation for the id field.
+	authidentity.DefaultID = authidentityDescID.Default.(func() string)
+	authoauthstateFields := schema.AuthOAuthState{}.Fields()
+	_ = authoauthstateFields
+	// authoauthstateDescID is the schema descriptor for id field.
+	authoauthstateDescID := authoauthstateFields[0].Descriptor()
+	// authoauthstate.DefaultID holds the default value on creation for the id field.
+	authoauthstate.DefaultID = authoauthstateDescID.Default.(func() string)
+	authsessionFields := schema.AuthSession{}.Fields()
+	_ = authsessionFields
+	// authsessionDescID is the schema descriptor for id field.
+	authsessionDescID := authsessionFields[0].Descriptor()
+	// authsession.DefaultID holds the default value on creation for the id field.
+	authsession.DefaultID = authsessionDescID.Default.(func() string)
 	commandFields := schema.Command{}.Fields()
 	_ = commandFields
 	// commandDescID is the schema descriptor for id field.
@@ -121,6 +143,20 @@ func init() {
 	sessionDescID := sessionFields[0].Descriptor()
 	// session.DefaultID holds the default value on creation for the id field.
 	session.DefaultID = sessionDescID.Default.(func() string)
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescDisplayName is the schema descriptor for display_name field.
+	userDescDisplayName := userFields[3].Descriptor()
+	// user.DefaultDisplayName holds the default value on creation for the display_name field.
+	user.DefaultDisplayName = userDescDisplayName.Default.(string)
+	// userDescRole is the schema descriptor for role field.
+	userDescRole := userFields[4].Descriptor()
+	// user.DefaultRole holds the default value on creation for the role field.
+	user.DefaultRole = userDescRole.Default.(string)
+	// userDescID is the schema descriptor for id field.
+	userDescID := userFields[0].Descriptor()
+	// user.DefaultID holds the default value on creation for the id field.
+	user.DefaultID = userDescID.Default.(func() string)
 	waitFields := schema.Wait{}.Fields()
 	_ = waitFields
 	// waitDescGeneration is the schema descriptor for generation field.

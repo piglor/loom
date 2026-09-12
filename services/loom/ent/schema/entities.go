@@ -426,3 +426,85 @@ func (IntegrationSetupSession) Fields() []ent.Field {
 func (IntegrationSetupSession) Annotations() []schema.Annotation {
 	return []schema.Annotation{entsql.Annotation{Table: "integration_setup_sessions"}}
 }
+
+type User struct{ ent.Schema }
+
+func (User) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("email"),
+		field.String("display_name").Default(""),
+		field.String("role").Default("member"),
+		field.String("password_hash").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+		field.Time("updated_at").Optional(),
+		field.Time("disabled_at").Optional().Nillable(),
+	}
+}
+
+func (User) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "email").Unique()}
+}
+
+func (User) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "users"}}
+}
+
+type AuthIdentity struct{ ent.Schema }
+
+func (AuthIdentity) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("user_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("provider"),
+		field.String("subject"),
+		field.String("email").Optional().Nillable(),
+		field.Time("created_at").Optional(),
+	}
+}
+
+func (AuthIdentity) Indexes() []ent.Index {
+	return []ent.Index{index.Fields("organization", "provider", "subject").Unique()}
+}
+
+func (AuthIdentity) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "auth_identities"}}
+}
+
+type AuthSession struct{ ent.Schema }
+
+func (AuthSession) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("user_id").SchemaType(map[string]string{dialect.Postgres: "uuid"}),
+		field.String("token_hash").Unique(),
+		field.String("csrf_hash"),
+		field.Time("created_at").Optional(),
+		field.Time("last_seen_at").Optional(),
+		field.Time("expires_at"),
+		field.Time("revoked_at").Optional().Nillable(),
+	}
+}
+
+func (AuthSession) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "auth_sessions"}}
+}
+
+type AuthOAuthState struct{ ent.Schema }
+
+func (AuthOAuthState) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("id").SchemaType(map[string]string{dialect.Postgres: "uuid"}).DefaultFunc(uuid.NewString),
+		field.String("organization"),
+		field.String("state_hash").Unique(),
+		field.Time("expires_at"),
+		field.Time("consumed_at").Optional().Nillable(),
+	}
+}
+
+func (AuthOAuthState) Annotations() []schema.Annotation {
+	return []schema.Annotation{entsql.Annotation{Table: "auth_oauth_states"}}
+}

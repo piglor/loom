@@ -38,9 +38,11 @@ function loadPlugin(
 export function PluginSetup({
   client,
   onUnauthorized,
+  canAdmin,
 }: {
   client: Client;
   onUnauthorized: () => void;
+  canAdmin: boolean;
 }) {
   const { id = "" } = useParams();
   const [plugin, setPlugin] = useState<Plugin>();
@@ -201,6 +203,16 @@ export function PluginSetup({
         </div>
       </header>
 
+      {!canAdmin && (
+        <section className="panel empty">
+          <strong>Administrator access required to manage connections</strong>
+          <p>
+            You can view connection status, but only an administrator can add or
+            disable credentials.
+          </p>
+        </section>
+      )}
+
       {active.length > 0 && (
         <section className="connection-section" aria-labelledby="connections">
           <div className="section-heading generous">
@@ -237,13 +249,15 @@ export function PluginSetup({
                       : ""}
                   </p>
                 </div>
-                <button
-                  className="secondary danger-button"
-                  disabled={busy}
-                  onClick={() => disable(connection)}
-                >
-                  Disable
-                </button>
+                {canAdmin && (
+                  <button
+                    className="secondary danger-button"
+                    disabled={busy}
+                    onClick={() => disable(connection)}
+                  >
+                    Disable
+                  </button>
+                )}
               </article>
             ))}
           </div>
@@ -251,206 +265,209 @@ export function PluginSetup({
       )}
 
       <div className="plugin-detail-grid">
-        <section className="panel setup-panel">
-          <div className="section-heading">
-            <h2>
-              {active.length ? "Add another connection" : "Connect GitHub"}
-            </h2>
-            <span className="time-pill">{plugin.estimated_time}</span>
-          </div>
-          {!storageReady ? (
-            <div className="configuration-block">
-              <div className="configuration-title">
-                <span className="configuration-icon">!</span>
-                <h3>
-                  {storagePreparing
-                    ? "Secure storage is starting"
-                    : "OpenBao needs attention first"}
-                </h3>
-              </div>
-              {storagePreparing ? (
-                <>
-                  <p>
-                    OpenBao is bundled with this Loom deployment. Loom is
-                    preparing its private secret store and GitHub AppRole
-                    automatically.
-                  </p>
-                  <ol className="configuration-steps">
-                    <li>
-                      Keep this page open while the first deployment finishes.
-                    </li>
-                    <li>
-                      Click <strong>Check again</strong> after about a minute.
-                    </li>
-                    <li>
-                      If it still needs attention, open the setup guide for
-                      advanced/external OpenBao deployments.
-                    </li>
-                  </ol>
-                </>
-              ) : (
-                <>
-                  <p>
-                    Loom cannot accept plugin credentials until its secret store
-                    is ready. Existing Goals are unaffected.
-                  </p>
-                  {plugin.checks
-                    .filter((check) => check.status !== "ready")
-                    .map((check) => (
-                      <code key={check.id}>{check.detail}</code>
-                    ))}
-                </>
-              )}
-              <div className="configuration-actions">
-                <button
-                  className="secondary"
-                  disabled={loading}
-                  onClick={() => setRevision((value) => value + 1)}
-                >
-                  {loading ? "Checking…" : "Check again"}
-                </button>
-                <a
-                  className="text-link"
-                  href="https://github.com/piglor/loom/blob/main/deploy/openbao/README.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open setup guide ↗
-                </a>
-              </div>
+        {canAdmin && (
+          <section className="panel setup-panel">
+            <div className="section-heading">
+              <h2>
+                {active.length ? "Add another connection" : "Connect GitHub"}
+              </h2>
+              <span className="time-pill">{plugin.estimated_time}</span>
             </div>
-          ) : (
-            <>
-              <div className="guided-form">
-                <p className="eyebrow">RECOMMENDED</p>
-                <h3>Create and connect a GitHub App</h3>
-                <p>
-                  Loom fills in the webhook and read-only permissions. GitHub
-                  returns generated credentials directly to your Loom server.
-                </p>
-                <fieldset>
-                  <legend>Where should the app live?</legend>
-                  <label className="choice-row">
-                    <input
-                      type="radio"
-                      checked={accountType === "organization"}
-                      onChange={() => setAccountType("organization")}
-                    />
-                    GitHub organization
-                  </label>
-                  <label className="choice-row">
-                    <input
-                      type="radio"
-                      checked={accountType === "personal"}
-                      onChange={() => setAccountType("personal")}
-                    />
-                    Personal account
-                  </label>
-                </fieldset>
-                {accountType === "organization" && (
-                  <label>
-                    Organization name
-                    <input
-                      value={account}
-                      onChange={(event) => setAccount(event.target.value)}
-                      placeholder="your-company"
-                      autoComplete="off"
-                    />
-                  </label>
+            {!storageReady ? (
+              <div className="configuration-block">
+                <div className="configuration-title">
+                  <span className="configuration-icon">!</span>
+                  <h3>
+                    {storagePreparing
+                      ? "Secure storage is starting"
+                      : "OpenBao needs attention first"}
+                  </h3>
+                </div>
+                {storagePreparing ? (
+                  <>
+                    <p>
+                      OpenBao is bundled with this Loom deployment. Loom is
+                      preparing its private secret store and GitHub AppRole
+                      automatically.
+                    </p>
+                    <ol className="configuration-steps">
+                      <li>
+                        Keep this page open while the first deployment finishes.
+                      </li>
+                      <li>
+                        Click <strong>Check again</strong> after about a minute.
+                      </li>
+                      <li>
+                        If it still needs attention, open the setup guide for
+                        advanced/external OpenBao deployments.
+                      </li>
+                    </ol>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Loom cannot accept plugin credentials until its secret
+                      store is ready. Existing Goals are unaffected.
+                    </p>
+                    {plugin.checks
+                      .filter((check) => check.status !== "ready")
+                      .map((check) => (
+                        <code key={check.id}>{check.detail}</code>
+                      ))}
+                  </>
                 )}
-                <button
-                  className="plugin-action"
-                  disabled={
-                    busy || (accountType === "organization" && !account.trim())
-                  }
-                  onClick={connectGuided}
-                >
-                  {busy ? "Waiting for GitHub…" : "Connect with GitHub →"}
-                </button>
-                <small>
-                  Credentials are never stored in this browser or PostgreSQL.
-                </small>
+                <div className="configuration-actions">
+                  <button
+                    className="secondary"
+                    disabled={loading}
+                    onClick={() => setRevision((value) => value + 1)}
+                  >
+                    {loading ? "Checking…" : "Check again"}
+                  </button>
+                  <a
+                    className="text-link"
+                    href="https://github.com/piglor/loom/blob/main/deploy/openbao/README.md"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open setup guide ↗
+                  </a>
+                </div>
               </div>
-              <button
-                className="secondary advanced-toggle"
-                aria-expanded={advanced}
-                onClick={() => setAdvanced((value) => !value)}
-              >
-                {advanced
-                  ? "Hide advanced setup"
-                  : "Use an existing GitHub App"}
-              </button>
-              {advanced && (
-                <form className="manual-credentials" onSubmit={connectManual}>
-                  <h3>Existing GitHub App</h3>
+            ) : (
+              <>
+                <div className="guided-form">
+                  <p className="eyebrow">RECOMMENDED</p>
+                  <h3>Create and connect a GitHub App</h3>
                   <p>
-                    All secret fields are write-only and cannot be revealed
-                    later.
+                    Loom fills in the webhook and read-only permissions. GitHub
+                    returns generated credentials directly to your Loom server.
                   </p>
-                  <label>
-                    Connection label
-                    <input name="label" defaultValue="GitHub App" required />
-                  </label>
-                  <div className="field-pair">
-                    <label>
-                      App ID
-                      <input name="app_id" inputMode="numeric" required />
-                    </label>
-                    <label>
-                      Installation ID
+                  <fieldset>
+                    <legend>Where should the app live?</legend>
+                    <label className="choice-row">
                       <input
-                        name="installation_id"
-                        inputMode="numeric"
+                        type="radio"
+                        checked={accountType === "organization"}
+                        onChange={() => setAccountType("organization")}
+                      />
+                      GitHub organization
+                    </label>
+                    <label className="choice-row">
+                      <input
+                        type="radio"
+                        checked={accountType === "personal"}
+                        onChange={() => setAccountType("personal")}
+                      />
+                      Personal account
+                    </label>
+                  </fieldset>
+                  {accountType === "organization" && (
+                    <label>
+                      Organization name
+                      <input
+                        value={account}
+                        onChange={(event) => setAccount(event.target.value)}
+                        placeholder="your-company"
+                        autoComplete="off"
+                      />
+                    </label>
+                  )}
+                  <button
+                    className="plugin-action"
+                    disabled={
+                      busy ||
+                      (accountType === "organization" && !account.trim())
+                    }
+                    onClick={connectGuided}
+                  >
+                    {busy ? "Waiting for GitHub…" : "Connect with GitHub →"}
+                  </button>
+                  <small>
+                    Credentials are never stored in this browser or PostgreSQL.
+                  </small>
+                </div>
+                <button
+                  className="secondary advanced-toggle"
+                  aria-expanded={advanced}
+                  onClick={() => setAdvanced((value) => !value)}
+                >
+                  {advanced
+                    ? "Hide advanced setup"
+                    : "Use an existing GitHub App"}
+                </button>
+                {advanced && (
+                  <form className="manual-credentials" onSubmit={connectManual}>
+                    <h3>Existing GitHub App</h3>
+                    <p>
+                      All secret fields are write-only and cannot be revealed
+                      later.
+                    </p>
+                    <label>
+                      Connection label
+                      <input name="label" defaultValue="GitHub App" required />
+                    </label>
+                    <div className="field-pair">
+                      <label>
+                        App ID
+                        <input name="app_id" inputMode="numeric" required />
+                      </label>
+                      <label>
+                        Installation ID
+                        <input
+                          name="installation_id"
+                          inputMode="numeric"
+                          required
+                        />
+                      </label>
+                    </div>
+                    <div className="field-pair">
+                      <label>
+                        Client ID
+                        <input name="client_id" autoComplete="off" required />
+                      </label>
+                      <label>
+                        App slug
+                        <input name="app_slug" autoComplete="off" required />
+                      </label>
+                    </div>
+                    <label>
+                      Client secret
+                      <input
+                        name="client_secret"
+                        type="password"
+                        autoComplete="new-password"
                         required
                       />
                     </label>
-                  </div>
-                  <div className="field-pair">
                     <label>
-                      Client ID
-                      <input name="client_id" autoComplete="off" required />
+                      Webhook secret
+                      <input
+                        name="webhook_secret"
+                        type="password"
+                        minLength={32}
+                        autoComplete="new-password"
+                        required
+                      />
                     </label>
                     <label>
-                      App slug
-                      <input name="app_slug" autoComplete="off" required />
+                      Private key (PEM)
+                      <textarea name="private_key" rows={8} required />
                     </label>
-                  </div>
-                  <label>
-                    Client secret
-                    <input
-                      name="client_secret"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Webhook secret
-                    <input
-                      name="webhook_secret"
-                      type="password"
-                      minLength={32}
-                      autoComplete="new-password"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Private key (PEM)
-                    <textarea name="private_key" rows={8} required />
-                  </label>
-                  <button disabled={busy}>
-                    {busy ? "Verifying…" : "Verify and save connection"}
-                  </button>
-                </form>
-              )}
-            </>
-          )}
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-        </section>
+                    <button disabled={busy}>
+                      {busy ? "Verifying…" : "Verify and save connection"}
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+          </section>
+        )}
 
         <aside className="panel readiness-panel">
           <p className="eyebrow">READINESS</p>
