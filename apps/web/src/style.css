@@ -1080,6 +1080,9 @@ summary {
 .login-card button {
   width: 100%;
 }
+.login-card form > button[type="submit"] {
+  margin-top: 12px;
+}
 .login-card .social-login {
   display: flex;
   align-items: center;
